@@ -1,0 +1,116 @@
+{
+  "name": "Fix42example",
+  "description": "Json part example for test of duckfix infrastructure",
+  "info" : "\nWe assume we receive log files which are in a csv or other separated format\nSome of the elements will be JSON elements of a FIX message that need to be \nparsed into a table.  These could be different messages with different fields activated. \n As we see in the example, only the json elements are actually JSON FIX.  \nWe need to parse these into table columns but there are other columns to worry aobut.",
+  "example_line": 
+  "1343,10:43:32.303,DEALER_1,SENDER_1,{\"5\":\"432\",\"8\":\"a\"},{\"43\":\"432\"},2025-10-10 10:44:32.4323,32",
+  "schema":{
+    "rownum":{ "desc":"log's line as an integer","typ":"i32", "priority": 0},
+    "time1": { "desc":"some timestamp","typ":"tms", "fmt":"%H:%M:%S.%f", "priority": 1},
+    "dealer": { "desc":"a dealer name", "typ":"str", "priority":1},
+    "sender": { "desc":"a sender name", "typ":"str", "priority":2},
+    "fixjson1": {"desc":"json Fix 1","typ":"fix42", "priority": 10},
+    "fixjson2":{"desc":"json Fix fields 2","typ":"fix42", "priority":9},
+    "datetime2":{"desc":"a datetimestamp","typ":"tms","fmt":"%Y-%m-%d %H:%M:%S.%f", "priority":100},
+    "lastint":{"desc":"a last integer", "typ":"i32", "priority":101}
+  },
+  "fix_type":"4.20",
+  "fix_fields":{
+    "5":{"fixtitle":"AdvTransType", "keep":0,"priority":2,
+         "nm":"advertisement_trantype", "typ":"str", "desc":"Identifies Advertisement <7> message transaction type",
+         "encode": {
+          "N":"New","C":"Cancel","R":"Replace"
+        }
+    }, 
+    "8":{"nm":"begstring","keep":1,"priority":10,
+        "fixtitle":"BeginString","typ":"str",
+        "desc":"Identifies beginning of new message, always first field never encrypted"
+       },
+    "9":{"nm":"bodylength","keep":0,"priority":-1,
+         "fixtitle":"BodyLength","typ":"i32",
+         "desc":"Length of th message"
+        },
+    "10":{"nm":"checksum","keep":0,"priority":-1,
+          "fixtitle":"CheckSum","typ":"str",
+          "desc":"Fix message chcksum"
+         },
+    "12":{"nm":"commission","keep":1,"priority":40,
+           "fixtitle":"Commission","typ":"Decimal", "scale":"3", "width":"15",
+           "desc":"A commission charged" },
+    "31":{"nm":"execprice","keep":1,"priority":4,
+          "fixtitle":"LastPx", "typ":"Decimal(15,4)",
+          "desc":"Price of this (last) fill."
+         },
+    "32":{"nm":"execqty","keep":1,"priority":5,
+          "fixtitle":"LastShares", "typ":"Decimal(15,3)",
+          "desc":"Quantity of shares bought/sold on this (last) fill.  Field not required for ExecTrasnType<20>"
+         },
+    "35":{"nm":"fmtype","keep":1,"priority":2,
+          "fixtitle":"MsgType","typ":"str",
+          "desc":"Fix Message type",
+          "encode": {
+       "0":"heartbeat","1":"testrequest","2":"resendrequest",
+       "3":"reject","4":"seqreset","5":"logout","6":"ioi",
+       "7":"advert","8":"exreport","9":"ordcancelreq",
+       "A":"logon","B":"news","C":"email","D":"ordsingle",
+       "E":"ordlist","F":"ordcancelreq","G":"ordcancelreplacereq",
+       "H":"ordstatreq","J":"allocation","K":"listcancelreq",
+       "L":"listexecute","M":"liststatusreq","N":"liststatus",
+       "P":"allocack","Q":"dontknowtrade","R":"quotereq","S":"quote",
+       "T":"settlementinstr","V":"mkdatareq","W":"mkdatasnap","X":"mkdataincr",
+       "Y":"mktdatarej","Z":"quotecancel","a":"quotestatusreq","b":"quoteack",
+       "c":"secdefreq","d":"secdef","e":"secstatreq","f":"secstat",
+       "g":"tradstatreq","h":"tradsesstat","i":"massquote","j":"busmesrej",
+       "k":"bidreq","l":"bidresponse","m":"liststrikeprice"}
+         },
+    "38":{"nm":"ordqty","keep":1,"priority":20,
+           "fixtitle":"OrderQty","typ":"Decimal(15,4)",
+           "desc":"Quantity Initially ordered"
+         },
+    "40":{"nm":"ordtype","keep":1,"priority":11,
+          "fixtitle":"OrdType", "typ":"str",
+          "desc":"Used In",
+          "encode": {
+           "1":"Market", "2":"Limit","3":"Stop","4":"StopLimit","5":"MOC",
+           "6":"WithorWithout","7":"LimitOrBetter","8":"LimitWoWithout",
+           "9":"OnBasis","A":"OnClose","B":"LOC","C":"ForexMkt","D":"PrevQuoted",
+           "E":"PrevIndicated","F":"ForexLmt","G":"ForexSwp","H":"ForexPrevQuoted",
+           "I":"Funari","P":"Pegged"
+          }
+    },
+    "43":{"nm":"posdup","keep":0,"priority":-1,
+           "fixtitle":"PosDupFlag", "typ":"str",
+           "desc":"Indicates possible retransmission of message with this sequence number",
+           "encode":{"Y":"Y","N":"N"}},
+    "52":{"nm":"sendtime", "keep":1,"priority":10,"fixtitle":"SendingTime<52>",
+            "desc":"Time of message transmission, always expresed in UTC", 
+            "typ":"tns","fmt":"%Y-%m-%d %H:%M:%S.%f"},
+    "104":{"nm":"ioiqual", "keep":0,"priority":-400,"fixtitle":"IOIQualifier",
+           "desc":"Code to qualify IOI use.:","typ":"str",
+            "encode":{"A":"AllOrNone", "C":"AtClose","I":"InTouch","L":"Limit",
+                      "M":"MoreBehind","O":"AtOpen","P":"TakingPosition", "Q":"AtMarket",
+                      "R":"ReadyToTrade","S":"PortfolioShown","T":"ThroughDay","V":"Versus",
+                      "W":"WorkingAway","X":"CrossOpportunity"}
+    },
+    "111":{"nm":"maxfloor","keep":0,"priority":-2,
+           "fixtitle":"MaxFloor","typ":"i32",
+           "desc":"Maximum Number of Shares within an order to be shown on the exchange floor at any given time."
+         },
+    "150":{"nm":"exctype","keep":1,"priority":3,
+            "fixtitle":"ExecType","typ":"i32",
+            "desc":"An Excution typ of the message of ExecutionReport",
+            "encode":{
+            "0":"new","1":"partialfill","2":"fill","3":"doneforday","4":"cancel",
+            "5":"replace","6":"pendcancel","7":"stopped","8":"reject",
+            "9":"suspend","A":"pendnew","B":"calculated","C":"Expired",
+            "D":"Restated","E":"pendreplace" }
+           },
+     "151":{"nm":"lvsqty","keep":1,"priority":30,
+            "fixtitle":"LeavesQty","typ":"Decimal(15,4)",
+            "desc":"quantity remaining after a trade"
+           }
+
+  }
+}
+
+
