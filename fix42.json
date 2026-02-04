@@ -1,0 +1,84 @@
+{
+  "name": "Fix42example",
+  "description": "Json part example for test of duckfix infrastructure",
+  "info" : "
+   We assume we receive log files which are in a csv or other separated format
+   Some of the elements will be JSON elements of a FIX message that need to be
+   parsed into a table.  These could be different messages with different fields activated
+
+   As we see in the example, only the json elements are actually JSON FIX.  We need to 
+   parse these into table columns but there are other columns to worry aobut.
+  ",
+  "example_line: 
+  "1343,10:43:32.303,DEALER_1,SENDER_1,{\"5\":\"432\",\"8\":\"a\"},{\"43\":\"432\"},2025-10-10 10:44:32.4323,32"
+  "schema":[
+    "rownum":{"desc":"log's line as an integer","typ":"i32"},
+    "time1":{"desc":"some timestamp","typ":"tms", "fmt":"%H:%M:%S.%f"},
+    "fixjson1":{"desc":"json Fix 1","typ":"fix42"},
+    "fixjson2":{"desc":"json Fix fields 2","typ":"fix42"},
+    "datetime2":{"desc":"a datetimestam":,"typ":"tms","fmt":"%H:%M:%S.%f"}
+  ],
+  "fix42_fields":{
+   "8":{"nm":"begstring","keep":"1","loc":10,
+        "fix42title":"BeginString",typ:"str",
+        "desc":"Identifies beginning of new message, always first field never ecrypted"
+       },
+    "9":{"nm":"bodylngth","keep":0,"loc":-1,
+         "fix42title":"BodyLength","typ":"i32",
+         "desc":"Length of th message"
+        },
+    "10":{"nm":"checksum","keep":0,"loc":-1,
+          "fix42title":"CheckSum","typ":"str",
+          "desc":"Fix message chcksum"
+         },
+    "12":{"nm":"commission","keep":1,"loc":40,
+           "fix42title":"Commission","typ":"Decimal(15,3)",
+           "desc":"A commission charged" },
+    "31":{"nm":"execprice","keep":1,"loc":4,
+          "fix42title":"LastPx", "typ":"Decimal(15,5)",
+          "desc":"Price of this (last) fill."
+         },
+    "32":{"nm":"execqty","keep":1,"loc":5,
+          "fix42title":"LastShares", "typ":"Decimal(15,3)",
+          desc:"Quantity of shares bought/sold on this (last) fill.  Field not required for ExecTrasnType<20>"
+         },
+    "35":{"nm":"fmtype",:"keep":1,"loc":2,
+          "fix42titl":"MsgType","typ":"str",
+          "desc":"Fix Message type",
+          "encode": {
+       "0":"heartbeat","1":"testrequest","2":"resendrequest",
+       "3":"reject","4":"seqreset","5":"logout","6":"ioi",
+       "7":"advert","8":"exreport","9":"ordcancelreq",
+       "A":"logon","B":"news","C":"email","D":"ordsingle",
+       "E":"ordlist","F":"ordcancelreq","G":"ordcancelreplacereq",
+       "H":"ordstatreq","J":"allocation","K":"listcancelreq",
+       "L":"listexecute","M":"liststatusreq","N":"liststatus",
+       "P":"allocack","Q":"dontknowtrade","R":"quotereq","S":"quote",
+       "T":"settlementinstr","V":"mkdatareq","W":"mkdatasnap","X":"mkdataincr",
+       "Y":"mktdatarej","Z":"quotecancel","a":"quotestatusreq","b":"quoteack",
+       "c":"secdefreq","d":"secdef","e":"secstatreq","f":"secstat",
+       "g":"tradstatreq","h":"tradsesstat","i":"massquote","j":"busmesrej",
+       "k":"bidreq","l":"bidresponse","m":"liststrikeprice"
+      },
+    "38":{"nm":"ordqty","keep":1,"loc":20,
+           "fix42title":"OrderQty","typ":"Decimal(15,4)",
+           "desc":"Quantity Initially orderd"
+         },
+    "150":{"nm":"exctype","keep":1,"loc":3,
+            "fix42title":"ExecType","typ":"i32",
+            "desc":"An Excution typ of th message of ExecutionRpt",
+            "encode":{
+            "0":"new","1":"partialfill","2":"fill","3":"doneforday","4":"cancel",
+            "5":"replace","6":"pendcancel","7":"stopped","8":"reject",
+            "9":"suspend","A":"pendnew","B":"calculated","C":"Expired",
+            "D":"Restated","E":"pendreplace" }
+           },
+     "151":{"nm":"lvsqty","keep":1,"loc":30,
+            "fix42title":"LeavesQty","typ":"Decimal(15,4)",
+            "desc":"quantity remaining after a trade"
+           }
+
+  }
+  
+
+}

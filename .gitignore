@@ -1,0 +1,11 @@
+cmake_build
+build
+configure
+.idea
+duckdb_unittest_tempdir
+/test/bin
+example/ex_rand.csv
+example/ex_random.csv
+/example/ex_rand.csv
+/example/ex_random.csv
+venv
