@@ -1,6 +1,10 @@
 /////////////////////////////////////////////
 //  df_main.c
 //
+//  Alan Lenarcic (lenarcic@post.harvard.edu)
+//  2026-02-04
+//  GPLv2 License (Please consider writing your own code since this is really demonstration code)
+//
 //  "Main" Table function (actual processing of chunks) 
 //
 //  An Init function is called right before duckdb starts running a "main" table function

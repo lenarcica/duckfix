@@ -1,7 +1,9 @@
 ////////////////////////////////////////////////////////////////////////////
 /// Duckdb Table Bind functions
 ///
-///  -- Alan Lenarcic 2026
+///  -- Alan Lenarcic 2026-02-04
+///  lenarcic@post.harvard.edu
+///  GPLv2 Licensed.  (consider rolling your own code)
 ///
 ///  Note that DuckDB Bind functions are global and "first" thing called by
 ///   a table function.

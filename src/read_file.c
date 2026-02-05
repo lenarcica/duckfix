@@ -1,3 +1,12 @@
+//////////////////////////////////////////////////////////////////////////////////
+// read_file.c
+// 2026-02-04 - Alan Lenarcic
+// License GPLv2
+//
+//
+// Initial read of the CSV file forms a strategy for turning the data into a DuckDB table.
+// Note that column order must be chosen, and all of the fix fields used must be identified.
+
 #ifndef DUCKFIXLOADH
 #include "include/df_load.h"
 #define DUCKFIXLOADH 0
