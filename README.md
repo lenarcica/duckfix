@@ -22,9 +22,11 @@ The goal is to read a CSV of fix logs quickly into DuckDB using a DuckDB compile
   Currently "make debug" can be run from the home directory, assuming duckdb is installed to windows environment, or alternatively, active in an anaconda environment.
 
   The compiler will require "duckdb.h", "duckdb_extension.h" be copied into an assistant directory.  A clone of "extension-ci-tools" from github will
-  have information for make files.
+  have information for make files.   That said, ```ninja``` and other utilities, at least in Windows package processing, are unnecessary, as this is a simple package
+  with only C files included.
 
-  We rely on a makefile in this package, as well as CMakeLists.txt, which should name all critical "src/*.c" files used in the package.
+  We rely on a makefile included in this package, as well as CMakeLists.txt, which should name all critical "src/*.c" files used in the package.  After testing,
+  the other ```make test_debug``` and ```make release``` will be implemented.
 
 # II. To run in Duckdb
  
