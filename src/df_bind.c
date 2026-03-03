@@ -197,8 +197,11 @@ void duckfix_bind(duckdb_bind_info b_info) {
   vpt(1, "After configure_column_order().  We have received a success configuration with %ld total print_columns from file \"%s\".\n",
     (long int) dfc->n_total_print_columns, file_name);
   if (verbose >= 2) {
+    printf("----------------------------------------------------------------------------------------------\n");
     printf("FPLFPLFPLFPLFPLFPLFPLFPL ---------------------------------------------------------------------\n");
     vpt(1, " Executing final_print_loc on dfc, dfl\n");
+    vpt(1, " note we have total print columns =%ld with total multiplcity=%ld. \n",
+      (long int) dfc->n_total_print_columns, (long int) dfc->n_total_multiplicity_columns);
     PRINT_final_print_loc(dfc, dfl);
     printf("FPLFPLFPLFPLFPLFPLFPLFPL ---------------------------------------------------------------------\n");
   }
@@ -214,7 +217,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
   //x_info->file_name = malloc(sizeof(char) * fn_len);
   //if (x_info->file_name == NULL) { printf("ERROR trying to allocate x_info->filename of length %ld. \n", (long int) fn_len); }
   //if (x_info->file_name != NULL) { memcpy(x_info->file_name, df_bd->file_name, fn_len); }
-  duckdb_bind_set_cardinality(b_info, (idx_t) dfc->n_total_print_columns, 1);
+  duckdb_bind_set_cardinality(b_info, (idx_t) dfc->n_total_multiplicity_columns, 1);
 
   vpt(1, " Now we need to set the columns. \n");
   int on_s = loc_lowest_priority_schema_gt(dfc, -1, verbose); 
@@ -223,45 +226,58 @@ void duckfix_bind(duckdb_bind_info b_info) {
   int p_on_s =  (int)  (((on_s >= 0) && (on_s < dfc->n_schemas)) ? dfc->schemas[on_s].priority : -1);
   int p_on_f =  (int) (((on_f >= 0) && (on_f < dfc->nfields)) ? dfc->fxs[on_f].priority : -1);
   duckdb_logical_type on_type;
-  int on_loop = 0;
+  int on_loop = 0;  int on_cols = 0;
   DF_DataType ontyp; int width = -1; int scale = -1;
-  char *ptitle;
+  char *ptitle; char ptitle_mult[50];
+  int on_multiplicity = 1;  int i_multiplicity = 0;
   while ((on_s >= 0) || (on_f >= 0)) {
     vpt(2, " on loop=%ld, with on_s=%ld (p_s=%ld), on_f=%ld (p_s=%ld) \n", 
        (long int) on_loop, (long int) on_s, (long int) p_on_s, (long int) on_f, (long int) p_on_f);
     if ((on_f < 0) || ((on_s >= 0) && (p_on_s <= p_on_f))) {
-      vpt(2, "  --- We see we will move schema on_s=%ld for name = %s, type=%s. col=%ld versus goal loc=%ld, aka type = \"%s\"\n",
+      vpt(2, "  --- We see we will move schema on_s=%ld for name = %s, type=%s. col=%ld versus goal o_loc=%ld, aka type = \"%s\"\n",
           (long int) on_s, dfc->schemas[on_s].nm, What_DF_DataType(dfc->schemas[on_s].typ),
-          (long int) on_loop, (long int) dfc->schemas[on_s].final_loc,
+          (long int) on_loop, (long int) dfc->schemas[on_s].final_o_loc,
           WHAT_DDB_TYPE_STR( (WHAT_DDB_TYPE(dfc->schemas[on_s].typ))) );
       ontyp = dfc->schemas[on_s].typ; width = dfc->schemas[on_s].width;  scale = dfc->schemas[on_s].scale;
-      ptitle = dfc->schemas[on_s].nm;
+      ptitle = dfc->schemas[on_s].nm; on_multiplicity = 1;
       on_s = next_priority_schema(dfc, on_s, verbose-1);
       p_on_s =  ((on_s >= 0) && (on_s < dfc->n_schemas)) ? dfc->schemas[on_s].priority : -1;
     } else {
-      vpt(2, "  --- We see we will move field on_f=%ld for code =%ld, name = %s, type=%s.  col=%ld versus goal of %ld, aka type=\"%s\"\n",
+      vpt(2, "  --- We see we will move field on_f=%ld for code =%ld, name = %s, type=%s.  col=%ld versus goal of %ld, aka type=\"%s\", multiplcity=%ld/%ld\n",
           (long int) on_f, (long int) dfc->fxs[on_f].field_code, 
           dfc->fxs[on_f].fixtitle, What_DF_DataType(dfc->fxs[on_f].typ),
           (long int) on_loop,  dfl->final_known_print_loc[on_f],
-          WHAT_DDB_TYPE_STR( (WHAT_DDB_TYPE(dfc->fxs[on_f].typ)) )
+          WHAT_DDB_TYPE_STR( (WHAT_DDB_TYPE(dfc->fxs[on_f].typ)) ),
+          (long int) dfl->known_multiplicity[on_f], (long int) dfc->fxs[on_f].maxmultiplicity
       );
       ontyp = dfc->fxs[on_f].typ; width = dfc->fxs[on_f].width;  scale = dfc->fxs[on_f].scale;
       ptitle = dfc->fxs[on_f].fixtitle;
+      on_multiplicity = dfl->known_multiplicity[on_f] < dfc->fxs[on_f].maxmultiplicity ? dfl->known_multiplicity[on_f] :
+                        dfc->fxs[on_f].maxmultiplicity;
       on_f = next_priority_fixfield(dfc, dfl, on_f, verbose-1);
       p_on_f =  ((on_f >= 0) && (on_f < dfc->nfields)) ? dfc->fxs[on_f].priority : -1;
     }
-    if ((ontyp == decimal185) || (ontyp==decimal184) || (ontyp==decimal153) || (ontyp==decimal154) ||
+    for (i_multiplicity = 0; i_multiplicity < on_multiplicity; i_multiplicity++) {
+      if ((ontyp == decimal185) || (ontyp==decimal184) || (ontyp==decimal153) || (ontyp==decimal154) ||
         (ontyp) == decimal_gen) {
         on_type = duckdb_create_decimal_type(width, scale);
-    } else {
-      on_type = duckdb_create_logical_type(WHAT_DDB_TYPE(ontyp));
+      } else {
+        on_type = duckdb_create_logical_type(WHAT_DDB_TYPE(ontyp));
+      }
+      if (on_multiplicity > 1) {
+        // Limiting column name length less than 40 characters seems reasonable.
+        sprintf(ptitle_mult, "%.*s_%2d\0", strlen(ptitle) < 40 ? strlen(ptitle) : 40, ptitle, i_multiplicity);
+        duckdb_bind_add_result_column(b_info, ptitle_mult, on_type);
+      } else {
+        duckdb_bind_add_result_column(b_info, ptitle, on_type);
+      }
+      duckdb_destroy_logical_type(&on_type);
+      on_cols++;
     }
-    duckdb_bind_add_result_column(b_info, ptitle, on_type);
-    duckdb_destroy_logical_type(&on_type);
     on_loop++;
   }  
-  vpt(1, " after %ld loops we have concluded adding columns (%ld) \n",
-    (long int) on_loop, dfc->n_total_print_columns);
+  vpt(1, " after %ld loops we have concluded adding columns (%ld) with on_cols=%ld for %ld multiplcity\n",
+    (long int) on_loop, dfc->n_total_print_columns, (long int) on_cols, (long int) dfc->n_total_multiplicity_columns);
   vpt(1, " -- setting b_info and df_bd to bind data. \n");
   duckdb_bind_set_bind_data(b_info, df_bd, destroy_df_bind_data);
   vpt(1, " -- Now we are freeing (file_name); \n");

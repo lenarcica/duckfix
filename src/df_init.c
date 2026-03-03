@@ -95,7 +95,8 @@ void duckfix_init(duckdb_init_info i_info) {
     sprintf(stt, "df_init.c->duckfix_init(v=%ld): ", (long int) verbose);
   }
   if (verbose >= 2) {
-    printf("IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n");
+    printf("\n\n");
+    printf("IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n");
     sprintf(stt, "III df_init.c->duckfix_init(v=%ld): ", (long int) verbose);
     vpt(2, " -- Init, initializing. \n");
   }

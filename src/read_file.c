@@ -44,7 +44,7 @@ DF_field_list *create_blank_field_list(DF_config_file *dfc, int verbose) {
   dfl->ordered_unknown_fields = NULL;
   dfl->unknown_usage_count=NULL;
   dfl->line_unknown = NULL;
-  dfl->final_known_print_loc = NULL;
+  dfl->final_known_print_loc = NULL; dfl->final_known_multiplicity_loc = NULL;
   dfl->line_locs = NULL;  dfl->n_loc_lines = 0;  dfl->alloc_line_loc = 0;
   dfl->finish = 0; // Send to 1 if success
   ALLOC_INT_ME_SIZE( (dfl->ordered_known_fields) , nfields, "ordered_known_fields");
@@ -53,6 +53,7 @@ DF_field_list *create_blank_field_list(DF_config_file *dfc, int verbose) {
   ALLOC_INT_ME_SIZE( (dfl->ordered_unknown_fields) , nfields, "ordered_unknown_fields");
 
   ALLOC_INT_ME_SIZE( (dfl->final_known_print_loc) , nfields, "final_known_print_loc");
+  ALLOC_INT_ME_SIZE( (dfl->final_known_multiplicity_loc) , nfields, "final_known_multiplicity_loc");
 
   ALLOC_INT_ME_SIZE( (dfl->line_unknown) , nfields, "ordered_unknown_fields");
   ALLOC_INT_ME_SIZE( (dfl->unknown_usage_count) , nfields, "ordered_unknown_fields");
@@ -63,7 +64,7 @@ DF_field_list *create_blank_field_list(DF_config_file *dfc, int verbose) {
   dfl->alloc_unknown = nfields;
   for (int ii = 0; ii < nfields; ii++) {
     dfl->ordered_known_fields[ii] = dfc->ordered_fields[ii];
-    dfl->known_usage_count[ii] = 0; dfl->final_known_print_loc[ii] = -1;
+    dfl->known_usage_count[ii] = 0; dfl->final_known_print_loc[ii] = -1; dfl->final_known_multiplicity_loc[ii] = -1;
     dfl->known_multiplicity[ii] = 0;
   }
   for (int ii = 0; ii < nfields; ii++) {
@@ -86,6 +87,7 @@ int delete_field_list(DF_field_list **p_dfl, int verbose) {
     (int) verbose, (long int) dfl->n_known_fields, (long int) dfl->num_unknown, (long int) dfl->alloc_unknown);
    
   DFFREE(dfl->final_known_print_loc, "final_known_print_loc"); 
+  DFFREE(dfl->final_known_multiplicity_loc, "final_known_multiplicity_loc"); 
   DFFREE(dfl->ordered_known_fields, "ordered_known_fields");
   DFFREE(dfl->ordered_unknown_fields, "ordered_unknown_fields");
   DFFREE(dfl->known_usage_count, "known_usage_count");
@@ -740,7 +742,7 @@ int configure_column_order(DF_config_file *dfc, DF_field_list *dfl, int verbose)
        (long int) on_final_loc, (long int) on_s, (long int) p_on_s,
        (long int) on_f, (long int) p_on_f);
     if ((on_f < 0) || ((on_s >= 0) && (p_on_s <= p_on_f))) {
-      dfc->schemas[on_s].final_loc = on_final_loc;  
+      dfc->schemas[on_s].final_o_loc = on_final_loc;  
       n_on_s = next_priority_schema(dfc, on_s, verbose-1);
       if (n_on_s == on_s) { vpt(-10, " ERROR: n_on_s=%ld, on_s=%ld. We didn't jump correct\n", (long int) n_on_s,
          (long int) on_s);  return(-10); }
@@ -765,6 +767,7 @@ int configure_column_order(DF_config_file *dfc, DF_field_list *dfl, int verbose)
     }
   }  
   dfc->n_total_print_columns = on_final_loc;
+  dfc->n_total_multiplicity_columns = 0;
   vpt(1, " ---- All concluded loop, on_final_loc=%ld. \n", (long int) on_final_loc);
   dfc->mark_visited = (int*) malloc(sizeof(int)*2*on_final_loc);
   if (dfc->mark_visited == NULL) {
@@ -788,23 +791,34 @@ int configure_column_order(DF_config_file *dfc, DF_field_list *dfl, int verbose)
       (long int) on_pt, (long int) on_final_loc,
       (long int) on_s, (long int) p_on_s, (long int) on_f, (long int) p_on_f);
     if ((on_f < 0) || ((on_s >= 0) && (p_on_s <= p_on_f))) {
+      dfc->schemas[on_s].final_m_loc = dfc->n_total_multiplicity_columns;
       dfc->mark_visited[dfc->n_total_print_columns + on_pt] = on_s;
-      if (dfc->schemas[on_s].final_loc != on_pt) {
-        vpt(-1, " ERROR on_pt=%d/%d,  (on_s=%ld/%ld p=%ld, on_f=%ld/%ld p=%d but schema[%d].final_loc=%d \n",
+      if (dfc->schemas[on_s].final_o_loc != on_pt) {
+        vpt(-1, " ERROR on_pt=%d/%d,  (on_s=%ld/%ld p=%ld, on_f=%ld/%ld p=%d but schema[%d].final_o_loc=%d, final_m_loc=%ld \n",
           (int) on_pt, (int) on_final_loc, (long int) on_s, (long int) dfc->n_schemas, (int) p_on_s,
           (int) on_f, (int) dfl->n_known_fields,  (int) p_on_f,
-          (int) on_s, dfc->schemas[on_s].final_loc);  error_form++; 
+          (int) on_s, (long int) dfc->schemas[on_s].final_o_loc, 
+          (long int) dfc->schemas[on_s].final_m_loc);  error_form++; 
       } 
+      dfc->n_total_multiplicity_columns++;
       on_s = next_priority_schema(dfc, on_s, verbose-1);
       p_on_s =  ((on_s >= 0) && (on_s < dfc->n_schemas)) ? dfc->schemas[on_s].priority : -999;
     } else {
       dfc->mark_visited[dfc->n_total_print_columns + on_pt] = -on_f;
+      dfl->final_known_multiplicity_loc[on_f] = dfc->n_total_multiplicity_columns; 
       if (dfl->final_known_print_loc[on_f] != on_pt) {
-        vpt(-1, " ERROR on_pt=%d/%d,  (on_s=%ld/%ld p=%ld, on_f=%ld/%ld p=%d but field[%d].final_known_print_loc=%d \n",
+        vpt(-1, " ERROR on_pt=%d/%d,  (on_s=%ld/%ld p=%ld, on_f=%ld/%ld p=%d but field[%d].final_known_print_loc=%d, final_multiplicity_loc=%ld\n",
           (int) on_pt, (int) on_final_loc, (long int) on_s, (long int) dfc->n_schemas, (int) p_on_s,
           (int) on_f, (int) dfl->n_known_fields,  (int) p_on_f,
-          (int) on_f, dfl->final_known_print_loc[on_f]);  error_form++; 
+          (int) on_f, (long int) dfl->final_known_print_loc[on_f],
+          (long int) dfl->final_known_multiplicity_loc[on_f]);  error_form++; 
       } 
+      if (dfl->known_multiplicity[on_f] <= 1) {
+        dfc->n_total_multiplicity_columns++;
+      } else {
+        dfc->n_total_multiplicity_columns += (dfl->known_multiplicity[on_f] < dfc->fxs[on_f].maxmultiplicity) ? 
+          (dfl->known_multiplicity[on_f]) : dfc->fxs[on_f].maxmultiplicity;
+      }
       on_f = next_priority_fixfield(dfc, dfl, on_f, verbose-1);
       p_on_f =  ((on_f >= 0) && (on_f < dfc->nfields)) ? dfc->fxs[on_f].priority : -999;
     }
@@ -816,7 +830,14 @@ int configure_column_order(DF_config_file *dfc, DF_field_list *dfl, int verbose)
       free(dfc->mark_visited); dfc->mark_visited = NULL;
       return(-1);
     }
-  }  
+  } 
+  if (dfc->n_total_print_columns > dfc->n_total_multiplicity_columns) {
+    printf("ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR\n");
+    printf("ERROR cco-%s: We have n_total_print_columns=%ld, but n_total_multiplciity_columns = %ld.  \n",
+     stt, (long int) dfc->n_total_print_columns,  (long int) dfc->n_total_multiplicity_columns);
+    printf("ERROR --- A fail. \n");
+    free(dfc->mark_visited); dfc->mark_visited=NULL; return(-1);
+  } 
   vpt(1, " We have concluded with on_pt=%ld, versus on_final_loc=%ld. \n", (long int) on_pt, (long int) on_final_loc);
   if (error_form > 0) {
     vpt(-1, "Calculating mark_visited failed. \n"); return(-10);
@@ -850,19 +871,20 @@ int PRINT_final_print_loc(DF_config_file *dfc, DF_field_list *dfl) {
   on_pt = 0;
   while ((on_s >= 0) || (on_f >= 0)) {
     if ((on_f < 0) || ((on_s >= 0) && (p_on_s <= p_on_f))) {
-      printf("[%d=%d:on_s=%d=%d,Sch:\"%s\",%s,",
-        on_pt, dfc->schemas[on_s].final_loc, (int) on_s, 
+      printf("[%d=%d (mplcit=%ld):on_s=%d=%d,Sch:\"%s\",%s,",
+        on_pt, (int) dfc->schemas[on_s].final_o_loc, (int) dfc->schemas[on_s].final_m_loc, (int) on_s, 
         (int) dfc->mark_visited[dfc->n_total_print_columns + on_pt],
         dfc->schemas[on_s].nm, What_DF_DataType(dfc->schemas[on_s].typ));
       if ((dfc->schemas[on_s].typ == tms) || (dfc->schemas[on_s].typ == tus) || (dfc->schemas[on_s].typ == tns)) {
         printf("%s,", What_DF_TSType(dfc->schemas[on_s].fmttyp));
       }
-      printf("priority=%d,fl=%d]", dfc->schemas[on_s].priority, (int) dfc->schemas[on_s].final_loc);
+      printf("priority=%d,fl=%d[m=%d]]", dfc->schemas[on_s].priority, 
+        (int) dfc->schemas[on_s].final_o_loc, (int) dfc->schemas[on_s].final_m_loc);
       on_s = next_priority_schema(dfc, on_s, verbose-1);
       p_on_s =  ((on_s >= 0) && (on_s < dfc->n_schemas)) ? dfc->schemas[on_s].priority : -1;
     } else {
-      printf("[%d=%d:on_f=%d=%d,FF=%ld,",
-        on_pt, dfl->final_known_print_loc[on_f], 
+      printf("[%d=%d[m=%ld]:on_f=%d=%d,FF=%ld,",
+        (int) on_pt, (int) dfl->final_known_print_loc[on_f],  (int) dfl->final_known_multiplicity_loc[on_f],
         (int) on_f, (int) dfc->mark_visited[dfc->n_total_print_columns + on_pt],
         (long int) dfl->ordered_known_fields[on_f]);
       printf("\"%s\",", (char*) dfc->fxs[on_f].fixtitle);
