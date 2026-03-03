@@ -151,7 +151,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
   if (verbose >= 2) {
     PRINT_dfc(dfc);
   }
-  DF_field_list *dfl = generate_field_list(file_name, dfc, char_sep, verbose-3, standard_vector_size);
+  DF_field_list *dfl = generate_field_list(file_name, dfc, char_sep, verbose-2, standard_vector_size);
   dfl->standard_vector_size = (int) duckdb_vector_size(); 
   if (dfl == NULL) {
     vpt(0, "ERROR trying to intially pass file for types.  We did not receive field_list for file \"%s\" and json file \"%s\"\n",
@@ -184,7 +184,8 @@ void duckfix_bind(duckdb_bind_info b_info) {
   if (verbose >= 2) {
     PRINT_dfl(dfl);
   }
-  int success_config = configure_column_order(dfc, dfl, verbose-1);
+  vpt(0, " --- Now move on to configure_column_order :::: \n");
+  int success_config = configure_column_order(dfc, dfl, verbose+3);
   if ((success_config < 0) || (dfc->n_total_print_columns <= 0)) {
     vpt(0, "ERROR success config after configure column order is %ld with total_print_columns set at %ld.  File \"%s\" and json file \"%s\"\n",
       (long int) success_config, (long int) dfc->n_total_print_columns, file_name, json_file_name);  

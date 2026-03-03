@@ -39,6 +39,7 @@ DF_field_list *create_blank_field_list(DF_config_file *dfc, int verbose) {
   dfl->num_used_known_fields = 0;
   dfl->ordered_known_fields = NULL;  
   dfl->known_usage_count = NULL;
+  dfl->known_multiplicity=NULL; dfl->unknown_multiplicity=NULL;
   dfl->alloc_unknown = 0;  dfl->num_unknown = 0;
   dfl->ordered_unknown_fields = NULL;
   dfl->unknown_usage_count=NULL;
@@ -48,12 +49,14 @@ DF_field_list *create_blank_field_list(DF_config_file *dfc, int verbose) {
   dfl->finish = 0; // Send to 1 if success
   ALLOC_INT_ME_SIZE( (dfl->ordered_known_fields) , nfields, "ordered_known_fields");
   ALLOC_INT_ME_SIZE( (dfl->known_usage_count) , nfields, "ordered_unknown_fields");
+  ALLOC_INT_ME_SIZE( (dfl->known_multiplicity) , nfields, "ordered_unknown_fields");
   ALLOC_INT_ME_SIZE( (dfl->ordered_unknown_fields) , nfields, "ordered_unknown_fields");
 
   ALLOC_INT_ME_SIZE( (dfl->final_known_print_loc) , nfields, "final_known_print_loc");
 
   ALLOC_INT_ME_SIZE( (dfl->line_unknown) , nfields, "ordered_unknown_fields");
   ALLOC_INT_ME_SIZE( (dfl->unknown_usage_count) , nfields, "ordered_unknown_fields");
+  ALLOC_INT_ME_SIZE( (dfl->unknown_multiplicity) , nfields, "ordered_unknown_fields");
 
   dfl->alloc_line_loc = nfields < 50 ? 50 : nfields;
   ALLOC_INT_ME_SIZE( (dfl->line_locs), dfl->alloc_line_loc, "line_locs"); 
@@ -61,10 +64,13 @@ DF_field_list *create_blank_field_list(DF_config_file *dfc, int verbose) {
   for (int ii = 0; ii < nfields; ii++) {
     dfl->ordered_known_fields[ii] = dfc->ordered_fields[ii];
     dfl->known_usage_count[ii] = 0; dfl->final_known_print_loc[ii] = -1;
+    dfl->known_multiplicity[ii] = 0;
   }
   for (int ii = 0; ii < nfields; ii++) {
     dfl->ordered_unknown_fields[ii] = -1; dfl->unknown_usage_count[ii] = -1;  dfl->line_unknown[ii] =-1;
+    dfl->unknown_multiplicity[ii] = 0;
   }
+
   for (int ii = 0; ii < dfl->alloc_line_loc; ii++) {
     dfl->line_locs[ii] = -1;
   }
@@ -86,6 +92,8 @@ int delete_field_list(DF_field_list **p_dfl, int verbose) {
   DFFREE(dfl->unknown_usage_count, "unknown_usage_count");
   DFFREE(dfl->line_unknown, "line_unknown");
   DFFREE(dfl->line_locs, "line_locs");
+  DFFREE(dfl->known_multiplicity, "known multiplicty"); 
+  DFFREE(dfl->unknown_multiplicity, "unknown multiplicty");
   return(1);
 }
 int PRINT_dfl(DF_field_list *dfl) {
@@ -95,7 +103,7 @@ int PRINT_dfl(DF_field_list *dfl) {
   printf("     ");  int n_used_known = 0;
   for (int ii = 0; ii < dfl->n_known_fields; ii++) {
     if (dfl->known_usage_count[ii] > 0) { n_used_known++; }
-    printf("[%ld:%ld]", (long int) dfl->ordered_known_fields[ii], (long int) dfl->known_usage_count[ii]);
+    printf("[%ld:%ld,MX=%ld]", (long int) dfl->ordered_known_fields[ii], (long int) dfl->known_usage_count[ii], (long int) dfl->known_multiplicity[ii]);
     if (ii < dfl->n_known_fields - 1) { printf(",");
       if ((ii+1) % 6 == 0) { printf("\n     "); }
     }
@@ -107,8 +115,8 @@ int PRINT_dfl(DF_field_list *dfl) {
   printf("UNKNOWN[%ld/%ld] -- {\n", (long int) dfl->num_unknown, (long int) dfl->alloc_unknown);
   printf("    ");
   for (int ii = 0; ii < dfl->num_unknown; ii++) {
-    printf("[%ld:%ld:%ld]", (long int) dfl->ordered_unknown_fields[ii], (long int) dfl->unknown_usage_count[ii],
-      (long int) dfl->line_unknown[ii]);
+    printf("[%ld:%ld:%ld,MX:%ld]", (long int) dfl->ordered_unknown_fields[ii], (long int) dfl->unknown_usage_count[ii],
+      (long int) dfl->line_unknown[ii], dfl->unknown_multiplicity[ii]);
     if (ii < dfl->num_unknown- 1) { printf(",");
       if ((ii+1) % 6 == 0) { printf("\n     "); }
     }
@@ -178,14 +186,18 @@ int find_o_list(int num, int nlist, int *olist) {
   printf(" I guess fine, never found %ld in the list length %ld. \n", (long int) num, (long int) nlist);
   return(iR);
 }
-int add_to_field_list(DF_field_list *dfl, int num, int iline, int verbose) {
+int add_to_field_list(DF_field_list *dfl, int num, int iline, int verbose, int multiplicity) {
    char stt[500];
    if (num < 0) {
      printf("add_to_field_list:: Fix fields are not negative, num=%ld. \n", (long int) num); return(-10);
    }
-   sprintf(stt, "add_field_to_list[num=%ld,line=%ld,v=%ld]: ",
-     (long int) num, (long int) iline, (long int) verbose);
+   sprintf(stt, "add_to_field_list[num=%ld,line=%ld,v=%ld, multiplicity=%ld]: ",
+     (long int) num, (long int) iline, (long int) verbose, (long int) multiplicity);
    int prop_known_loc = find_o_list(num, dfl->n_known_fields, dfl->ordered_known_fields);
+   if (multiplicity <= 0) {
+     vpt(-10, "ERROR: multiplicity given as %ld, that's not realistic. \n", (long int) multiplicity);
+     return(-10);
+   }
    if (prop_known_loc < 0) {
      vpt(0, " ERROR, prop_known_loc returned %ld.  Must be a problem with algo on search dfl->ordered_known_fields\n", (long int) prop_known_loc);
      printf("[");
@@ -201,9 +213,12 @@ int add_to_field_list(DF_field_list *dfl, int num, int iline, int verbose) {
      ((prop_known_loc >= 0) && (prop_known_loc < dfl->n_known_fields)) ? prop_known_loc : -100,
      ((prop_known_loc >= 0) && (prop_known_loc < dfl->n_known_fields)) ? dfl->ordered_known_fields[prop_known_loc] : -999);
    if ((prop_known_loc >= 0) && (prop_known_loc < dfl->n_known_fields) && dfl->ordered_known_fields[prop_known_loc] == num) {
-      vpt(1, " found (num=%ld)  at %ld \n", (long int) num, (long int) prop_known_loc);
+      vpt(1, " found (num=%ld)  at %ld, current multiplicity=%ld, num_used_known=%ld [%ld total known] \n", (long int) num, (long int) prop_known_loc,
+         (long int) multiplicity, dfl->known_usage_count[prop_known_loc], dfl->num_used_known_fields);
       if (dfl->known_usage_count[prop_known_loc] == 0) { dfl->num_used_known_fields++; }
-      dfl->known_usage_count[prop_known_loc]++; return(1);
+      if (multiplicity > dfl->known_multiplicity[prop_known_loc]) { dfl->known_multiplicity[prop_known_loc] = multiplicity; }
+      dfl->known_usage_count[prop_known_loc]++; 
+      return(1);
    }
    if (dfl->num_unknown == 0) {
      if (verbose >= 0) {
@@ -233,9 +248,13 @@ int add_to_field_list(DF_field_list *dfl, int num, int iline, int verbose) {
    }
    if (prop_unknown_loc ==  dfl->num_unknown) {
      dfl->ordered_unknown_fields[dfl->num_unknown] = num; 
+     dfl->unknown_multiplicity[dfl->num_unknown] = multiplicity;
      dfl->unknown_usage_count[dfl->num_unknown] = 1; dfl->line_unknown[dfl->num_unknown] = iline;  dfl->num_unknown++; return(3);
    }
    if ((prop_unknown_loc >= 0) && (dfl->ordered_unknown_fields[prop_unknown_loc] == num)) {
+      if (dfl->unknown_multiplicity[prop_unknown_loc] < multiplicity) { 
+        dfl->unknown_multiplicity[prop_unknown_loc] = multiplicity; 
+      }
       dfl->unknown_usage_count[prop_unknown_loc]++; return(4);
    }
    if (prop_unknown_loc < 0) { prop_unknown_loc = 0; }
@@ -243,6 +262,7 @@ int add_to_field_list(DF_field_list *dfl, int num, int iline, int verbose) {
      dfl->ordered_unknown_fields = realloc(dfl->ordered_unknown_fields, dfl->alloc_unknown*2);
      dfl->unknown_usage_count = realloc(dfl->unknown_usage_count, dfl->alloc_unknown*2);
      dfl->line_unknown = realloc(dfl->line_unknown, dfl->alloc_unknown*2);
+     dfl->unknown_multiplicity = realloc(dfl->unknown_multiplicity, dfl->alloc_unknown*2);
      if ((dfl->ordered_unknown_fields == NULL) || (dfl->line_unknown == NULL) ||
          (dfl->unknown_usage_count==NULL)) {
        vpt(0, "ERROR, we tried to realloc but failed with dfl->num_unknown=%ld, alloc=%ld. \n",
@@ -251,15 +271,18 @@ int add_to_field_list(DF_field_list *dfl, int num, int iline, int verbose) {
      for (int ii = dfl->alloc_unknown; ii < 2*dfl->alloc_unknown; ii++) {
        dfl->ordered_unknown_fields[ii] = -1;
        dfl->unknown_usage_count[ii] = -1;  dfl->line_unknown[ii] = -1;
+       dfl->unknown_multiplicity[ii] = 0;
      }
      dfl->alloc_unknown *=2;
    }
    for (int jj = dfl->num_unknown-1; jj >= prop_unknown_loc; jj--) {
      dfl->ordered_unknown_fields[jj+1] = dfl->ordered_unknown_fields[jj];
+     dfl->unknown_multiplicity[jj+1] = dfl->unknown_multiplicity[jj];
      dfl->line_unknown[jj+1] = dfl->line_unknown[jj]; dfl->unknown_usage_count[jj+1] = dfl->unknown_usage_count[jj];
    }
    dfl->ordered_unknown_fields[prop_unknown_loc] = num;
    dfl->line_unknown[prop_unknown_loc] = iline; dfl->unknown_usage_count[prop_unknown_loc] =1;
+   dfl->unknown_multiplicity[prop_unknown_loc] = multiplicity;
    dfl->num_unknown++;
    return(5);
 }
@@ -284,7 +307,7 @@ int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld
     end_fld - st_fld - 1, sf + st_fld);
   iStr iKey = 0; int cnt_keys = 0;
   iKey = get_next_key("update_field_list_on_field", sf, st_fld, end_fld, verbose-1); 
-  int num = 0;  int update_code;  int nKeys = 0;
+  int num = 0;  int update_code;  int nKeys = 0; int nEntry = 1;
   while((iKey > 0) && (iKey <= end_fld) && (sf[iKey] != '}')) {
     if (sf[iKey] != '\"') { vpt(0, "ERROR, iKey=%ld/%ld between [%ld,%ld], cnt_keys=%ld.  We are at sf[%ld]=\'%c\'\n",
       (long int) iKey, (long int) end_fld, (long int) st_fld, (long int) end_fld, (long int) cnt_keys,
@@ -301,7 +324,18 @@ int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld
           endq - iKey-1, sf + iKey+1);   return(-1);
     }
     vpt(2, " on iKey=%ld, we determined num=%ld.  Add to field list. \n", (long int) iKey, (long int) num);
-    update_code = add_to_field_list(dfl, num, iline, verbose-2);
+
+    iStr st_v, end_v;  st_v = get_value_bounds(stt, sf, endq+1, end_fld, verbose-1, &st_v, &end_v);
+    nEntry = 1;
+    if (num == 18) {
+      for (iStr ii = st_v; ii < end_v; ii++) {
+        if ((sf[ii] == dfc->general_sep) || (sf[ii] == ' ')){nEntry++;}  // Count unique entries
+      }
+      vpt(-10, " --- NOTE WE did an 18 update_field_list_on_filed: nEntry = %ld for sf[%ld:%ld] = |%.*s|\n",
+        (long int) nEntry, (long int) st_v, (long int) end_v, end_v-st_v, sf + st_v);
+    } 
+    update_code = add_to_field_list(dfl, num, iline, verbose-2, nEntry);
+    nKeys++;
     if (update_code < 0) {  vpt(0, "ERROR, update_code=%d for adding num=%ld?  Why ? \n", (long int) update_code, (long int) num); return(-1); }
     if (update_code != 1) { vpt(1, "Note  we received an update_code of %ld for num=%ld. \n", (long int) update_code, (long int) num); }
     iKey = get_next_key("update_field_list_on_field", sf, iKey, end_fld, verbose-2);  nKeys++;
@@ -312,17 +346,145 @@ int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld
   }
   return(1);
 }  
+
+int get_multi_equals_bounds(char *sf, iStr st_eq, iStr nlen, iStr*p_st_v, iStr*p_end_v, char on_eq, char on_sp) {
+ // Annoying case that Data looks like "18=1 2 A B 4=32"
+ // Note technically, all multi entries should be single character.
+ iStr onst = st_eq;  p_end_v[0] = st_eq; p_st_v[0] = st_eq;
+ if (sf[onst] == on_eq) {
+ } else if ((onst > 0) && (sf[onst-1] == on_eq)) {
+  onst--;
+ } else if ( ((onst +1) < nlen) && (sf[onst+1] == on_eq)) {  onst++;
+ } else if ((sf[onst] >= '0') && (sf[onst] <= '9')) {
+   for (onst=onst+1;onst < nlen;onst++) {
+      if (sf[onst] == on_eq) { break; 
+      } else if (sf[onst] == on_sp) {
+        p_st_v[0] = -1; p_end_v[0] = -1; return(-1);
+      } else if ((sf[onst] >= '0') && (sf[onst] <= '9')) {
+      } else {
+        p_st_v[0] = -1; p_end_v[0] = -1; return(-1);
+      }
+   }
+ }
+ p_st_v[0] = onst+1;
+ iStr ii = onst+1;
+ int nEntry = 0;
+ if (sf[onst] == '\"') {
+   // This case: "15"="9 A B 2 0 E",  There are number of spaces + 1 entries
+   p_end_v[0] = get_end_quote("get_multi_equals_bounds", sf, onst, nlen);
+   if ((p_end_v[0] < 0) || (p_end_v[0] >= nlen)) {
+     printf("ERROR: multi_equals_bounds, we had sf[%ld] = \'%c\' but could not find bounding end. \n",
+       onst, sf[onst]);
+     p_st_v[0] = -1; p_end_v[0] = -1;  return(-1);
+   }
+   for(ii=onst+1; ii < p_end_v[0]; ii++) {
+     if (sf[onst] == on_sp) { nEntry++; }
+     return(nEntry+1);
+   } 
+ }
+ for (; ii < nlen; ii++) {
+   if (sf[ii] == on_sp) {  nEntry++;  p_end_v[0] = ii;
+   } else if (sf[ii] == on_eq) { return(nEntry); // Means last number read is not an entry
+   } else if (sf[ii] == '\n') { p_end_v[0] = ii; return(nEntry+1); }// else keep climbing
+ }
+ // If we reach end of line without an eq then all answers are valid and the last member is also an answer
+ 
+ p_end_v[0] = nlen; return(nEntry + 1);
+}
+// "fix2end" is not a json format it is a separated format of fix fields going on to end of a line.
+int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_fld, iStr end_fld, DF_config_file *dfc, DF_field_list *dfl, int verbose) {
+  char stt[200];
+  sprintf(stt, "update_field_list_on_fix2end(ln=%ld,fld=%d,[%ld:%ld],v=%d,fe=\'%c\'): ",
+    (long int) iline, (int) onfield, (long int) st_fld, (long int) end_fld, (int) verbose, dfc->schemas[onfield].fixequal);
+  iStr orig_st_fld = st_fld;
+  if ((sf[st_fld] == ' ') || (sf[st_fld] == dfc->general_sep)) {
+    for (;st_fld < end_fld; st_fld++) { if((sf[st_fld]!=' ') && (sf[st_fld] != dfc->general_sep)) { break; } }
+  }
+  if ((sf[st_fld] == ' ') || (sf[st_fld] == dfc->general_sep))  {
+     vpt(0, "ERROR, sf from %ld:%ld had no \'%c\' end. \n", orig_st_fld, st_fld, dfc->general_sep); 
+     printf("---: %.*s\n", end_fld-st_fld+1, sf + st_fld);
+     return(-1);
+  }
+  if (sf[end_fld-1] == '\n') { end_fld++; }
+  int end_ln = end_fld; // So we can use NEXTCHAREQ()
+  vpt(2, "We have field list inspecting = {%.%s}. \n", end_fld - st_fld - 1, sf + st_fld);
+  iStr iKey = 0; int cnt_keys = 0;
+  iStr ii = st_fld;  iStr end_l = end_fld;
+  char on_char_eq = dfc->schemas[onfield].fixequal;
+  iKey = ii; 
+  
+  int num = 0;  int update_code;  int nKeys = 0;  iStr endq;
+  char on_char_sep = dfc->general_sep;
+  int nEntries = -1;  iStr st_v, end_v;
+
+  while((iKey > 0) && (iKey <= end_fld) && (sf[iKey] != '\n')) {
+    if (sf[iKey] == '\"') {
+      ii = get_end_quote("update_file_list_on_fix2end", sf, iKey, end_fld); endq = ii;
+      sf[endq] = '\0'; num=atoi(sf + iKey+1); sf[endq] = '\"';
+      NEXTCHAREQ();
+    } else {
+      NEXTCHAREQ(); endq = ii;
+      char dmmy = sf[endq]; sf[endq]='\0'; num=atoi(sf+iKey); sf[endq] = dmmy;
+    }
+    if (num == 18) {
+      nEntries = get_multi_equals_bounds(sf, endq, end_fld, &st_v, &end_v, on_char_eq, on_char_sep);
+      if ((nEntries < 0) || (st_v < 0)) {
+        vpt(-10, "ERROR, we tried to get multi_equals_bounds for this entry for code %ld.  st_fld=%ld, end_fld=%ld, iKey=%ld, for %.*s.\n",
+          (long int) num, (long int) st_fld, (long int) end_fld, (long int) iKey, end_fld-iKey, sf + iKey);
+      }
+      ii = end_v;
+      if ((end_v > end_fld) || (end_v < st_v)) {
+        printf("get_multi_equals_bounds::: ERROR, end_v=%ld, but end_fld=%ld, st_v=%ld. \n", (long int) end_v, (long int) end_fld, (long int) st_v);
+        vpt(-10, " --  ERROR I guess we will report an error. \n");
+        return(-180430);
+      }
+      printf("UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU\n");
+      vpt(-10, " NOTE update_field_list_on_fix2end: we got a num=18, and nEntries=%ld. sf[%ld:%ld] = |%.*s|\n", 
+        (long int) nEntries, (long int) st_v, (long int) end_v, end_v-st_v, sf + st_v);
+    } else {
+      nEntries = 1;  NEXTCHARSEP();
+    }
+    vpt(1, "   --- We have key %ld found with multiplicity %ld. Total Keys=%ld.\n", (long int) iKey, (long int) nEntries, (long int) nKeys+1);
+    update_code = add_to_field_list(dfl, num, iline, verbose+1, nEntries);
+    if (update_code < 0) {  vpt(0, "ERROR, update_code=%d for adding num=%ld?  Why ? \n", (long int) update_code, (long int) num); return(-1); }
+    if (update_code != 1) { vpt(1, "Note  we received an update_code of %ld for num=%ld. \n", (long int) update_code, (long int) num); }
+    nKeys++;
+    iKey =  ii;
+  }
+  if (verbose >=3 ) {
+     vpt(3, "Finished iline=%ld, onfield=%ld.  Found %ld keys. \n", (long int) iline, (long int) onfield, (long int) nKeys);
+     printf("--------------------------------------------------------------------------------------------------------------\n\n");
+  }
+  return(1);
+}  
 int update_field_list_on_line(long int iline, char*sf, iStr st_ln, iStr end_ln, DF_config_file *dfc, DF_field_list *dfl, int verbose) {
-  int ii = st_ln;  int ifield = 0;
+  int ii = st_ln;  
   int ion_schema = 0;
   char stt[300];
   sprintf(stt, "update_field_list_on_line(iline=%ld,v=%d,ns=%ld): ", (long int) iline, (int) verbose, (long int) dfc->n_schemas);
   vpt(2, "Here is complete line...\n%.*s\n", end_ln-st_ln, sf+st_ln);
   int attempt;
-  for (ion_schema = 0; ion_schema < dfc->n_schemas; ion_schema++) {
-    if (dfc->schemas[ion_schema].typ != fix42) {
-       //NEXTCOMMA();  We will have dfl has assigned character separation  I suppose ",|; \t" all reasonable separators
-       NEXTCHARSEP();
+  char on_char_sep = dfl->char_sep;
+  for (; ion_schema < dfc->n_schemas; ion_schema++) {
+    if ((dfc->schemas[ion_schema].typ != fix42) && (dfc->schemas[ion_schema].typ != fix2end)) {
+      //NEXTCOMMA();  We will have dfl has assigned character separation  I suppose ",|; \t" all reasonable separators
+      NEXTCHARSEP();
+    } else if (dfc->schemas[ion_schema].typ == fix2end) {
+      iStr fieldStart = ii;
+      NEXTENDL();
+      iStr fieldEnd = ii; ii++;
+      vpt(1, "on is=%ld/%ld, we get fix2end to end line from [%ld:%ld]: \"%.*s...\" \n",
+        (long int) ion_schema, (long int) dfc->n_schemas, (long int) fieldStart, (long int) fieldEnd,
+        fieldEnd-fieldStart < 20 ? fieldEnd-fieldStart : 20, (char*) sf + fieldStart);
+      attempt = update_field_list_on_fix2end(iline, ion_schema, sf, fieldStart, sf[fieldEnd] == '\n' ? fieldEnd : fieldEnd, dfc, dfl, verbose);
+      if (attempt < 0) {
+        vpt(0, " ERROR fix2end attempt = %ld for schema=%ld/%ld on iline=%ld. [st,end]=[%ld,%ld] with fieldst/end=[%ld,%ld] for:\n",
+          (long int) attempt, (long int) ion_schema, (long int) dfc->n_schemas, 
+          (long int) iline, (long int) st_ln, (long int) end_ln, (long int) fieldStart, (long int) fieldEnd);
+        printf("---: %.*s\n", fieldEnd-fieldStart+1, sf+fieldStart);
+        printf("  What went wrong? \n");  return(-1);
+      }
+      vpt(2, " --- Finished fix2end for i_s=%ld/%ld.  Attempt generated was %ld. \n", (long int) ion_schema, (long int) dfc->n_schemas, (long int) attempt);
     } else {
       iStr fieldStart = ii;
       //NEXTCOMMA();  
@@ -333,7 +495,7 @@ int update_field_list_on_line(long int iline, char*sf, iStr st_ln, iStr end_ln, 
           (long int) fieldStart, (long int) fieldEnd, 
           fieldEnd-fieldStart < 10 ? fieldEnd-fieldStart : 10, 
           (char*) sf + fieldStart);
-      attempt = update_field_list_on_field(iline, ifield, sf, fieldStart, sf[fieldEnd] == '}' ? fieldEnd+1 : fieldEnd, dfc, dfl, verbose);
+      attempt = update_field_list_on_field(iline, ion_schema, sf, fieldStart, sf[fieldEnd] == '}' ? fieldEnd+1 : fieldEnd, dfc, dfl, verbose);
       if (attempt < 0) {
         vpt(0, " ERROR attempt = %ld for schema=%ld/%ld on iline=%ld. [st,end]=[%ld,%ld] with fieldst/end=[%ld,%ld] for:\n",
           (long int) attempt, (long int) ion_schema, (long int) dfc->n_schemas, 
@@ -572,33 +734,60 @@ int configure_column_order(DF_config_file *dfc, DF_field_list *dfl, int verbose)
     on_s, p_on_s, ((on_f >= 0) && (on_f < dfc->nfields)) ? dfl->ordered_known_fields[on_f] : -999,
     on_f, p_on_f); 
   int on_final_loc = 0;
+  int n_on_f; int n_on_s;
   while ((p_on_s >= 0) || (p_on_f >= 0)) {
-    if ((on_f < 0) || (p_on_s <= p_on_f)) {
+    vpt(2, " -- step %ld:  on_s=[%ld,p_=%ld], on_f=[%ld,p=%ld] \n",
+       (long int) on_final_loc, (long int) on_s, (long int) p_on_s,
+       (long int) on_f, (long int) p_on_f);
+    if ((on_f < 0) || ((on_s >= 0) && (p_on_s <= p_on_f))) {
       dfc->schemas[on_s].final_loc = on_final_loc;  
-      on_s = next_priority_schema(dfc, on_s, verbose-1);
+      n_on_s = next_priority_schema(dfc, on_s, verbose-1);
+      if (n_on_s == on_s) { vpt(-10, " ERROR: n_on_s=%ld, on_s=%ld. We didn't jump correct\n", (long int) n_on_s,
+         (long int) on_s);  return(-10); }
+      on_s = n_on_s;
       p_on_s =  ((on_s >= 0) && (on_s < dfc->n_schemas)) ? dfc->schemas[on_s].priority : -999;
     } else {
       dfl->final_known_print_loc[on_f] = on_final_loc; 
-      on_f = next_priority_fixfield(dfc, dfl, on_f, verbose-1);
+      n_on_f = next_priority_fixfield(dfc, dfl, on_f, verbose-1);
+      if (on_f == n_on_f) { 
+        vpt(-10, "ERROR: n_on_f=%ld, on_f=%ld.  This doesn't jump. \n", (long int) n_on_f, on_f);
+        return(-10);
+      }
+      on_f = n_on_f;
       p_on_f =  ((on_f >= 0) && (on_f < dfc->nfields)) ? dfc->fxs[on_f].priority : -999;
     }
     on_final_loc++;
+    if (on_final_loc >= dfc->n_schemas + dfc->nfields+1) { 
+      printf("ERROR ERROR ERROR ERROR ERROR ERROR ERROR \n");
+      printf("cco-%s: ERROR we have on_final_loc=%ld, but n_schemas=%ld, nfields=%ld. \n",
+        stt, (long int) on_final_loc, (long int) dfc->n_schemas, dfc->nfields);
+      return(-1);
+    }
   }  
   dfc->n_total_print_columns = on_final_loc;
+  vpt(1, " ---- All concluded loop, on_final_loc=%ld. \n", (long int) on_final_loc);
   dfc->mark_visited = (int*) malloc(sizeof(int)*2*on_final_loc);
   if (dfc->mark_visited == NULL) {
     vpt(-1, "ERROR -trying to allocate dfc->mark_visited resulted in fail. \n");
     return(-104);
   }
+  vpt(1, " -- Now configure the mark_visited of length %ld (on_final_loc=%ld) \n", 
+     (long int) 2*on_final_loc,(long int) on_final_loc);
   for (int ii = 0; ii < on_final_loc*2; ii++) { dfc->mark_visited[ii] = 0; }
   // repeat, lets mark mark_visited
   on_s = loc_lowest_priority_schema_gt(dfc, -1, verbose); 
   on_f = loc_lowest_priority_fixfield_gt(dfc,dfl, -1, verbose);
   p_on_s =  ((on_s >= 0) && (on_s < dfc->n_schemas)) ? dfc->schemas[on_s].priority : -999;
   p_on_f =  ((on_f >= 0) && (on_f < dfc->nfields)) ? dfc->fxs[on_f].priority : -999;
+  if (verbose >= 2) { printf("cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco\n"); }
+  vpt(1, " ----- cco: We start again with on_s=[%ld,p=%ld], on_f=[%ld,p=%ld] \n", 
+    (long int) on_s, (long int) p_on_s, (long int) on_f, (long int) p_on_f);
   int on_pt = 0;  int error_form = 0;
   while ((p_on_s >= 0) || (p_on_f >= 0)) {
-    if ((on_f < 0) || (p_on_s <= p_on_f)) {
+    vpt(2, " on_pt=%ld/%ld  with on_s=[%ld,p=%ld], on_f=[%ld,p=%ld] \n",
+      (long int) on_pt, (long int) on_final_loc,
+      (long int) on_s, (long int) p_on_s, (long int) on_f, (long int) p_on_f);
+    if ((on_f < 0) || ((on_s >= 0) && (p_on_s <= p_on_f))) {
       dfc->mark_visited[dfc->n_total_print_columns + on_pt] = on_s;
       if (dfc->schemas[on_s].final_loc != on_pt) {
         vpt(-1, " ERROR on_pt=%d/%d,  (on_s=%ld/%ld p=%ld, on_f=%ld/%ld p=%d but schema[%d].final_loc=%d \n",
@@ -620,7 +809,15 @@ int configure_column_order(DF_config_file *dfc, DF_field_list *dfl, int verbose)
       p_on_f =  ((on_f >= 0) && (on_f < dfc->nfields)) ? dfc->fxs[on_f].priority : -999;
     }
     on_pt++;
+    if (on_pt > on_final_loc) { 
+      printf("ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR\n");
+      printf("cco-%s: ERROR we have on_final_loc=%ld, but n_schemas=%ld, n_fields=%ld. on_pt=%ld we exceeded!\n",
+        stt, (long int) on_final_loc, (long int) dfc->n_schemas, dfc->nfields, (long int) on_pt);
+      free(dfc->mark_visited); dfc->mark_visited = NULL;
+      return(-1);
+    }
   }  
+  vpt(1, " We have concluded with on_pt=%ld, versus on_final_loc=%ld. \n", (long int) on_pt, (long int) on_final_loc);
   if (error_form > 0) {
     vpt(-1, "Calculating mark_visited failed. \n"); return(-10);
   }
@@ -652,7 +849,7 @@ int PRINT_final_print_loc(DF_config_file *dfc, DF_field_list *dfl) {
   printf("[    ");
   on_pt = 0;
   while ((on_s >= 0) || (on_f >= 0)) {
-    if ((on_f < 0) || (p_on_s <= p_on_f)) {
+    if ((on_f < 0) || ((on_s >= 0) && (p_on_s <= p_on_f))) {
       printf("[%d=%d:on_s=%d=%d,Sch:\"%s\",%s,",
         on_pt, dfc->schemas[on_s].final_loc, (int) on_s, 
         (int) dfc->mark_visited[dfc->n_total_print_columns + on_pt],

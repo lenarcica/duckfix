@@ -102,6 +102,181 @@ int add_schema_entry_to_chunk(df_init_data *df_id, char*buffer, iStr st,
   df_id->dfc->mark_visited[dfc->schemas[df_id->ion_schema].final_loc] = 1;
   return(an_Error);
 }
+
+int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iStr fixfieldsStart, iStr fixfieldsEnd, 
+  duckdb_data_chunk out_chunk, int verbose) {
+  #ifdef DDBUG 
+    char stt[500];
+    sprintf(stt, "  df_main.add_fix2end_entries_to_chunk(v=%d,ckln=%ld,oln=%ld/%ld,%ld:%ld,\"%.*s...\"): ",
+      (int) verbose, 
+      (long int) df_id->on_chunk_line, (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines,
+      (long int) fixfieldsStart,  fixfieldsEnd, (fixfieldsEnd-fixfieldsStart < 15) ? fixfieldsEnd-fixfieldsStart : 15,
+      sf + fixfieldsStart); 
+  #endif
+  #ifndef DDBUG
+    char stt[] = "  df_main.add_fix2end_entries_to_chunk(): ";
+  #endif
+  if (fixfieldsEnd < fixfieldsStart) {
+    vpt(-3, "ERROR add_fix2end_entries_to_chunk, fixfieldsStart=%ld, fixfieldsEnd=%ld.  Obvious error. \n",
+      (long int) fixfieldsStart, (long int) fixfieldsEnd);
+    return(-4303234);
+  }
+  iStr end_ln = fixfieldsEnd;
+  int ii = fixfieldsStart;  iStr nmax = fixfieldsEnd;
+  if (sf[ii] == '{') {
+    ii++;
+  } else {
+    PUSH_OUT_WHITE();  
+  }
+  if (sf[ii] == df_id->dfc->general_sep) { ii++; }
+  if (ii >= fixfieldsEnd) {
+    printf("ERROR %s -- We hit ii>=fixfieldsEnd=%ld on first PUSH_OUT_WHITE. \n",
+      stt, (long int) fixfieldsEnd);
+    printf("ERROR --- We started with sf[fixfieldsStart=%ld:%ld] = \"%.*s\" \n", 
+      (long int) fixfieldsStart, (long int) fixfieldsEnd, fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
+  }
+  fixfieldsStart = ii;
+  int cntFields = 0;  int aFixNum = 0;  iStr keyStart, keyEnd; 
+  int an_error;  iStr stVal, endVal; char old_end = '.';
+  char on_char_eq = df_id->dfc->schemas[onschema].fixequal;
+  char on_char_sep = df_id->dfl->char_sep;
+  for (; ii < fixfieldsEnd;ii++) {
+    vpt(2, " - ii=%ld, fS,fE=[%ld,%ld], cntFields=%ld, starting with sf[%ld:%ld]=\"%.*s\"\n",
+      (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd, (long int) cntFields,
+      (long int) ii, (long int) fixfieldsEnd, fixfieldsEnd-ii, sf + ii);
+    if ((sf[ii] == '\n') || (sf[ii] == '}')) { 
+      vpt(1, " -ii=%ld, fs,fE=[%ld,%ld], cntFields=%ld, we have an end point \'}\' \n",
+        (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd, (long int) cntFields);
+      break; 
+    } else {
+      //vpt(2, "  ---- Pushing out WHITE. \n", (long int) ii);
+      PUSH_OUT_WHITE();  
+      //vpt(2, "  ---- Done Pushing out WHITE, ii=%ld. \n", (long int) ii);
+      if (sf[ii] != '\"') {
+        keyStart=ii; NEXTCHAREQ(); 
+        keyEnd = sf[ii-1] == on_char_eq ? ii-1 : sf[ii-2] == on_char_eq ? ii-2 : sf[ii] == on_char_eq ? ii : ii;
+        vpt(0, "ERROR, fix2end We are on cntFields=%ld, but sf[%ld]=\'%c\' but expected \'\"\'\n", cntFields, ii, sf[ii]); 
+        printf(" -- We do not see this field starting with a '{', we are on a \"%.*s...\",\n",
+            (fixfieldsEnd-fixfieldsStart < 10) ? fixfieldsEnd-fixfieldsStart: 10, sf + fixfieldsStart);
+        printf(" -- Note fix2end::: sf[ii-1=%ld] = \'%c\' \n", (long int) ii-1, sf[ii-1]);
+        printf(" -- Note fix2end::: sf[fixfieldsStart=%ld] = \'%c\' \n", (long int) fixfieldsStart, sf[ii]);
+        printf(" -- and in our zone sf[ii-5:ii+5] = \"%.*s\". \n",
+            ((ii+5) < fixfieldsEnd ? (ii+5) : fixfieldsEnd) - (ii-5 >= 0 ? ii-5 : 0),  sf + (ii-5 >= 0 ? ii-5 : 0));
+        return(-1040323);
+      } else {
+        vpt(2, " -- Note fix2end::: on ii=%ld, we have a keyStart at ii+1=%ld, sf[%ld]=\'%c\'. \n", (long int) ii, (long int) ii+1,
+          (long int) ii+1, sf[ii+1]);
+        keyStart = ii+1;
+        if (sf[ii] != '\"') { vpt(-3,"ERROR: No right before get_end_quote we have bad data. \n"); return(-1043043); }
+        keyEnd = get_end_quote("add_fixfields", sf, ii, fixfieldsEnd);
+        if (keyEnd < ii) { vpt(-4, "ERROR: keyEnd=%ld at the end quote, but \"add_fixfields\" had zero load. \n", (long int) keyEnd); 
+          printf("ERROR fix2end::: so ii=%ld, fixfieldsStart=%ld, fixfieldsEnd=%ld. \n", (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd);
+          printf("  -- note sf[ii=%ld] = \'%c\' we wanted \'\"\'\n", (long int) ii, sf[ii]);
+          printf("  -- sf[fixfieldsStart=%ld:end=%ld] = \"%.*s\". \n",
+             (long int) fixfieldsStart, (long int) fixfieldsEnd, fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
+          return(-493023); 
+        }
+        vpt(2, " ---- on ii=%ld, we think the key is sf[%ld:%ld]=\"%.*s\". \n",
+          (long int) ii, (long int) keyStart, (long int) keyEnd, keyEnd-keyStart, sf + keyStart);
+        ii = keyEnd+1;
+        PUSH_OUT_WHITE();
+        if (sf[ii] == ':') {  ii++; } else {
+          vpt(-10, " ---- Error on ii=%ld, we though key was sf[%ld:%ld]=\"%.*s\", did not find colon after, sf[%ld:%ld]=\"%.*s\". \n",
+            (long int) ii, (long int) keyStart, (long int) keyEnd, keyEnd-keyStart, sf + keyStart,
+            (long int) fixfieldsStart, (long int) fixfieldsEnd, fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
+          return(-9340329);
+        }
+        PUSH_OUT_WHITE();
+        if (sf[ii] == '\"') {
+          stVal = ii+1;
+          if (sf[ii] != '\"') { 
+            vpt(-1," ERROR - before get_end quote, we thing sf[ii=%d]=\'%c\'. \n", (long int) ii, sf[ii]);
+            return(-2034032); 
+          }
+          endVal = get_end_quote("add_fixfields_entries_to_chunk", sf, ii, fixfieldsEnd);
+          vpt(2, " ---- on ii=%ld, key is sf[%ld:%ld]=\"%.*s\", we got get_end_quote val is sf[%ld:%ld]=\"%.*s\". \n",
+            (long int) ii, (long int) keyStart, (long int) keyEnd, keyEnd-keyStart, sf + keyStart,
+            (long int) stVal, (long int) endVal, endVal > stVal ? endVal-stVal : 3,
+            endVal > stVal ? sf + stVal : "BAD");
+          if (endVal < stVal) {
+            vpt(0, "ERROR, we are on cntFields=%ld, but sf[%ld]=\'%c\' we got endVal=%ld however for sf[%d:%d]=\"%.*s\". \n",
+              (long int) cntFields, (long int) ii, sf[ii], (long int) endVal, stVal-1, 
+              fixfieldsEnd -stVal +1  > 20 ? stVal+20-1 : fixfieldsEnd,
+              fixfieldsEnd -stVal +1  > 20 ? 20 : fixfieldsEnd-stVal+1,
+              sf + stVal-1); return(-250434);
+          }
+        } else if ((sf[ii] == '{') || (sf[ii] == '[')) {
+          vpt(0, " on cntFields=[%ld] we get sf[%ld] = \'%c\' for sf[%ld:%ld] = \"%.*s\"\n",
+            (long int) cntFields, (long int) ii, sf[ii], fixfieldsStart, fixfieldsEnd, fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
+          return(-1);
+        } else {
+          stVal = ii;  while( (ii < fixfieldsEnd) && (sf[ii] != ' ') && (sf[ii] != ',') && (sf[ii] != '}')) { ii++; }
+          endVal = ii;
+        } 
+        vpt(2, " ---- on ii=%ld, key is sf[%ld:%ld]=\"%.*s\", we got val of field is sf[%ld:%ld]=\"%.*s\". \n",
+            (long int) ii, (long int) keyStart, (long int) keyEnd, keyEnd-keyStart, sf + keyStart,
+            (long int) stVal, (long int) endVal, endVal > stVal ? endVal-stVal : 3,
+            endVal > stVal ? sf + stVal : "BAD");
+        //stVal = get_value_bounds("add_fix_fields", sf, ii, fixFieldsEnd, verbose-1, &stVal, &endVal);
+        //if (sf[stVal] == '\"') { stVal++; }
+        //if ((sf[endVal] == '\"') || (sf[endVal] == '}') || (sf[endVal] == ' ')) {
+        //} else if ((sf[endVal] >= '0') && (sf[endVal] <= '9')) {
+        //  endVal++;
+        //} else if ((sf[endVal] >= 'a') && (sf[endVal] <= 'z')) {
+        //  endVal++;
+        //} else if ((sf[endVal] >= 'A') && (sf[endVal] <= 'Z')) {  endVal++; }
+        if ((keyEnd > fixfieldsStart) && (stVal > fixfieldsStart) && (endVal > stVal)) {
+          old_end = sf[keyEnd];sf[keyEnd] = '\0';  aFixNum = atoi(sf+keyStart);  sf[keyEnd] = old_end;
+          if (aFixNum > 0) {
+            df_id->last_fix_num = aFixNum;
+            vpt(3, " ----     We found aFixNum=%ld, for sf[%ld:%ld] val is \"%.*s\". For cntFields=%ld, call add_fixfield_entry_to_chunk.\n",
+              (long int) aFixNum, (long int) stVal, (long int) endVal,  endVal-stVal, sf + stVal, (long int) cntFields);
+            an_error = add_fixfield_entry_to_chunk(df_id, sf, aFixNum, stVal, endVal,  out_chunk, verbose-1);
+            cntFields++;
+            if (an_error < 0) {
+              vpt(0, "ERROR, we are on cntFields=%ld, aFixNum=%ld, val=\"%.*s\" we get error %ld. \n",
+                (long int) cntFields, (long int) aFixNum, endVal-stVal-1, sf+stVal+1, an_error);
+              return(-234323);
+            } else {
+              vpt(3, " -- after add_fixfield_entry_to_chunk returned: %d, for fixField num=%ld, val was \"%.*s\", we move on. \n",
+               (long int) an_error, (long int) aFixNum, endVal-stVal, sf + stVal);
+              ii = endVal;
+              if (sf[ii] == '\"') { ii++; } 
+              PUSH_OUT_WHITE();
+              if (sf[ii] == '}') { 
+                vpt(1, " Reached end on ii=%ld, [ffS,ffE]=[%ld,%ld], found %ld fields in \"%.*s\"\n",
+                  (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd, (long int) cntFields,
+                  fixfieldsEnd -fixfieldsStart, sf + fixfieldsStart);
+                return(cntFields); 
+              }
+              if (sf[ii] != ',') { 
+                vpt(0, "ERROR on cntFields=%ld, aFixNum=%ld, sf[%ld]=\'%c\' we were " 
+                  "looking for break but got sf[%ld:%ld]=\"%.*s\"\n",
+                  (long int) cntFields, (long int) aFixNum, (long int) ii, sf[ii], (long int) fixfieldsStart,
+                  (long int) fixfieldsEnd, (int) (fixfieldsEnd-fixfieldsStart), sf + fixfieldsStart);
+                return(-55034032);
+              } else {
+                vpt(3, " -- so fixField=%ld for cntFields=%ld finished, found another \',\' at ii=%ld, for fS,fE=[%ld,%ld]:\"%.*s\", keep going. \n",
+                  (long int) aFixNum, (long int) cntFields, (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd,
+                  fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
+              }
+            }
+          } else {
+            vpt(0, "ERROR on cntFields=%ld, we had sf[%ld:%ld]=\"%.*s\", for sf[fs=%ld:fe=%ld]=\"%.*s\"\n",
+              (long int) cntFields, keyStart, keyEnd, keyEnd-keyStart, sf+keyStart,
+              fixfieldsStart, fixfieldsEnd, fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
+            return(-53043023);
+          }
+        }
+	 }
+    }
+    vpt(2, " --  -- continue the loop after fixField=%ld, sf[ii=%ld]=\'%c\', for fS,fE=[%ld,%ld]:\"%.*s\".  \n",
+      (long int) aFixNum, (long int) ii, sf[ii], (long int) fixfieldsStart, (long int) fixfieldsEnd,
+      fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
+  }
+  vpt(2, "Success we found %ld total fields from [%ld:%ld]. \n", (long int) cntFields, fixfieldsStart, (long int) fixfieldsEnd);
+  return(cntFields);
+}
 int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfieldsStart, iStr fixfieldsEnd, 
   duckdb_data_chunk out_chunk, int verbose) {
   #ifdef DDBUG 
@@ -678,6 +853,7 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
   for (int i_pt = 0; i_pt < df_id->dfc->n_total_print_columns; i_pt++) {
     df_id->dfc->mark_visited[i_pt] = 0;
   }
+  char on_char_sep = dfl->char_sep;
   for (df_id->ion_schema = 0; df_id->ion_schema < dfc->n_schemas; df_id->ion_schema++) {
     fieldStart = ii; NEXTCHARSEP(); fieldEnd = ii;
     if ((fieldEnd-1 > fieldStart) && (sf[fieldEnd-1] == df_id->dfl->char_sep)) { fieldEnd--; }

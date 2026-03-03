@@ -107,8 +107,11 @@ iStr get_end_quote(char* vstr, char *in_str, iStr on_i, iStr nmax) {
   }
   iStr ii,jj;
   if (in_str[on_i] != '\"') {
-    printf("get_end_quote(%s): ERROR this does not start with quote. \'%c\' at %ld/%ld\n",
-      vstr, (char) in_str[on_i], (long int) on_i, (long int) nmax); return(-43);
+    printf("get_end_quote(%s): ERROR this does not start with quote. \'%c\' at %ld/%ld -- we started with sf[%ld:%ld]::|%.*s|\n",
+      vstr, (char) in_str[on_i], (long int) on_i, (long int) nmax,
+      (on_i-5 >= 0 ? on_i-5 : 0), (on_i+5 < nmax ? on_i+5 : nmax),
+      ((on_i+5 < nmax) ? (on_i+5) : nmax) - ((on_i-5 >= 0) ? (on_i-5) : 0),
+      in_str + ((on_i-5 >= 0) ? (on_i-5) : 0)); return(-43);
   }
   for (ii = on_i+1; ii < nmax; ii++) {
     if (in_str[ii] == '\0') {
@@ -184,7 +187,9 @@ iStr load_file_to_str(char **out_p_sf, char *json_filename, int verbose) {
 }
 // Perhaps overkill to have to jump to next key.
 iStr get_next_key(char* assignment, char *sf, iStr on_i, iStr nmax, int verbose) {
-  iStr jj; iStr end_key;
+  iStr jj; iStr st_key = -1; iStr end_key = -1;
+  iStr end_value = -1; iStr start_value =-1;
+  iStr colon_loc = -1;
   char stt[300];  
   sprintf(stt, "get_next_key(%.*s):", 200, (char*) assignment);
   vpt(3, "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk\n");
@@ -208,7 +213,7 @@ iStr get_next_key(char* assignment, char *sf, iStr on_i, iStr nmax, int verbose)
       (long int) ii, (long int) st, (long int) nmax,
       (long int) st, (long int) nmax, nmax-st, sf + st);
   }
-  iStr st_key = ii;
+  st_key = ii;
   jj = get_end_quote("get_next_key", sf, ii, nmax);
   vpt(3, "We found that current key was sf[%ld:%ld] or --%.*s--\n",
     ii+1, (long int) jj, jj - ii - 1, sf + ii+1);
@@ -221,10 +226,10 @@ iStr get_next_key(char* assignment, char *sf, iStr on_i, iStr nmax, int verbose)
     vpt(0,"kkk after key %.*s we did not find \':\' we went to: %.*s\n",
       end_key-st_key -1, sf + st_key+1, ii - st_key-1, sf+st_key+1); return(-2);
   }
+  colon_loc = ii;
   vpt(3,"kkk we found our colon at %ld. sf[%ld]=\'%c\'\n",
      sf[ii], ii, sf[ii]); 
   ii = ii+1;
-  iStr end_value = -1; iStr start_value =-1;
   PUSH_OUT_WHITE();
   if ((ii >= nmax) || (ii < 0)) {
     vpt(0,"kkk ERROR(%s), on value search: we pushed out white but ii=%ld/%ld or bad! \n", stt, (long int) ii, (long int) nmax);  return(-5);
@@ -236,7 +241,20 @@ iStr get_next_key(char* assignment, char *sf, iStr on_i, iStr nmax, int verbose)
   if ((sf[ii] == '\"') || (sf[ii] == '{') || (sf[ii] =='[')) {
     start_value = ii;
     if (sf[ii] == '\"') {  jj = get_end_quote(stt, sf, ii, nmax); 
-    } else if (sf[ii] == '{') {  jj = get_end_brace(stt, sf, ii, nmax); 
+    } else if (sf[ii] == '{') {  
+       jj = get_end_brace(stt, sf, ii, nmax); 
+       if (jj <= ii) {
+         vpt(-1, "ERROR -- after get_end_brace() ERROR ii=%ld for sf[%ld]=\'%c\', invalid jj returned: sf[jj=%ld] does not equal \'}\' is instead \'%c\'\n",
+           (long int) ii, (long int) ii, sf[ii], (long int) jj, 'X'); return(-5); 
+       } else if (sf[jj] != '}') {
+         vpt(-1, "ERROR -- after get_end_brace() ERROR ii=%ld for sf[%ld]=\'%c', still can't get sf[jj=%ld] does not equal \'}\' is instead \'%c\' \n",
+           (long int) ii, (long int) ii, sf[ii], (long int) jj, (jj > ii) && (jj <nmax) ? sf[jj] : 'X');
+         printf("  We have that [st_key,end_key] = [%ld,%ld] for |%.*s| and colon_loc=%ld for sf[%ld] = \'%c\'. \n",
+           (long int) st_key, (long int) end_key, end_key-st_key, sf+ st_key, (long int) colon_loc,
+           (long int) colon_loc, sf[colon_loc]);
+         printf(" -- Where is the value we were working with : [%ld:jj=%ld] = |%.*s| \n",
+           (long int) start_value, (long int) jj, jj+1 - start_value, sf + start_value); return(-5);
+       }
     } else if (sf[ii] == '[') {  jj = get_end_bracket(stt, sf, ii, nmax); 
     } 
     if (jj < ii) {
@@ -251,11 +269,15 @@ iStr get_next_key(char* assignment, char *sf, iStr on_i, iStr nmax, int verbose)
       vpt(0," ERROR, sf[ii=%ld]=\'%c\' but search led to jj=%ld/%ld. \n",
          (long int) ii, sf[ii], (long int) jj, nmax); return(-2);
     }
-    end_value = jj;ii=jj;
+    end_value = jj;
+    ii = (sf[jj] >= '0') && (sf[jj] <= '9') ? jj + 1 : jj;
+    if (sf[ii] == '}') { return(ii); }
+    if (sf[jj] == '}') { return(ii); } 
   } else {
     printf("%s ERROR, looking at value sf[ii=%ld]= \'%c\' and no qualified next step. \n",
       (char*) stt, (long int) ii, sf[ii]); return(-4);
   }
+  
   if (start_value < 0) {
     printf("ERROR ERROR ERROR get_next_key(%s) -- End, super error, we have start_value=%ld, this is invalid. \n", stt, (long int) start_value);
     printf("ERROR: get_next_key() note that we were supposed to find a key after colon but sf[st=%ld:nmax=%ld]=\n\"\"\"\n%.*s\n   \"\"\"\n",
@@ -263,10 +285,12 @@ iStr get_next_key(char* assignment, char *sf, iStr on_i, iStr nmax, int verbose)
     printf("ERROR ERROR ERROR, I wonder why start value was not good. \n");
     return(-10);
   }
+  if ((sf[start_value] != '{') && sf[end_value] == '}') { return(end_value); }
   vpt(3,"kkk - we apparently started with start_value=%ld and found value at sf[%ld:%ld]=--%.*s--. \n",
     start_value, start_value+1, (long int) end_value, end_value-start_value-1, sf + start_value+1);
   // Next key will be after a comma
   vpt(3,"kkk next search ii = %ld/%ld: \'%c\'\n", (long int) ii, (long int) nmax, sf[ii]);
+  if (sf[ii] == '}') { return(ii); }
   PUSH_OUT_WHITE();
   if ((ii >= nmax)) {
     vpt(0, "ERROR, reached ii=%ld/%ld after whitespace removal but we didn't read a '}' at end. \n", (long int) ii, (long int) nmax);
@@ -275,8 +299,23 @@ iStr get_next_key(char* assignment, char *sf, iStr on_i, iStr nmax, int verbose)
     return(nmax+1);
   }
   if (sf[ii] == '}') { return(ii); }  // End of the road here no next value.
+  if ((ii +1< nmax) && (sf[ii+1] == '}')) { return(ii+1); }
   if (sf[ii] != ',') {
-    vpt(1, " ERROR after white push out, we are at sf[ii=%ld]=\'%c\'. \n", (long int) ii, sf[ii]);
+    vpt(1, " ERROR after white push out.  Comma not found we are at sf[ii=%ld]=\'%c\'. \n", (long int) ii, sf[ii]);
+    printf(" ---  INSPECTION OF COMMA ISSUE: ");
+    printf(" ---[%ld:%ld]=| %.*s \n",
+      on_i, (on_i+30 < nmax) ? on_i + 30 : nmax,  ((on_i+30 < nmax) ? on_i + 30:nmax) - on_i, sf+on_i);
+    printf(" -- if ii=%ld is bad,  [%ld:%ld] = |%.*s| \n", (long int) ii,
+      (long int) (ii - 10 > on_i) ? ii-10 : on_i, (long int) ii,   
+      ii - (((ii-10) > on_i) ? ii-10 : on_i),  sf + ((ii-10 > on_i) ? ii-10: on_i));
+    printf(" -- if ii=%ld is bad,  [%ld:%ld] = |%.*s| \n", (long int) ii,
+       (long int) ii, (long int) (ii < 10 < nmax) ? ii+10 : nmax, 
+       (((ii+10) < nmax) ? ii+10 : nmax) - ii,  sf + ii); 
+
+    printf(" -- Note [st_key,end_key] = [%ld,%ld] for key of |%.*s|, and colon_loc=%ld for sf[%ld] =\'%c\'. \n",
+      (long int) st_key, (long int) end_key, end_key-st_key, sf + st_key, colon_loc, colon_loc, sf[colon_loc]);
+    printf(" -- Note [start_value=%ld, end_value=%ld] for value = |%.*s| \n", 
+      (long int) start_value, (long int) end_value, end_value-start_value, sf + start_value); 
   }
 
   vpt(3,"kkk we are at sf[ii=%ld]=\'%c\' our comma, we go on now. \n", (long int) ii, sf[ii]);
@@ -599,9 +638,31 @@ iStr get_inside_value_bounds(char *assignment, char *sf, iStr key_loc, iStr nmax
 }
 iStr get_value_bounds(char* assignment, char*sf, iStr key_loc, iStr nmax, int verbose, iStr *p_vst, iStr *p_vend) {
   char stt[300];
-  sprintf(stt, "get_value(%ld):", (long int) key_loc);
+  sprintf(stt, "get_value_bounds(%ld):", (long int) key_loc);
   iStr ii = key_loc;
+  if (sf[ii] != '\"') {
+    printf("-------------------------------------------------------------------------------------------------\n");
+    printf("--- ERROR get_value_bounds:  Not acceptable. you supplied sf[key_loc=%ld]=\'%c\'. \n",
+        (long int) key_loc, sf[key_loc]);
+    printf(" --- Note get_value_bounds, key_loc, sf[key_loc=%ld] != \'\"\'.  Instead it is \'%c\'.   We start with sf[%ld:%ld] = |%.*s| \n",
+      (long int) key_loc, (char) sf[key_loc], (long int) key_loc, key_loc + 20 < nmax ? (key_loc + 20) : nmax,
+      (key_loc + 20 < nmax ? (key_loc + 20) : nmax) - key_loc, sf + key_loc);
+    printf(" --- Highly likely we will not succeed after this, I wonder what we were looking for that returned this? \n");
+    printf(" --- This is a value error, inspect who called this!. \n");
+    printf("-------------------------------------------------------------------------------------------------\n");
+    return(-20);
+  }
   ii = get_end_quote(assignment, sf, key_loc, nmax);
+  if ((ii < 0) || (ii >= nmax)) {
+    printf("ERROR: %s, we have at get_end_quote, ii=%ld. \n", stt, (long int) ii);  return(-1);
+  }
+  if (sf[ii] != '\"') {
+    printf("ERROR: get_value_bounds, after get_end_quote key_loc=%ld, sf[%ld:%ld] = |%.*s|\n",
+      (long int) key_loc, (long int) key_loc,  (long int)  (key_loc + 20 < nmax) ? (key_loc+20) : nmax,
+      ((key_loc+20 < nmax) ? (key_loc+20) : nmax) - key_loc, sf + key_loc);
+    return(-1);
+  }
+  sprintf(stt, "get_value_bounds(%ld,%.*s)", (long int) key_loc,  ii - key_loc - 1, sf + key_loc + 1);
   ii++;
   PUSH_OUT_WHITE();
   if (sf[ii] != ':') { printf("get_value: didn't find colon. \n"); return(-1); }
@@ -721,21 +782,29 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
   vpt(3, " -- Searching for initial whole config \"name\".  \n");
   iStr iName = find_key("name",4,sf,on_i,nmax, verbose-1);
   if (iName < 0) { printf("ERROR: note sf[nmax-1] = \'%c\' \n", (long int) nmax); }
-  if (iName >= 0)  {
+  if ((iName >= 0) && (iName < nmax))  {
     vst = get_value_bounds("get_config_file", sf, iName, nmax, verbose-2, &vst, &vend);
-    vpt(3, " -- We found name at iName=%ld, 1+vend-vst=%ld, sf[vst=%ld:vend=%ld]: thus: \"%.*s\" \n", 
-      (long int) iName, (long int) 1 + vend -vst, (long int) vst, (long int) vend,
-      vend-vst-1, sf + vst + 1);
     if (vst >= 0) {
+      vpt(3, " -- We found name at iName=%ld, 1+vend-vst=%ld, sf[vst=%ld:vend=%ld]: thus: \"%.*s\" \n", 
+        (long int) iName, (long int) 1 + vend -vst, (long int) vst, (long int) vend,
+        vend-vst-1, sf + vst + 1);
       dfc->name = malloc(sizeof(char)*(1+vend-vst));
       if (dfc->name != NULL) { sprintf(dfc->name,"%.*s\0", vend-vst-1, sf + vst + 1); 
       } else { printf("%s: FAILED to allocate name. \n", stt); delete_config_file(&dfc, verbose); return(NULL); }
+    } else {
+       vpt(-3, "ERROR: although iName=%ld, we could not get value bounds with vst=%ld.  sf[iName=%ld:%ld] = |%.*s| \n",
+         (long int) iName, (long int) vst, (long int) iName, (long int)  (iName + 20 < nmax ? iName + 20 : nmax),
+         (long int) (iName + 20 < nmax ? iName + 20 :nmax) - iName, sf + iName);
+       delete_config_file(&dfc,verbose); return(NULL);
     }
+  } else {
+    vpt(-1, "ERROR: \"Name\" failed to find by find_key, maybe it should be investigated. \n");
+    delete_config_file(&dfc, verbose); return(NULL);   
   }
   
   vpt(3, " -- Searching for initial whole config \"description\". \n");
   iStr iDesc = find_key("description",11,sf,on_i,nmax,0);
-  if (iDesc >= 0)  {
+  if ((iDesc >= 0) && (iDesc < nmax))  {
     vst = get_value_bounds("get_config_file", sf, iDesc, nmax, verbose-2, &vst, &vend);
     vpt(3, " --- success finding \"description\" at %ld/%ld with value sf[vst+1=%ld:vend=%ld]=\"%.*s\". \n",
       (long int) iDesc, (long int) nmax, (long int) vst + 1, (long int) vend,
@@ -747,12 +816,26 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
     }
   } else {
     vpt(3, "Note: no key \"desc\" was found in sf starting at on_i=%ld/%ld. iDesc=%ld \n", (long int) on_i, (long int) nmax, iDesc);
-    
   }
+  vpt(3, " -- Searching for initial whole config \"description\". \n");
+  iStr iGeneral_Sep = find_key("general_sep",11,sf,on_i,nmax,0);
+  dfc->general_sep=',';
+  if ((iGeneral_Sep >= 0) && (iGeneral_Sep < nmax))  {
+    vst = get_value_bounds("get_config_file", sf, iGeneral_Sep, nmax, verbose-2, &vst, &vend);
+    vpt(3, " --- success finding \"general_sep\" at %ld/%ld with value sf[vst+1=%ld:vend=%ld]=\"%.*s\". \n",
+      (long int) iDesc, (long int) nmax, (long int) vst + 1, (long int) vend,
+      vend - vst -1, sf + vst + 1);
+    if (vst >= 0) {
+      dfc->general_sep = sf[((sf[vst]=='\"') || (sf[vst]=='\'')) ? vst+1 : vst];
+    }
+  } else {
+    vpt(3, "Note: no key \"general_sep\" was found in sf starting at on_i=%ld/%ld. iDesc=%ld \n", (long int) on_i, (long int) nmax, iDesc);
+  }
+
 
   vpt(3, " -- Searching for initial whole config \"info\". \n");
   iStr iInfo = find_key("info",4,sf,on_i,nmax,0);
-  if (iInfo >= 0)  {
+  if ((iInfo >= 0) && (iInfo < nmax))  {
     vst = get_value_bounds("get_config_file", sf, iInfo, nmax, verbose-2, &vst, &vend);
     if (vst >= 0) {
       dfc->info = malloc(sizeof(char)*(1+vend-vst));
@@ -761,7 +844,7 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
     }
   }
   iStr iSchema = find_key("schema",6,sf,on_i,nmax, 0);
-  if (iSchema < 0) {
+  if ((iSchema < 0) || (iSchema >= nmax)) {
     vpt(0, " ERROR we do not find iSchema=%ld/%ld in sf from [%ld:%ld] \n",
       iSchema, nmax, on_i, nmax);
     vpt(0, " --- Let's return without doing this. \n");
@@ -773,8 +856,10 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
   //return(dfc);
   vst = get_value_bounds("get_config_file", sf, iSchema, nmax, verbose-2, &vst, &vend);
   if ((vst < 0) || (vend < vst)) {
-    vpt(0, " ERROR we found iSchema at %ld/%ld, but vst/vend are [%ld/%ld] so failure to get value bounds. \n",
+    vpt(-5, " ERROR we found iSchema at %ld/%ld, but vst/vend are [%ld/%ld] so failure to get value bounds. \n",
       (long int) iSchema, (long int) nmax, (long int) vst, (long int) vend);
+    vpt(-5, " NO Schema so we quit. \n");
+    delete_config_file(&dfc, verbose); return(NULL);
   }
   vpt(2, "-- Success finding iSchema = %ld/%ld, value bounds vst/vend=[%ld/%ld] \n -- with sf[%ld:%ld...%ld:%ld]=\"\"\"\n%.*s...%.*s\n    \"\"\". \n",
     (long int) iSchema, (long int) nmax, (long int) vst, (long int) vend,
@@ -799,7 +884,8 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
     if ((st0 < 0) || (end0 < st0)) {
       vpt(0, " ERROR we have i_s=%ld/%ld oniS=%ld,  for name search but st0/end0 = [%ld,%ld] \n", (long int) i_s, (long int) n_schemas,
         (long int) oniS, (long int) st0, (long int) end0);
-      return(dfc);
+      delete_config_file(&dfc, verbose); return(NULL);
+      return(NULL);
     }
     vpt(2, " -- We are on i_s=%d/%d starting at oniS=%ld, (vst,vend)=[%ld,%ld], nm is sf[%ld:%ld] = \"%.*s\" \n",
       (int) i_s, (int) n_schemas, 
@@ -830,9 +916,10 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
       vpt(0, ": ERROR i_s=%ld/%ld, although we found nm at sf[oniS+1=%ld,end0=%ld] = \"%.*s\". No desc_located between [%ld,%ld].\n",
         (int) i_s, (int) n_schemas, (long int) oniS+1, (long int) end0, end0-oniS-1, sf+oniS + 1,  
         (long int) st_V, (long int) end_V);
+      delete_config_file(&dfc, verbose); return(NULL);
       return(dfc);
     }
-    if (desc_loc >= 0) { 
+    if ((desc_loc >= 0) && (desc_loc < end_V+1)) { 
       vpt(3, ": Found desc_loc=%ld, we will copy it's value into desc field of schmea. \n", desc_loc);
       copy_in_val_str("get_config_file", sf, desc_loc, nmax, verbose-2, &( (dfc->schemas[i_s]).desc)); 
       vpt(3, ": Success copying desc_loc=%ld value into i_s=%ld/%ld schema. \n", (long int) desc_loc,
@@ -842,13 +929,43 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
     if ((priority_loc  < st_V) || (priority_loc >= end_V)) {
       dfc->schemas[i_s].priority=-1;
     } else {
+      vpt(2, ":  Looking for priority_loc value bounds, pl=%ld. \n", (long int) priority_loc);
       st0 = get_value_bounds("get_config_file", sf, priority_loc, nmax, verbose-2, &st0, &end0);
-      int numpriority = -1;  sf[sf[end0]=='\"' ? end0 : end0+1] = '\0'; 
-      numpriority = atoi(sf+st0); sf[sf[end0]=='\0' ? end0: end0+1] = '\"';
+      if (sf[end0] == '\"') {
+      } else if (((sf[end0] >= '0') && (sf[end0] <= '9')) || (sf[end0] == '.')) {
+        end0++;
+      }
+      char old_end = sf[end0];
+      int numpriority = -1;  sf[end0] = '\0'; 
+      numpriority = atoi(sf+st0); sf[end0] = old_end;
+      vpt(2, ":  After priority_loc=%ld between [%ld:%ld] we turned |%.*s| into %ld. with old_end=\'%c\', and sf[end0=%ld]=\'%c\'.\n",
+        (long int) priority_loc, (long int) st0, (long int) end0, end0-st0, sf + st0, (long int) numpriority,
+        (char) old_end, (long int) end0, sf[end0]);
+      if (verbose >= 2) {
+         printf(" -- Note now that sf[%ld:%ld] = |%.*s|, hope we are in good shape. \n",
+           st_V, end_V+1, end_V+1-st_V, sf + st_V);
+      }
       dfc->schemas[i_s].priority = numpriority;
     }
+
+    dfc->schemas[i_s].fixequal=':';
+    iStr fixequal_loc = find_key("fixequal",8,sf,st_V, end_V+1,0);
+    if ((fixequal_loc >= st_V) && (fixequal_loc < end_V)) {
+      vpt(2, ":  Looking for fixequal_loc value bounds, pl=%ld. sf[%ld]=\'%c\'. \n", (long int) fixequal_loc, (long int) fixequal_loc, sf[fixequal_loc]);
+      st0 = get_value_bounds("get_config_file",sf,fixequal_loc,nmax, verbose-2, &st0,&end0);
+      if (st0 < 0) {
+        vpt(-3, " ERROR we had fixequal_loc=%ld, but get_value_bounds returned [%ld:%ld] for error. \n", (long int) fixequal_loc, (long int) st0, (long int) end0);
+        printf("  Doesn't make sense that we would find fixequal inside [st_V:end_V]=sf[%ld:%ld]=|%.*s| \n",
+          (long int) st_V, (long int) end_V, end_V+1-st_V, sf + st_V); 
+        delete_config_file(&dfc, verbose); return(NULL);
+      }
+      dfc->schemas[i_s].fixequal= sf[(sf[st0]=='\"') || (sf[st0]=='\'') ? st0+1 : st0];
+    } else {
+      vpt(2, ": fixequal_loc not found for this field where are calling i_s=%ld/%ld: %s. \n",
+        (long int) i_s, (long int) n_schemas, dfc->schemas[i_s].nm); 
+    } 
     iStr typ_loc = find_key("typ",3,sf,st_V,end_V+1,0);
-    if (typ_loc < 0) {
+    if ((typ_loc < 0) || (typ_loc >= end_V)) {
       vpt(0, "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT\n");
       vpt(0, "TTT i_s = %ld/%ld, oniS=%ld/%ld failed to find typ in sf[%ld:%ld] \n", (long int) i_s, (long int) n_schemas, 
         (long int) oniS, (long int) nmax, (long int) st_V, (long int) end_V); 
@@ -862,6 +979,14 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
     }
     if (typ_loc >= 0) {
         st0 = get_value_bounds("get_config_file", sf, typ_loc, nmax, verbose-2, &st0, &end0);
+        if (st0 < 0) {
+          vpt(-3, "ERROR: We tried to get_value_bounds for typ, even though typ_loc = %ld. bounds returned[%ld,%ld] \n",
+            (long int) typ_loc, (long int) st0, (long int) end0);
+          printf("ERROR on get_value_bounds unfortunate: sf[%ld:%ld] = |%.*s|. \n",
+            (long int) typ_loc, (long int)  (typ_loc+20 < nmax) ? typ_loc + 20 : nmax,
+                                ((typ_loc+20 < nmax) ? typ_loc + 20 : nmax) - typ_loc,
+                                sf + typ_loc);
+        }
         vpt(5, "Hey, for typ_loc =%ld, we got st0/end0 = sf[%ld+1:%ld]=\"%.*s\"\n",
            (long int) typ_loc, (long int) st0, (long int) end0, end0 - st0-1, sf + st0 + 1);
         vpt(5, " Does it equal i32 ? %ld .\n",
@@ -872,6 +997,8 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
            (long int) str_eq("tms",3,sf, st0+1, end0));
         vpt(5, " Does it equal fix42 ? %d .\n",
            (long int) str_eq("fix42",5,sf, st0+1, end0));
+        vpt(5, " Does it equal fix2end ? %d .\n",
+           (long int) str_eq("fix2end",7,sf, st0+1, end0));
         dfc->schemas[i_s].typ = MATCHTYPE(sf, st0, end0); 
         vpt(3, " After finding the data we have a type \"%s\" or int = %ld, we read \"%.*s\"\n", 
           What_DF_DataType(dfc->schemas[i_s].typ), (int) dfc->schemas[i_s].typ,
@@ -930,7 +1057,7 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
 }
 void PRINT_dfc(DF_config_file *dfc) {
    printf("------------------------------------------------------------------------------\n");
-   printf("--  Printing DFC: (dfc->n_schemas=%ld).\n", (long int) dfc->n_schemas);
+   printf("--  Printing DFC(general_sep=\'%c\': (dfc->n_schemas=%ld).\n", dfc->general_sep, (long int) dfc->n_schemas);
    printf("-- name: \"%s\". \n", dfc->name);
    printf("-- info: \"%s\". \n", dfc->info);
    printf("-- desc: \"%s\". \n", dfc->desc); 
@@ -944,6 +1071,9 @@ void PRINT_dfc(DF_config_file *dfc) {
           (long int) dfc->schemas[i_s].priority,
           dfc->schemas[i_s].desc != NULL ? dfc->schemas[i_s].desc : "NULL",
           (char*) ( What_DF_DataType( (dfc->schemas[i_s].typ) )) );
+        if ((dfc->schemas[i_s].typ == fix42) || (dfc->schemas[i_s].typ == fix2end)) {
+          printf(",fixequal=\'%c\'", dfc->schemas[i_s].fixequal);
+        }
         if (dfc->schemas[i_s].typ == decimal_gen) {
           printf("[w=%ld,scale=%ld]", 
             (long int) dfc->schemas[i_s].width, (long int) dfc->schemas[i_s].scale);
@@ -963,6 +1093,7 @@ void PRINT_dfc(DF_config_file *dfc) {
        printf("-- fix_fields[%ld/%ld] = {field_code=%ld, [keep=%ld,priority=%ld, typ=%s", 
          (long int) i_f, (long int) dfc->nfields, (long int) dfc->fxs[i_f].field_code, (long int) dfc->fxs[i_f].keep,
          (long int) dfc->fxs[i_f].priority, What_DF_DataType(dfc->fxs[i_f].typ) );
+       if (dfc->fxs[i_f].maxmultiplicity > 0) { printf(",maxm=%ld", dfc->fxs[i_f].maxmultiplicity); }
        if (dfc->fxs[i_f].typ == decimal_gen) {
          printf(",[w=%ld,scale=%ld]", (long int) dfc->fxs[i_f].width, (long int) dfc->fxs[i_f].scale);
        }
@@ -1234,8 +1365,9 @@ int populate_fixfield(iStr i_fst, iStr nmax, char *sf, int verbose,
   sprintf(stt, "populate_fixfield(\"%.*s\", i_onfxs=%ld, st=%ld): ",
     endq-i_fvals_start-1, sf + i_fvals_start + 1, (long int) i_onfxs, (long int) i_fvals_start);
   DF_Fix_Field *dfs = p_dfs[0]; 
+  char old_endq = sf[endq];
   sf[endq] = '\0';  int num = atoi(sf + i_fvals_start + 1);
-  sf[endq] = '\"';
+  sf[endq] = old_endq;
   dfs[i_onfxs].field_code = num;
   vpt(1, "  -- we read sf and processed a number %ld from \"%.*s\". \n",
      (long int) num, endq-1-i_fvals_start, sf + i_fvals_start + 1);
@@ -1302,6 +1434,22 @@ int populate_fixfield(iStr i_fst, iStr nmax, char *sf, int verbose,
        sf[end_v0] = sfend_v0; 
        dfs[i_onfxs].priority = (short) priority_num;
        vpt(2, " success, priority filled to %ld. \n", (long int) dfs[i_onfxs].priority);
+     }
+  }
+
+  iStr iMaxMultiplicity = find_key("maxmultiplicity", 15, sf, st_v, end_v+1, verbose-3); 
+  if ((iMaxMultiplicity < 0) || (sf[iMaxMultiplicity] == '}')) {
+    dfs[i_onfxs].maxmultiplicity = 1;
+  } else {
+     st_v0 = get_value_bounds(stt, sf, iMaxMultiplicity, end_v+1, verbose-1, &st_v0, &end_v0);
+     if (st_v0 < 0)  {
+       vpt(0, " ERROR, looking at field_code=%ld values, found \"maxmultiplicity\" field at %ld but still no val bounds. sf[%ld:%ld] = \"%.*s\" \n",
+         num, (long int) iMaxMultiplicity, st_v,  st_v + 30 > end_v ? end_v : st_v + 30, (st_v+30 > end_v) ? end_v-st_v : 30, sf + st_v);
+     }  else {
+       int maxmultiplicity_num; sfend_v0 = sf[end_v0]; sf[end_v0] = '\0';  maxmultiplicity_num=atoi(sf + st_v0 + (sf[st_v0]=='\"' ? 1 : 0));
+       sf[end_v0] = sfend_v0; 
+       dfs[i_onfxs].maxmultiplicity = (short) maxmultiplicity_num;
+       vpt(4, " success, maxmultiplicity filled to %ld. \n", (long int) dfs[i_onfxs].maxmultiplicity);
      }
   }
   iStr iFixTitle = find_key("fixtitle", 8,  sf, st_v, end_v+1, verbose-2); 
