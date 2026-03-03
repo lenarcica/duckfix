@@ -229,7 +229,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
   while ((on_s >= 0) || (on_f >= 0)) {
     vpt(2, " on loop=%ld, with on_s=%ld (p_s=%ld), on_f=%ld (p_s=%ld) \n", 
        (long int) on_loop, (long int) on_s, (long int) p_on_s, (long int) on_f, (long int) p_on_f);
-    if ((on_f < 0) || (p_on_s <= p_on_f)) {
+    if ((on_f < 0) || ((on_s >= 0) && (p_on_s <= p_on_f))) {
       vpt(2, "  --- We see we will move schema on_s=%ld for name = %s, type=%s. col=%ld versus goal loc=%ld, aka type = \"%s\"\n",
           (long int) on_s, dfc->schemas[on_s].nm, What_DF_DataType(dfc->schemas[on_s].typ),
           (long int) on_loop, (long int) dfc->schemas[on_s].final_loc,
