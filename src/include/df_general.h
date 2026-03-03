@@ -307,7 +307,8 @@ typedef struct _DFSchema {
   char *timestamp_format; DF_TSType fmttyp;
   char width,scale; // Only really necessary for Decimals
   int priority;
-  int final_loc;
+  int final_o_loc;  // No multiplicity ordered location
+  int final_m_loc;  // Multiplicity based column location
   char fixequal;
 } DF_Schema;
 #endif
@@ -338,6 +339,7 @@ typedef struct _DF_config_file {
   int *ordered_fields;
   DF_Fix_Field *fxs;
   int n_total_print_columns;
+  int n_total_multiplicity_columns;
   int *mark_visited;
 } DF_config_file; 
 #endif
@@ -351,6 +353,7 @@ typedef struct _DF_field_list {
   int *known_usage_count;
   int *known_multiplicity;
   int *final_known_print_loc;
+  int *final_known_multiplicity_loc;
   int alloc_unknown;
   int num_unknown;
   int *ordered_unknown_fields;
