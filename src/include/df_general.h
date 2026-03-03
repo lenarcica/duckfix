@@ -1,5 +1,20 @@
 #pragma once
-
+//////////////////////////////////////////////////////////////////////////////////
+// df_general.h
+// 2025-02-04 - Alan Lenarcic
+// License GPLv2
+//
+// Main definition of datastructures used in duckfix reader.
+//
+// We have
+//
+//  "config_file" master object holding configuration file information
+//    An array of "DF_Schema" entries (element "schema") for each individual comma separated field
+//    Further  Fix Field
+//
+//  "Field_List": This processes one time through the target CSV, figuring out exactly how many Fix fields are contained.
+//     It also assesses the number of chunks and location of line breaks in the file, and determines the final column
+//     order based upon priorities defined in document.
 #ifndef vprintf
 #define vprintf(X, Y, ...)    \
   if (verbose >= (X)) {       \
@@ -59,6 +74,7 @@ typedef enum {
   decimal_gen,
   enum_date,
   fix42,
+  fix2end,
   f32,
   f64,
   tms,
@@ -150,24 +166,16 @@ typedef enum{
   (str_eq("December", 8, sf, (st_v0), end_v0)) ? 12 : \
   (str_eq("DECEMBER", 8, sf, (st_v0), end_v0)) ? 12 : \
   -1)
-/*
-/*
-#ifndef DEF_TS_str 
-char strpY_pm_pd_pH_pM_pS_pf[] = "%Y-%m-%d %H:%M:%S.%f";
-char strpY_pm_pd_pH_pM_pS_pF[] = "%Y-%m-%d %H:%M:%S.%F";
-char strpY_pm_pdTpH_pM_pS_pf[] = "%Y-%m-%d %H:%M:%S.%f";
-char strpY_pm_pdTpH_pM_pS_pF[] = "%Y-%m-%d %H:%M:%S.%F";
-char strpH_pM_pS_pf[] = "%H:%M:%S.%f";
-char strpH_pM_pS_pF[] = "%H:%M:%S.%F";
 
-  (str_eq(strpH_pM_pS_pf, 11, sf, (st_v0+1), (end_v0))) ? HHcMMcSScF : \
-  (str_eq(strpH_pM_pS_pF, 11, sf, (st_v0+1), (end_v0))) ? HHcMMcSScF : \
-#define DEF_TS_str 0
-#endif
-
-  (str_eq(strpY_pm_pd_pH_pM_pS_pf, 20, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq(strpY_pm_pdTpH_pM_pS_pf, 20, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-*/
+// While theoretically we could train tools to match infinitely many different time definitions,
+//  it is possible that any random combination "SS:MM:HH dd-YYYY-mm" for instance, is irational
+//  and unlikely.
+// It is lazy to hard code this, but we can still be flexible about users wanting to use
+// multiple representations of a similar "Year/Month/Day Hours:Min:Seconds" format without
+// worrying too much about arbitrary delimiters or whether they are consistent in the file
+//
+// Rather than worrying about malformed results, this will parse sequences with enough info that
+// they can reasonably be turned into a timestamp, even if it is "2025-25C03F1023432.2"
 #define MATCHTSTYPE(sf, st_v0, end_v0) \
  ((str_eq("YYYY-mm-ddTHH:MM:SS.F", 21, sf, (st_v0+1), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
   (str_eq("YYYY-mm-ddTHH:MM:SS.f", 21, sf, (st_v0+1), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
@@ -258,6 +266,10 @@ char strpH_pM_pS_pF[] = "%H:%M:%S.%F";
    (str_eq("decimal",7,sf, (st_v0+1), end_v0)) ? decimal_gen : \
    (str_eq("Decimal",7,sf, (st_v0+1), end_v0)) ? decimal_gen : \
    (str_eq("fix42",5,sf, (st_v0+1), end_v0)) ? fix42 : \
+   (str_eq("fix2end",7,sf, (st_v0+1), end_v0)) ? fix2end : \
+   (str_eq("fix2End",7,sf, (st_v0+1), end_v0)) ? fix2end : \
+   (str_eq("FIX2END",7,sf, (st_v0+1), end_v0)) ? fix2end : \
+   (str_eq("FIX2End",7,sf, (st_v0+1), end_v0)) ? fix2end : \
    (str_eq("tus",3,sf, (st_v0+1), end_v0)) ? tus : \
    (str_eq("tns",3,sf, (st_v0+1), end_v0)) ? tns : \
    (str_eq("tms",3,sf, (st_v0+1), end_v0)) ? tms : \
@@ -278,6 +290,7 @@ char strpH_pM_pS_pF[] = "%H:%M:%S.%F";
   ((on_typ) == decimal184) ? "Decimal(18,4)" : \
   ((on_typ) == decimal_gen) ? "Decimal_General" : \
   ((on_typ) == fix42) ? "fix42" : \
+  ((on_typ) == fix2end) ? "fix2end" : \
   ((on_typ) == tms) ? "tms" : \
   ((on_typ) == tns) ? "tns" : \
   ((on_typ) == tus) ? "tus" : \
@@ -295,13 +308,14 @@ typedef struct _DFSchema {
   char width,scale; // Only really necessary for Decimals
   int priority;
   int final_loc;
+  char fixequal;
 } DF_Schema;
 #endif
 
 #ifndef DFFIXFIELD
 #define DFFIXFIELD 0
 typedef struct _DF_Fix_Field {
-  int field_code;
+  int field_code; int maxmultiplicity;
   short keep; int priority;
   char* fixtitle; char *desc;
   DF_DataType typ; 
@@ -317,6 +331,7 @@ typedef struct _DF_config_file {
   char *desc; 
   char *info;
   char *exampleline;
+  char general_sep;
   int n_schemas;
   DF_Schema *schemas;
   int nfields;
@@ -334,11 +349,13 @@ typedef struct _DF_field_list {
   int n_known_fields;
   int *ordered_known_fields;  // min and max are at both ends
   int *known_usage_count;
+  int *known_multiplicity;
   int *final_known_print_loc;
   int alloc_unknown;
   int num_unknown;
   int *ordered_unknown_fields;
   int *unknown_usage_count;
+  int *unknown_multiplicity;
   int *line_unknown;
   int num_used_known_fields;
 
@@ -390,11 +407,34 @@ for(;ii < end_ln; ii++) { \
 ii++ 
 #endif
 
+#ifndef NEXTENDL
+#define NEXTENDL() \
+  ii =  (sf[end_ln-1] == '\n') ? (end_ln-1) : (sf[end_ln] == '\n') ? end_ln : end_ln+1
+#endif
+
+#ifndef NEXTCHAREQ
+#define NEXTCHAREQ() \
+for(;ii < end_ln; ii++) { \
+  if (sf[ii] == on_char_eq) { break; \
+  } else if (sf[ii] == '\n') { break; \
+  } else if (sf[ii] == on_char_sep) { \
+  } else if ((sf[ii] == ' ') || (sf[ii] == '\t')) { \
+  } else if (sf[ii]=='\"') { \
+    ii = get_end_quote("nextcomma",sf,ii,end_ln); \
+  } else if (sf[ii]=='[') { \
+    ii =  get_end_bracket("nextcomma",sf,ii,end_ln); \
+  } else if (sf[ii]=='{') { \
+    ii =  get_end_brace("nextcomma", sf, ii, end_ln); \
+  } \
+} \
+ii++ 
+#endif
+
 #ifndef NEXTCHARSEP
 #define NEXTCHARSEP() \
 for(;ii < end_ln; ii++) { \
   if (sf[ii] == '\n') { break; \
-  } else if (sf[ii] == dfl->char_sep) { break;  \
+  } else if (sf[ii] == on_char_sep) { break;  \
   } else if ((sf[ii] == ' ') || (sf[ii] == '\t')) { \
   } else if (sf[ii]=='\"') { \
     ii = get_end_quote("nextcomma",sf,ii,end_ln); \

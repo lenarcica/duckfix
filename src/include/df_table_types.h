@@ -1,4 +1,15 @@
 /////////////////////////////////////
+/// df_table_types.h
+///
+///  Alan Lenarcic (lenarcic@post.harvard.edu)
+///  2026-02-04
+///
+///  GPLv2 License
+///
+///  This header file is used with duckdb.h connection information.
+///  We need to be able to write content from configurations into specific DuckDB type columns.
+///  This is only used in df_bind.c, df_init.c, df_main.c: which act as the "table function" files.
+///
 ///
 /// Duckfix table types
 #pragma once
