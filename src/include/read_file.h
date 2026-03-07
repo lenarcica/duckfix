@@ -59,5 +59,5 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
 int PRINT_dfl(DF_field_list *dfl);
 int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld, iStr end_fld, DF_config_file *dfc, DF_field_list *dfl, int verbose);
 iStr get_next_newln(char *sf, iStr st, iStr nmax, int verbose);
-
 int get_multi_equals_bounds(char *sf, iStr st_eq, iStr nlen, iStr*p_st_v, iStr*p_end_v, char on_eq, char on_sp);
+int clear_m_visited(DF_config_file *dfc);

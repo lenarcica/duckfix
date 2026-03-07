@@ -177,57 +177,57 @@ typedef enum{
 // Rather than worrying about malformed results, this will parse sequences with enough info that
 // they can reasonably be turned into a timestamp, even if it is "2025-25C03F1023432.2"
 #define MATCHTSTYPE(sf, st_v0, end_v0) \
- ((str_eq("YYYY-mm-ddTHH:MM:SS.F", 21, sf, (st_v0+1), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
-  (str_eq("YYYY-mm-ddTHH:MM:SS.f", 21, sf, (st_v0+1), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
-  (str_eq("YYYY.mm.ddDHH:MM:SS.F", 21, sf, (st_v0+1), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
-  (str_eq("YYYY-mm-dd HH:MM:SS.f", 21, sf, (st_v0+1), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
-  (str_eq("YYYY.mm.dd HH:MM:SS.F", 21, sf, (st_v0+1), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
-  (str_eq("YYYY-mm-ddTHH:MM:SS.FFF", 23, sf, (st_v0+1), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
-  (str_eq("YYYY-mm-ddTHH:MM:SS.FFFFFF", 26, sf, (st_v0+1), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
-  (str_eq("YYYY-mm-ddTHH:MM:SS.FFFFFFFFF", 29, sf, (st_v0+1), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
-  (str_eq("YY-mm-ddTHH:MM:SS.FFFFFFFFF", 27, sf, (st_v0+1), end_v0)) ? YYcmmcddtHHcMMcSScF : \
-  (str_eq("YY-mm-ddTHH:MM:SS.F", 19, sf, (st_v0+1), end_v0)) ? YYcmmcddtHHcMMcSScF : \
-  (str_eq("YY.mm.ddTHH:MM:SS.F", 19, sf, (st_v0+1), end_v0)) ? YYcmmcddtHHcMMcSScF : \
-  (str_eq("YY.mm.ddDHH:MM:SS.F", 19, sf, (st_v0+1), end_v0)) ? YYcmmcddtHHcMMcSScF : \
-  (str_eq("YY.MM.DDTHH:MM:SS.F", 19, sf, (st_v0+1), end_v0)) ? YYcmmcddtHHcMMcSScF : \
-  (str_eq("YY.MM.DDDHH:MM:SS.F", 19, sf, (st_v0+1), end_v0)) ? YYcmmcddtHHcMMcSScF : \
-  (str_eq("%%Y-%%m-%%dT%%H:%%M:%%S.%%F", 20, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%%Y-%%m-%%d %%H:%%M:%%S.%%F", 20, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%%Y-%%m-%%d %%H:%%M:%%S.%%f", 20, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%%Y-%%m-%%d %%H:%%m:%%s.%%f", 20, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%%Y-%%m-%%d %%H:%%m:%%s.%%f", 20, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%Y-%m-%d %H:%m:%s.%f", 20, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%Y-%m-%d %H:%M:%S.%f", 20, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%Y-%m-%d %H:%M:%S.%F", 20, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%Y-%M-%D %H:%M:%S.%F", 20, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%Y-%m-%dT%H:%m:%s.%f", 20, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%Y.%m.%dD%H:%m:%s.%f", 20, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%Y.%M.%DD%H:%m:%s.%f", 20, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%%Y-%%m-%%d %%H:%%M:%%S.%%f", 27, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%%Y-%%m-%%dT%%H:%%M:%%S.%%f", 27, sf, (st_v0+1), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("YYYYmmddHHMMSSF", 15, sf, (st_v0+1), (end_v0))) ? YYYYmmddHHMMSSF : \
-  (str_eq("%%Y%%m%%d%%H%%M%%S%%F", 14, sf, (st_v0+1), (end_v0))) ? YYYYmmddHHMMSSF : \
-  (str_eq("%%H%%M%%S%%F", 8, sf, (st_v0+1), (end_v0))) ? HHMMSSF : \
-  (str_eq("%%H:%%M:%%S.%%F", 11, sf, (st_v0+1), (end_v0))) ? HHcMMcSScF : \
-  (str_eq("%H:%M:%S.%f", 11, sf, (st_v0+1), (end_v0))) ? HHcMMcSScF : \
-  (str_eq("%%H%%M%%S%%f", 8, sf, (st_v0+1), (end_v0))) ? HHMMSSF : \
-  (str_eq("%%H:%%M:%%S.%%f", 11, sf, (st_v0+1), (end_v0))) ? HHcMMcSScF : \
-  (str_eq("%%H:%%M:%%S.%%f", 15, sf, (st_v0+1), (end_v0))) ? HHcMMcSScF : \
-  (str_eq("%%H:%%M:%%S.%%F", 15, sf, (st_v0+1), (end_v0))) ? HHcMMcSScF : \
-  (str_eq("YYYY-mm-dd",10,sf, (st_v0+1), (end_v0))) ? YYYYcmmcdd : \
-  (str_eq("%%Y-%%m-%%d",8, sf, (st_v0+1), (end_v0))) ? YYYYcmmcdd : \
-  (str_eq("%%Y%%m%%d",6, sf, (st_v0+1), end_v0)) ? YYYYmmdd : \
-  (str_eq("YYYYmmdd",8, sf, (st_v0+1), end_v0)) ? YYYYmmdd : \
-  (str_eq("Month Day, Year",15,sf,(st_v0+1), end_v0)) ? MonthcDaycYear :\
-  (str_eq("Month Day, Year HH:MM:SS.f",26,sf,(st_v0+1), end_v0)) ? MonthcDaycYearcHHcMMcSScF : \
-  (str_eq("Month Day, Year HH:MM:SS.F",26,sf,(st_v0+1), end_v0)) ? MonthcDaycYearcHHcMMcSScF : \
-  (str_eq("Month Day, Year %H:%M:%S.%f",27,sf,(st_v0+1), end_v0)) ? MonthcDaycYearcHHcMMcSScF : \
-  (str_eq("Month Day, Year %H:%M:%S.%F",27,sf,(st_v0+1), end_v0)) ? MonthcDaycYearcHHcMMcSScF : \
-  (str_eq("Month Day, Year %H:%M:%S",25,sf,(st_v0+1), end_v0)) ? MonthcDaycYearcHHcMMcSS : \
-  (str_eq("Year Month Day",14,sf,(st_v0+1), end_v0)) ? YearcMonthcDay : \
-  (str_eq("Year Month Day HH:MM:SS.f",25,sf,(st_v0+1), end_v0)) ? YearcMonthcDaycHHcMMcSScF : \
-  (str_eq("Year Month Day HH:MM:SS.F",25,sf,(st_v0+1), end_v0)) ? YearcMonthcDaycHHcMMcSScF : \
-  (str_eq("Year Month Day HH:MM:SS",23,sf,(st_v0+1), end_v0)) ? YearcMonthcDaycHHcMMcSS : \
+ ((str_eq("YYYY-mm-ddTHH:MM:SS.F", 21, sf, (st_v0), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
+  (str_eq("YYYY-mm-ddTHH:MM:SS.f", 21, sf, (st_v0), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
+  (str_eq("YYYY.mm.ddDHH:MM:SS.F", 21, sf, (st_v0), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
+  (str_eq("YYYY-mm-dd HH:MM:SS.f", 21, sf, (st_v0), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
+  (str_eq("YYYY.mm.dd HH:MM:SS.F", 21, sf, (st_v0), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
+  (str_eq("YYYY-mm-ddTHH:MM:SS.FFF", 23, sf, (st_v0), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
+  (str_eq("YYYY-mm-ddTHH:MM:SS.FFFFFF", 26, sf, (st_v0), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
+  (str_eq("YYYY-mm-ddTHH:MM:SS.FFFFFFFFF", 29, sf, (st_v0), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
+  (str_eq("YY-mm-ddTHH:MM:SS.FFFFFFFFF", 27, sf, (st_v0), end_v0)) ? YYcmmcddtHHcMMcSScF : \
+  (str_eq("YY-mm-ddTHH:MM:SS.F", 19, sf, (st_v0), end_v0)) ? YYcmmcddtHHcMMcSScF : \
+  (str_eq("YY.mm.ddTHH:MM:SS.F", 19, sf, (st_v0), end_v0)) ? YYcmmcddtHHcMMcSScF : \
+  (str_eq("YY.mm.ddDHH:MM:SS.F", 19, sf, (st_v0), end_v0)) ? YYcmmcddtHHcMMcSScF : \
+  (str_eq("YY.MM.DDTHH:MM:SS.F", 19, sf, (st_v0), end_v0)) ? YYcmmcddtHHcMMcSScF : \
+  (str_eq("YY.MM.DDDHH:MM:SS.F", 19, sf, (st_v0), end_v0)) ? YYcmmcddtHHcMMcSScF : \
+  (str_eq("%%Y-%%m-%%dT%%H:%%M:%%S.%%F", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%%Y-%%m-%%d %%H:%%M:%%S.%%F", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%%Y-%%m-%%d %%H:%%M:%%S.%%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%%Y-%%m-%%d %%H:%%m:%%s.%%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%%Y-%%m-%%d %%H:%%m:%%s.%%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%Y-%m-%d %H:%m:%s.%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%Y-%m-%d %H:%M:%S.%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%Y-%m-%d %H:%M:%S.%F", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%Y-%M-%D %H:%M:%S.%F", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%Y-%m-%dT%H:%m:%s.%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%Y.%m.%dD%H:%m:%s.%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%Y.%M.%DD%H:%m:%s.%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%%Y-%%m-%%d %%H:%%M:%%S.%%f", 27, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%%Y-%%m-%%dT%%H:%%M:%%S.%%f", 27, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("YYYYmmddHHMMSSF", 15, sf, (st_v0), (end_v0))) ? YYYYmmddHHMMSSF : \
+  (str_eq("%%Y%%m%%d%%H%%M%%S%%F", 14, sf, (st_v0), (end_v0))) ? YYYYmmddHHMMSSF : \
+  (str_eq("%%H%%M%%S%%F", 8, sf, (st_v0), (end_v0))) ? HHMMSSF : \
+  (str_eq("%%H:%%M:%%S.%%F", 11, sf, (st_v0), (end_v0))) ? HHcMMcSScF : \
+  (str_eq("%H:%M:%S.%f", 11, sf, (st_v0), (end_v0))) ? HHcMMcSScF : \
+  (str_eq("%%H%%M%%S%%f", 8, sf, (st_v0), (end_v0))) ? HHMMSSF : \
+  (str_eq("%%H:%%M:%%S.%%f", 11, sf, (st_v0), (end_v0))) ? HHcMMcSScF : \
+  (str_eq("%%H:%%M:%%S.%%f", 15, sf, (st_v0), (end_v0))) ? HHcMMcSScF : \
+  (str_eq("%%H:%%M:%%S.%%F", 15, sf, (st_v0), (end_v0))) ? HHcMMcSScF : \
+  (str_eq("YYYY-mm-dd",10,sf, (st_v0), (end_v0))) ? YYYYcmmcdd : \
+  (str_eq("%%Y-%%m-%%d",8, sf, (st_v0), (end_v0))) ? YYYYcmmcdd : \
+  (str_eq("%%Y%%m%%d",6, sf, (st_v0), end_v0)) ? YYYYmmdd : \
+  (str_eq("YYYYmmdd",8, sf, (st_v0), end_v0)) ? YYYYmmdd : \
+  (str_eq("Month Day, Year",15,sf,(st_v0), end_v0)) ? MonthcDaycYear :\
+  (str_eq("Month Day, Year HH:MM:SS.f",26,sf,(st_v0), end_v0)) ? MonthcDaycYearcHHcMMcSScF : \
+  (str_eq("Month Day, Year HH:MM:SS.F",26,sf,(st_v0), end_v0)) ? MonthcDaycYearcHHcMMcSScF : \
+  (str_eq("Month Day, Year %H:%M:%S.%f",27,sf,(st_v0), end_v0)) ? MonthcDaycYearcHHcMMcSScF : \
+  (str_eq("Month Day, Year %H:%M:%S.%F",27,sf,(st_v0), end_v0)) ? MonthcDaycYearcHHcMMcSScF : \
+  (str_eq("Month Day, Year %H:%M:%S",25,sf,(st_v0), end_v0)) ? MonthcDaycYearcHHcMMcSS : \
+  (str_eq("Year Month Day",14,sf,(st_v0), end_v0)) ? YearcMonthcDay : \
+  (str_eq("Year Month Day HH:MM:SS.f",25,sf,(st_v0), end_v0)) ? YearcMonthcDaycHHcMMcSScF : \
+  (str_eq("Year Month Day HH:MM:SS.F",25,sf,(st_v0), end_v0)) ? YearcMonthcDaycHHcMMcSScF : \
+  (str_eq("Year Month Day HH:MM:SS",23,sf,(st_v0), end_v0)) ? YearcMonthcDaycHHcMMcSS : \
   UNKNOWN_TS)
 
 #define What_DF_TSType(on_typ)  \
@@ -242,37 +242,39 @@ typedef enum{
 
 #ifndef MATCHTYPE 
 #define MATCHTYPE(sf, st_v0, end_v0) \
-   (str_eq("i32",3,sf, (st_v0+1), end_v0)) ?  i32 :  \
-   (str_eq("str",3,sf, (st_v0+1), end_v0)) ? str :   \
-   (str_eq("Str",3,sf, (st_v0+1), end_v0)) ? str :   \
-   (str_eq("i64",3,sf, (st_v0+1), end_v0)) ? i64 :   \
-   (str_eq("float",5,sf,(st_v0+1), end_v0)) ? f64: \
-   (str_eq("f64",3,sf,(st_v0+1), end_v0)) ? f64: \
-   (str_eq("f32",3,sf,(st_v0+1), end_v0)) ? f32: \
-   (str_eq("date",4,sf,(st_v0+1), end_v0)) ? enum_date: \
-   (str_eq("enum_date",9,sf,(st_v0+1), end_v0)) ? enum_date: \
-   (str_eq("decimal153",10,sf, (st_v0+1), end_v0)) ? decimal153 : \
-   (str_eq("decimal185",10,sf, (st_v0+1), end_v0)) ? decimal185 : \
-   (str_eq("decimal154",10,sf, (st_v0+1), end_v0)) ? decimal153 : \
-   (str_eq("decimal153",10,sf, (st_v0+1), end_v0)) ? decimal153 : \
-   (str_eq("decimal185",10,sf, (st_v0+1), end_v0)) ? decimal185 : \
-   (str_eq("decimal154",10,sf, (st_v0+1), end_v0)) ? decimal153 : \
-   (str_eq("decimal184",10,sf, (st_v0+1), end_v0)) ? decimal185 : \
-   (str_eq("Decimal(15,3)",13,sf, (st_v0+1), end_v0)) ? decimal153 : \
-   (str_eq("Decimal(15,3)",13,sf, (st_v0+1), end_v0)) ? decimal153 : \
-   (str_eq("Decimal(18,5)",13,sf, (st_v0+1), end_v0)) ? decimal185 : \
-   (str_eq("Decimal(18,4)",13,sf, (st_v0+1), end_v0)) ? decimal184 : \
-   (str_eq("Decimal(15,4)",13,sf, (st_v0+1), end_v0)) ? decimal154 : \
-   (str_eq("decimal",7,sf, (st_v0+1), end_v0)) ? decimal_gen : \
-   (str_eq("Decimal",7,sf, (st_v0+1), end_v0)) ? decimal_gen : \
-   (str_eq("fix42",5,sf, (st_v0+1), end_v0)) ? fix42 : \
-   (str_eq("fix2end",7,sf, (st_v0+1), end_v0)) ? fix2end : \
-   (str_eq("fix2End",7,sf, (st_v0+1), end_v0)) ? fix2end : \
-   (str_eq("FIX2END",7,sf, (st_v0+1), end_v0)) ? fix2end : \
-   (str_eq("FIX2End",7,sf, (st_v0+1), end_v0)) ? fix2end : \
-   (str_eq("tus",3,sf, (st_v0+1), end_v0)) ? tus : \
-   (str_eq("tns",3,sf, (st_v0+1), end_v0)) ? tns : \
-   (str_eq("tms",3,sf, (st_v0+1), end_v0)) ? tms : \
+   (str_eq("i32",3,sf, (st_v0), end_v0)) ?  i32 :  \
+   (str_eq("str",3,sf, (st_v0), end_v0)) ? str :   \
+   (str_eq("Str",3,sf, (st_v0), end_v0)) ? str :   \
+   (str_eq("i64",3,sf, (st_v0), end_v0)) ? i64 :   \
+   (str_eq("float",5,sf,(st_v0), end_v0)) ? f64: \
+   (str_eq("f64",3,sf,(st_v0), end_v0)) ? f64: \
+   (str_eq("f32",3,sf,(st_v0), end_v0)) ? f32: \
+   (str_eq("date",4,sf,(st_v0), end_v0)) ? enum_date: \
+   (str_eq("enum_date",9,sf,(st_v0), end_v0)) ? enum_date: \
+   (str_eq("decimal153",10,sf, (st_v0), end_v0)) ? decimal153 : \
+   (str_eq("decimal185",10,sf, (st_v0), end_v0)) ? decimal185 : \
+   (str_eq("decimal154",10,sf, (st_v0), end_v0)) ? decimal153 : \
+   (str_eq("decimal153",10,sf, (st_v0), end_v0)) ? decimal153 : \
+   (str_eq("decimal185",10,sf, (st_v0), end_v0)) ? decimal185 : \
+   (str_eq("decimal154",10,sf, (st_v0), end_v0)) ? decimal153 : \
+   (str_eq("decimal184",10,sf, (st_v0), end_v0)) ? decimal185 : \
+   (str_eq("Decimal(15,3)",13,sf, (st_v0), end_v0)) ? decimal153 : \
+   (str_eq("Decimal(15,3)",13,sf, (st_v0), end_v0)) ? decimal153 : \
+   (str_eq("Decimal(18,5)",13,sf, (st_v0), end_v0)) ? decimal185 : \
+   (str_eq("Decimal(18,4)",13,sf, (st_v0), end_v0)) ? decimal184 : \
+   (str_eq("Decimal(15,4)",13,sf, (st_v0), end_v0)) ? decimal154 : \
+   (str_eq("decimal",7,sf, (st_v0), end_v0)) ? decimal_gen : \
+   (str_eq("Decimal",7,sf, (st_v0), end_v0)) ? decimal_gen : \
+   (str_eq("fix42",5,sf, (st_v0), end_v0)) ? fix42 : \
+   (str_eq("fix2end",7,sf, (st_v0), end_v0)) ? fix2end : \
+   (str_eq("fix2End",7,sf, (st_v0), end_v0)) ? fix2end : \
+   (str_eq("Fix2END",7,sf, (st_v0), end_v0)) ? fix2end : \
+   (str_eq("Fix2End",7,sf, (st_v0), end_v0)) ? fix2end : \
+   (str_eq("FIX2END",7,sf, (st_v0), end_v0)) ? fix2end : \
+   (str_eq("FIX2End",7,sf, (st_v0), end_v0)) ? fix2end : \
+   (str_eq("tus",3,sf, (st_v0), end_v0)) ? tus : \
+   (str_eq("tns",3,sf, (st_v0), end_v0)) ? tns : \
+   (str_eq("tms",3,sf, (st_v0), end_v0)) ? tms : \
    UNKNOWN
 #endif
 
@@ -309,6 +311,7 @@ typedef struct _DFSchema {
   int priority;
   int final_o_loc;  // No multiplicity ordered location
   int final_m_loc;  // Multiplicity based column location
+  short ltrunc, rtrunc;
   char fixequal;
 } DF_Schema;
 #endif
@@ -317,7 +320,8 @@ typedef struct _DFSchema {
 #define DFFIXFIELD 0
 typedef struct _DF_Fix_Field {
   int field_code; int maxmultiplicity;
-  short keep; int priority;
+  short keep; short ltrunc, rtrunc; int priority;
+  char* nm;
   char* fixtitle; char *desc;
   DF_DataType typ; 
   char *fmt; DF_TSType fmttyp; char width, scale;
@@ -341,6 +345,7 @@ typedef struct _DF_config_file {
   int n_total_print_columns;
   int n_total_multiplicity_columns;
   int *mark_visited;
+  int *mark_m_visited;
 } DF_config_file; 
 #endif
 
@@ -449,3 +454,146 @@ for(;ii < end_ln; ii++) { \
 } \
 ii++ 
 #endif
+
+#ifndef SchemaSeeker_INT
+
+
+
+//   if (str_eq("rtrunc",6,seek_str, 0,seek_str_l)) {                                                        \
+//     printf("Wooh SchemaSeeker we have seek_str=%.*s, now string=|%.*s|\n",                                \
+//      seek_str_l, seek_str, seek_e-seek_b, sf + seek_b);                                                   \
+//   }                                                                                                       \
+
+#define SchemaSeeker_START(seek_str, seek_str_l, seek_b, seek_e, i_loc, st0, end0, failend)                \
+   i_loc = find_key(seek_str, seek_str_l, sf, seek_b, seek_e,verbose-4);                                   \
+   if ((i_loc <= seek_b) || (i_loc >= seek_e) || (sf[i_loc] == '}')) {                                     \
+     if (failend > 0) {                                                                                    \
+       vpt(-10, "ERROR we sought \"%.*s\", but did not find mandatory string in "                          \
+                "sf[%ld:%ld] = |%.*s|.  i_loc=%ld.\n",                                                     \
+           seek_str_l, seek_str, (long int) seek_b, (long int) seek_e,                                     \
+           seek_e-seek_b, sf + seek_b, (long int) i_loc);                                                  \
+           delete_config_file(&dfc, 5);  return(NULL);                                                     \
+     } else {                                                                                              \
+       vpt(4, "Issue we sought \"%.*s\", but did not find optional string in "                             \
+                "sf[%ld:%ld] = |%.*s|.  i_loc=%ld.\n",                                                     \
+           seek_str_l, seek_str, (long int) seek_b, (long int) seek_e,                                     \
+           seek_e-seek_b, sf + seek_b, (long int) i_loc);                                                  \
+       i_loc = -100;                                                                                       \
+     }                                                                                                     \
+   }                                                                                                       \
+   if (i_loc >= seek_b) {                                                                                  \
+     vpt(2, ":  Looking for %.*s value bounds, pl=%ld. \n", seek_str_l, seek_str, (long int) i_loc);       \
+     st0 = get_value_bounds("get_config_file", sf, i_loc, nmax, verbose-2, &st0, &end0);                   \
+     if ((st0 <= 0) || (st0 <= seek_b) || (st0 >= nmax)) {                                                 \
+        vpt(-10, "ERROR we had i_loc=%ld for location of %.*s.  But st0,end0=[%ld,%ld].  "                 \
+            "  Note sf[%ld:%ld] = \"%.*s\".   ",                                                           \
+           (long int) i_loc, seek_str_l, seek_str,  (long int) st0, (long int) end0,                       \
+           (long int) i_loc, (long int) (i_loc+30 < nmax ? i_loc+30 : nmax),                               \
+           (long int) (i_loc+30 < nmax ? i_loc + 30 : nmax) - i_loc, sf + i_loc);                          \
+        delete_config_file(&dfc, 5); return(NULL);                                                         \
+     }                                                                                                     \
+     st0 = ((sf[st0] == '\"') || (sf[st0] == '{') || (sf[st0] == '[')) ? st0+1 : st0;                      \
+     end0 = ((sf[end0] == '\"') || (sf[end0] == ' ') || (sf[end0] == '\t') || (sf[end0] == '\n') ||        \
+           (sf[end0] == ']') || (sf[end0] == '}') || (sf[end0] == '\0')) ? end0 :                          \
+           (((sf[end0] >= '0') && (sf[end0] <= '9')) || ((sf[end0] >= 'A') && (sf[end0] <= 'Z')) ||        \
+           ((sf[end0] >= 'a') && (sf[end0] <= 'z')) || (sf[end0] == '.')) ? end0+1 : end0;                 \
+   }                                                                                                       \
+   end0+=0
+
+
+#define FieldSeeker_START(seek_str, seek_str_l, seek_b, seek_e, i_loc, st0, end0, failend)                 \
+   i_loc = find_key(seek_str, seek_str_l, sf, seek_b, seek_e,verbose-4);                                   \
+   if ((i_loc <= seek_b) || (i_loc >= seek_e) || (sf[i_loc] == '}')) {                                     \
+     if (failend > 0) {                                                                                    \
+       vpt(-10, "ERROR we sought \"%.*s\", but did not find mandatory string in "                          \
+                "sf[%ld:%ld] = |%.*s|.  i_loc=%ld.\n",                                                     \
+           seek_str_l, seek_str, (long int) seek_b, (long int) seek_e,                                     \
+           seek_e-seek_b, sf + seek_b, (long int) i_loc);                                                  \
+           return(-13043);                                                                                 \
+     } else {                                                                                              \
+       vpt(4, "Issue we sought \"%.*s\", but did not find optional string in "                             \
+                "sf[%ld:%ld] = |%.*s|.  i_loc=%ld.\n",                                                     \
+           seek_str_l, seek_str, (long int) seek_b, (long int) seek_e,                                     \
+           seek_e-seek_b, sf + seek_b, (long int) i_loc);                                                  \
+       i_loc = -100;                                                                                       \
+     }                                                                                                     \
+   }                                                                                                       \
+   if (i_loc >= seek_b) {                                                                                  \
+     vpt(2, ":  Looking for %.*s value bounds, pl=%ld. \n", seek_str_l, seek_str, (long int) i_loc);       \
+     st0 = get_value_bounds("get_config_file", sf, i_loc, nmax, verbose-2, &st0, &end0);                   \
+     if ((st0 <= 0) || (st0 <= seek_b) || (st0 >= nmax)) {                                                 \
+        vpt(-10, "ERROR we had i_loc=%ld for location of %.*s.  But st0,end0=[%ld,%ld].  "                 \
+            "  Note sf[%ld:%ld] = \"%.*s\".   ",                                                           \
+           (long int) i_loc, seek_str_l, seek_str,  (long int) st0, (long int) end0,                       \
+           (long int) i_loc, (long int) (i_loc+30 < nmax ? i_loc+30 : nmax),                               \
+           (long int) (i_loc+30 < nmax ? i_loc + 30 : nmax) - i_loc, sf + i_loc);                          \
+        return(-30430);                                                                                    \
+     }                                                                                                     \
+     st0 = ((sf[st0] == '\"') || (sf[st0] == '{') || (sf[st0] == '[')) ? st0+1 : st0;                      \
+     end0 = ((sf[end0] == '\"') || (sf[end0] == ' ') || (sf[end0] == '\t') || (sf[end0] == '\n') ||        \
+           (sf[end0] == ']') || (sf[end0] == '}') || (sf[end0] == '\0')) ? end0 :                          \
+           (((sf[end0] >= '0') && (sf[end0] <= '9')) || ((sf[end0] >= 'A') && (sf[end0] <= 'Z')) ||        \
+           ((sf[end0] >= 'a') && (sf[end0] <= 'z')) || (sf[end0] == '.')) ? end0+1 : end0;                 \
+   }                                                                                                       \
+   end0+=0
+
+
+#define SchemaSeeker_INT(seek_str, seek_str_l, dpg, seek_b, seek_e, i_loc, st0, end0, failend)             \
+  SchemaSeeker_START(seek_str, seek_str_l, seek_b, seek_e, i_loc, st0, end0, failend);                     \
+  if ((i_loc >= seek_b) && (st0 >= 0)) {                                                                   \
+     old_char = (char) sf[end0]; sf[end0] = (char) '\0'; dpg = (int) atoi(sf + st0); sf[end0] = old_char;  \
+  }                                                                                                        \
+  st0 += 0
+
+
+#define FieldSeeker_INT(seek_str, seek_str_l, dpg, seek_b, seek_e, i_loc, st0, end0, failend)              \
+  FieldSeeker_START(seek_str, seek_str_l, seek_b, seek_e, i_loc, st0, end0, failend);                      \
+  if ((i_loc >= seek_b) && (st0 >= 0)) {                                                                   \
+     old_char = (char) sf[end0]; sf[end0] = (char) '\0'; dpg = (int) atoi(sf + st0); sf[end0] = old_char;  \
+  }                                                                                                        \
+  st0 += 0
+
+#define SchemaSeeker_CHAR(seek_str, seek_str_l, dpg, seek_b, seek_e, i_loc, st0, end0, failend)            \
+  SchemaSeeker_START(seek_str, seek_str_l, seek_b, seek_e, i_loc, st0, end0, failend);                     \
+  if ((i_loc >= seek_b) && (st0 >= 0)) {                                                                   \
+     dpg = sf[st0];                                                                                        \
+  }                                                                                                        \
+  st0 += 0
+
+#define FieldSeeker_CHAR(seek_str, seek_str_l, dpg, seek_b, seek_e, i_loc, st0, end0, failend)             \
+  FieldSeeker_START(seek_str, seek_str_l, seek_b, seek_e, i_loc, st0, end0, failend);                      \
+  if ((i_loc >= seek_b) && (st0 >= 0)) {                                                                   \
+     dpg = sf[st0];                                                                                        \
+  }                                                                                                        \
+  st0 += 0
+
+#define SchemaSeeker_STR(seek_str, seek_str_l, dpg, seek_b, seek_e, i_loc, st0, end0, failend)             \
+  SchemaSeeker_START(seek_str, seek_str_l, seek_b, seek_e, i_loc, st0, end0, failend);                     \
+  if ((i_loc >= seek_b) && (st0 >= 0)) {                                                                   \
+     dpg = NULL; dpg = (char*) malloc(sizeof(char) * (1+end0-st0));                                        \
+     if (dpg == NULL) {                                                                                    \
+       vpt(-20, "ERROR we had i_loc=%ld.  Allocation of size %ld for %.*s failed. st0,end0=[%ld,%ld].\n",  \
+            (long int) i_loc, (long int) 1+end0-st0, seek_str_l, seek_str,                                 \
+            (long int) st0, (long int) end0);                                                              \
+       delete_config_file(&dfc, 1); return(NULL);                                                          \
+     }                                                                                                     \
+     sprintf(dpg, "%.*s\0",  end0-st0, sf + st0);                                                           \
+  }                                                                                                        \
+  st0 += 0
+
+#define FieldSeeker_STR(seek_str, seek_str_l, dpg, seek_b, seek_e, i_loc, st0, end0, failend)              \
+  FieldSeeker_START(seek_str, seek_str_l, seek_b, seek_e, i_loc, st0, end0, failend);                      \
+  if ((i_loc >= seek_b) && (st0 >= 0)) {                                                                   \
+     dpg = NULL; dpg = (char*) malloc(sizeof(char) * (1+end0-st0));                                        \
+     if (dpg == NULL) {                                                                                    \
+       vpt(-20, "ERROR we had i_loc=%ld.  Allocation of size %ld for %.*s failed. st0,end0=[%ld,%ld].\n",  \
+            (long int) i_loc, (long int) 1+end0-st0, seek_str_l, seek_str,                                 \
+            (long int) st0, (long int) end0);                                                              \
+       return(-304032);                                                                                    \
+     }                                                                                                     \
+     sprintf(dpg, "%.*s\0",  end0-st0, sf + st0);                                                           \
+  }                                                                                                        \
+  st0 += 0
+
+#endif
+
