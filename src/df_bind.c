@@ -128,7 +128,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
   vpt(2, " -- We are ready to load file to string with json_file_name=\"%s\", file_name=\"%s\". \n",
      json_file_name, file_name);
 
-  vpt(2, " -- Execute load_file_to_str(&json_sf, json_file_name, verbose");
+  vpt(2, " -- Execute load_file_to_str(&json_sf, json_file_name, verbose). \n");
   char *json_sf = NULL; // Text of complete JSON instructions. \n");
   iStr nmax =  load_file_to_str(&json_sf, json_file_name, verbose-2);
   if ((nmax <= 0) || (json_sf == NULL)) {
@@ -202,6 +202,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
     vpt(1, " Executing final_print_loc on dfc, dfl\n");
     vpt(1, " note we have total print columns =%ld with total multiplcity=%ld. \n",
       (long int) dfc->n_total_print_columns, (long int) dfc->n_total_multiplicity_columns);
+    PRINT_dfl(dfl);
     PRINT_final_print_loc(dfc, dfl);
     printf("FPLFPLFPLFPLFPLFPLFPLFPL ---------------------------------------------------------------------\n");
   }
@@ -243,17 +244,27 @@ void duckfix_bind(duckdb_bind_info b_info) {
       on_s = next_priority_schema(dfc, on_s, verbose-1);
       p_on_s =  ((on_s >= 0) && (on_s < dfc->n_schemas)) ? dfc->schemas[on_s].priority : -1;
     } else {
-      vpt(2, "  --- We see we will move field on_f=%ld for code =%ld, name = %s, type=%s.  col=%ld versus goal of %ld, aka type=\"%s\", multiplcity=%ld/%ld\n",
+      vpt(2, "  --- We see we will move field on_f=%ld for code =%ld, nm = %s, title=%s, type=%s.  col=%ld versus goal of %ld, aka type=\"%s\", multiplcity=%ld/%ld\n",
           (long int) on_f, (long int) dfc->fxs[on_f].field_code, 
+          dfc->fxs[on_f].nm != NULL ? dfc->fxs[on_f].nm : "NONM",
           dfc->fxs[on_f].fixtitle, What_DF_DataType(dfc->fxs[on_f].typ),
           (long int) on_loop,  dfl->final_known_print_loc[on_f],
           WHAT_DDB_TYPE_STR( (WHAT_DDB_TYPE(dfc->fxs[on_f].typ)) ),
           (long int) dfl->known_multiplicity[on_f], (long int) dfc->fxs[on_f].maxmultiplicity
       );
       ontyp = dfc->fxs[on_f].typ; width = dfc->fxs[on_f].width;  scale = dfc->fxs[on_f].scale;
-      ptitle = dfc->fxs[on_f].fixtitle;
+      ptitle = dfc->fxs[on_f].nm != NULL ? dfc->fxs[on_f].nm : dfc->fxs[on_f].fixtitle;
+      if (on_cols != dfl->final_known_multiplicity_loc[on_f]) {
+         vpt(-10, " ERROR[on_f]=%ld on on_cols=%ld, fixcode=%ld:%s but on_cols=%ld and final_known_multiplicity_loc[%ld]. \n",
+            (long int) on_f, (long int) on_cols, dfc->fxs[on_f].field_code, ptitle, (long int) on_cols,  dfl->final_known_multiplicity_loc[on_f]);
+         duckdb_bind_set_error(b_info, " ERROR clearly something exceeded in final_known_multiplicity. \n");
+         delete_config_file(&dfc, verbose);
+         delete_field_list(&dfl, verbose);
+         return;
+      }
       on_multiplicity = dfl->known_multiplicity[on_f] < dfc->fxs[on_f].maxmultiplicity ? dfl->known_multiplicity[on_f] :
                         dfc->fxs[on_f].maxmultiplicity;
+      on_multiplicity = on_multiplicity >= 1 ? on_multiplicity : 1;
       on_f = next_priority_fixfield(dfc, dfl, on_f, verbose-1);
       p_on_f =  ((on_f >= 0) && (on_f < dfc->nfields)) ? dfc->fxs[on_f].priority : -1;
     }
@@ -265,8 +276,13 @@ void duckfix_bind(duckdb_bind_info b_info) {
         on_type = duckdb_create_logical_type(WHAT_DDB_TYPE(ontyp));
       }
       if (on_multiplicity > 1) {
+        sprintf(ptitle_mult, "%.*s_%02d\0", strlen(ptitle) < 40 ? strlen(ptitle) : 40, ptitle, i_multiplicity);
+      }
+      vpt(2, " -- Assigning on_cols=%ld: title=%s, on_typ=%s, on_type=%s \n", on_cols, (on_multiplicity > 1) ? ptitle_mult : ptitle,
+         What_DF_DataType(ontyp), WHAT_DDB_TYPE_STR(WHAT_DDB_TYPE(ontyp))); 
+      if (on_multiplicity > 1) {
         // Limiting column name length less than 40 characters seems reasonable.
-        sprintf(ptitle_mult, "%.*s_%2d\0", strlen(ptitle) < 40 ? strlen(ptitle) : 40, ptitle, i_multiplicity);
+        sprintf(ptitle_mult, "%.*s_%02d\0", strlen(ptitle) < 40 ? strlen(ptitle) : 40, ptitle, i_multiplicity);
         duckdb_bind_add_result_column(b_info, ptitle_mult, on_type);
       } else {
         duckdb_bind_add_result_column(b_info, ptitle, on_type);

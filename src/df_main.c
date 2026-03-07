@@ -47,6 +47,11 @@
 #define DUCKFIXGENERALH 0
 #endif
 
+#ifndef DUCKFIX_READ_FILEH
+#include "include/read_file.h"
+#define DUCKFIX_READ_FILEH 0
+#endif
+
 #ifndef ERRNOH
 #include <errno.h>
 #define ERRNOH
@@ -98,9 +103,12 @@ int add_schema_entry_to_chunk(df_init_data *df_id, char*buffer, iStr st,
     return(0);
   } 
   int an_Error = fill_in_chunk(dfc->schemas[df_id->ion_schema].typ,  ddbv, df_id,
-    buffer, st, end, verbose-1, dfc->schemas[df_id->ion_schema].width, dfc->schemas[df_id->ion_schema].scale, 
+    buffer, st, end, verbose-1, 
+    dfc->schemas[df_id->ion_schema].typ == str ? dfc->schemas[df_id->ion_schema].rtrunc : dfc->schemas[df_id->ion_schema].width, 
+    dfc->schemas[df_id->ion_schema].typ == str ? dfc->schemas[df_id->ion_schema].ltrunc : dfc->schemas[df_id->ion_schema].scale, 
     dfc->schemas[df_id->ion_schema].fmttyp, dfc->schemas[df_id->ion_schema].final_m_loc);
   df_id->dfc->mark_visited[dfc->schemas[df_id->ion_schema].final_o_loc] = 1;
+  dfc->mark_m_visited[ dfc->schemas[df_id->ion_schema].final_m_loc] = 1;
   return(an_Error);
 }
 
@@ -122,6 +130,16 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
       (long int) fixfieldsStart, (long int) fixfieldsEnd);
     return(-4303234);
   }
+  int oldfixfieldsEnd = fixfieldsEnd;
+  if (sf[fixfieldsEnd] != '\n') {
+    while((fixfieldsEnd > fixfieldsStart) && (sf[fixfieldsEnd] != '\n')) {fixfieldsEnd--; }
+  }
+  if (sf[fixfieldsEnd] != '\n') {
+    vpt(-100, " ERROR sf[fixfieldsEnd=%ld] = \'%c\', and fixfieldsStart=%ld=\'%c\'. sf[%ld:%ld] = \"%.*s\".\n",
+     (long int) fixfieldsEnd, sf[fixfieldsEnd], (long int) fixfieldsStart, sf[fixfieldsStart],
+     (long int) fixfieldsStart, (long int) oldfixfieldsEnd, oldfixfieldsEnd-fixfieldsStart, sf + fixfieldsStart); 
+    return(-1040353);
+  }
   iStr end_ln = fixfieldsEnd;
   int ii = fixfieldsStart;  iStr nmax = fixfieldsEnd;
   if (sf[ii] == '{') {
@@ -136,6 +154,8 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
     printf("ERROR --- We started with sf[fixfieldsStart=%ld:%ld] = \"%.*s\" \n", 
       (long int) fixfieldsStart, (long int) fixfieldsEnd, fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
   }
+  vpt(2, " --- start, fixfieldsStart=%ld, fixfieldsEnd=%ld, %s. \n",
+    (long int) fixfieldsStart, (long int) fixfieldsEnd, sf[fixfieldsEnd] == '\n' ? "FixfieldsEnd is NEWLINE" : "Error fixfields end not new!");
   fixfieldsStart = ii;
   int cntFields = 0;  int aFixNum = 0;  iStr keyStart, keyEnd; 
   int an_error;  iStr stVal, endVal; char old_end = '.';
@@ -159,7 +179,7 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
         keyEnd = sf[ii-1] == on_char_eq ? ii-1 : sf[ii-2] == on_char_eq ? ii-2 : sf[ii] == on_char_eq ? ii : ii;
         old_end = sf[keyEnd];sf[keyEnd] = '\0';  aFixNum = atoi(sf+keyStart);  sf[keyEnd] = old_end;
       } else {
-        keyStart = ii+1; keyEnd = get_end_quote("add_fix2end_entries_to_chunk",sf,ii,fixfieldsEnd);
+        keyStart = ii+1; keyEnd = get_end_quote("add_fix2end_entries_to_chunk",sf,ii,fixfieldsEnd); 
       }
       if (keyEnd > keyStart) {old_end = sf[keyEnd];sf[keyEnd] = '\0';  aFixNum = atoi(sf+keyStart);  sf[keyEnd] = old_end; }
       if ((keyEnd <= keyStart) || (aFixNum <= 0) || (keyEnd>fixfieldsEnd)) {
@@ -172,13 +192,17 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
       }
       if (aFixNum == 18) {
         nmultiplicity = get_multi_equals_bounds(sf, keyEnd+1, fixfieldsEnd, &stVal, &endVal, on_char_eq, on_char_sep);
+        ii = endVal;
       } else {
         PUSH_OUT_WHITE();
         if (sf[ii] == '\"') {
           stVal = ii;  endVal = get_end_quote("add_fix2end_entries_to_chunk",sf,ii,fixfieldsEnd); ii = endVal;
           PUSH_OUT_WHITE(); NEXTCHARSEP();
         } else {
-          stVal = ii;  NEXTCHARSEP();  endVal = ii;
+          stVal = ii;  NEXTCHARSEP();  
+          if ((ii < fixfieldsEnd) && (ii > 0) && (sf[ii] != on_char_sep) && (sf[ii-1] == on_char_sep)) { ii--; }
+          if (ii > fixfieldsEnd) { ii=fixfieldsEnd; }
+          endVal = ii;
         }
         nmultiplicity=1;
       }
@@ -187,6 +211,13 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
          (long int) stVal, (long int) endVal, endVal-stVal, sf + stVal, nmultiplicity);
       df_id->last_fix_num = aFixNum;
       if (nmultiplicity  == 1) {
+        if (endVal >= fixfieldsEnd) {
+          if (sf[endVal] != '\n') {
+            vpt(-10, " Error endVal=%ld, fixfieldsEnd=%ld, but sf[%ld] = \'%c\'.  Why ? \n", (long int) endVal, (long int) fixfieldsEnd,
+               (long int) endVal, sf[endVal]);
+            return(-4050323);
+          }
+        }
         an_error = add_fixfield_entry_to_chunk(df_id, sf, aFixNum, stVal, endVal,  out_chunk, verbose-1);
       } else {
         an_error = add_multi_fixfield_entry_to_chunk(df_id, sf, aFixNum, stVal, endVal, nmultiplicity, out_chunk, verbose-1);
@@ -201,11 +232,16 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
       }
       cntFields++;
     }
-    vpt(2, " --  -- continue the loop after fixField=%ld, sf[ii=%ld]=\'%c\', for fS,fE=[%ld,%ld]:\"%.*s\".  \n",
-      (long int) aFixNum, (long int) ii, sf[ii], (long int) fixfieldsStart, (long int) fixfieldsEnd,
-      fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
+    if (ii >= fixfieldsEnd-1) {
+      vpt(2, " -- Reaching the end of the loop. \n");
+    } else {
+      vpt(2, " --  -- continue the loop after fixField=%ld, sf[ii=%ld]=\'%c\', for fS,fE=[%ld,%ld]:\"%.*s\".  sf[stVal:%ld,%ld]=\"%.*s\".  Note we are sitting on ii=%ld:\'%c\'. \n",
+        (long int) aFixNum, (long int) ii, sf[ii], (long int) fixfieldsStart, (long int) fixfieldsEnd,
+        fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart,
+        (long int) stVal, (long int) endVal, endVal-stVal, sf + stVal, (long int) ii, sf[ii]);
+    }
   }
-  vpt(2, "Success we found %ld total fields from [%ld:%ld]. \n", (long int) cntFields, fixfieldsStart, (long int) fixfieldsEnd);
+  vpt(2, "Success we found %ld total fields from [%ld:%ld]. End of add_fix2end_entries\n", (long int) cntFields, fixfieldsStart, (long int) fixfieldsEnd);
   return(cntFields);
 }
 int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfieldsStart, iStr fixfieldsEnd, 
@@ -416,17 +452,20 @@ int add_multi_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixFiel
     return(-10);    
   }
   df_id->dfc->mark_visited[i_final_o_loc] = 0; //We will up this by counts.
+  df_id->dfc->mark_visited[i_final_m_loc] = 0; //We will up this by counts.
   // Assume either |"1 A M 2 9"| or |3 P| so start with quote or not.  Single character entries
   iStr st_v, end_v; st_v = sf[valStart] == '\"' ? valStart+ 1 : valStart; end_v = st_v + 1;
   for (i_multiplicity = 0; i_multiplicity < maxreads; i_multiplicity++) { 
     duckdb_vector ddbv = duckdb_data_chunk_get_vector(out_chunk, i_final_m_loc + i_multiplicity);
     df_id->dfc->mark_visited[i_final_o_loc]++;
+    df_id->dfc->mark_m_visited[i_final_m_loc + i_multiplicity]=1;
     seek_char = sf[st_v];  iLocChar = LOC_CHAR(seek_char);
     if ((iLocChar >= 0) && (iLocChar < 26+26+10)) {
-      vpt(3, " we have fix field %ld, with val \'%c\' which we believe is iLC=%d for \"%s\" \n",
+      vpt(3, " we have fix field %ld, with val \'%c\' which we believe is iLC=%d for \"%s\".  We are filling column %ld \n",
         (long int) fixField, (char) seek_char, (int) dff.field_loc[iLocChar], 
         ((dff.field_loc[iLocChar] >= 0) && (dff.field_loc[iLocChar] < dff.n_field_codes))  ? 
-         dff.field_codes_arr + dff.field_codes_loc[dff.field_loc[iLocChar]] : " ERROR_BAD_FIELD"); 
+         dff.field_codes_arr + dff.field_codes_loc[dff.field_loc[iLocChar]] : " ERROR_BAD_FIELD",
+         i_final_m_loc + i_multiplicity); 
       iLC = dff.field_loc[iLocChar];
       if ((iLC >= 0) && (iLC < dff.n_field_codes)) {
         duckdb_vector_assign_string_element(ddbv, df_id->on_chunk_line, 
@@ -454,11 +493,15 @@ int add_multi_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixFiel
   return(1);
 }
 int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iStr valStart, iStr valEnd, duckdb_data_chunk out_chunk, int verbose) {
+  char on_char_sep = df_id->dfl->char_sep;
+  if ((sf[valEnd] != '\n') && (sf[valEnd] != on_char_sep) && ( (sf[valEnd-1] == on_char_sep) || (sf[valEnd-1] == ' ') || (sf[valEnd-1] == '\n'))) {
+    valEnd--;
+  }
   #ifdef DDBUG
     char stt[500];
     sprintf(stt, "   add_fixfield_entry_to_chunk(v=%ld,chkln=%ld,oln=%ld/%ld,fld=%ld,val=\"%.*s\"): ",
       (long int) verbose,  (long int) df_id->on_chunk_line, (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines,
-      (long int) fixField, valEnd-valStart, sf+valStart);
+      (long int) fixField, (sf[valEnd] != '\n') && (sf[valEnd-1] == '\n') ? valEnd-1-valStart : valEnd-valStart, sf+valStart);
   #endif
   #ifndef DDBUG
   char stt[] = "   add_fixfield_entry_to_chunk(): ";
@@ -472,7 +515,7 @@ int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iS
     (long int) prop_known_loc, (long int) dfl->n_known_fields);
   if ((prop_known_loc < 0) || (prop_known_loc >= dfl->n_known_fields) ||
       (dfl->ordered_known_fields[prop_known_loc] != fixField)) {
-    vpt(0, " Error fixField=%ld, could not find in %ld known fiel//ds \n", (long int) fixField, 
+    vpt(0, " Error fixField=%ld, could not find in %ld known fields. \n", (long int) fixField, 
       (long int) dfl->n_known_fields); return(-1);
   }
   vpt(2, " -- Success as fixField=%ld pkl=%ld/%ld, typ=\"%s\", fixtitle=\"%s\" for code=%ld. We think column is %ld of order_known_field=%ld\n",
@@ -488,11 +531,13 @@ int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iS
   int i_final_o_loc = dfl->final_known_print_loc[prop_known_loc]; 
   int i_final_m_loc = dfl->final_known_multiplicity_loc[prop_known_loc];  // May be different
   if (i_final_m_loc < 0) {
-    vpt(2, " -- This column will not print, ignoring fixField=%ld with priority%ld, i_final_o_loc=%ld, i_final_m_loc=%ld \n", 
-      (long int) fixField, (long int) dfc->fxs[prop_known_loc].priority, (long int) i_final_o_loc, i_final_m_loc);
+    vpt(2, " -- This column will not print, ignoring fixField=%ld=%ld with priority%ld, i_final_o_loc=%ld, i_final_m_loc=%ld \n", 
+      (long int) fixField, (long int) dff.field_code, (long int) dfc->fxs[prop_known_loc].priority, (long int) i_final_o_loc, i_final_m_loc);
     return(4);
   }
-  vpt(2, " -- We have pulled i_final_o_loc (columns without multiplicity)=%ld, or multiplicity column %ld. \n",
+  vpt(2, " -- We have pulled fixfield=%ld=%ld=%s, i_final_o_loc (columns without multiplicity)=%ld, or multiplicity column %ld. \n",
+    (long int) fixField, (long int) dff.field_code, 
+    dff.nm != NULL ? dff.nm : (dff.fixtitle != NULL ? dff.fixtitle : "NOTITLE"),
     i_final_o_loc, i_final_m_loc);
   duckdb_vector ddbv = duckdb_data_chunk_get_vector(out_chunk, i_final_m_loc);
   if (verbose >= 2) {
@@ -519,14 +564,18 @@ int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iS
       (long int) df_id->dfc->fxs[prop_known_loc].field_code, 
       (char*) df_id->dfc->fxs[prop_known_loc].fixtitle);
   df_id->dfc->mark_visited[i_final_o_loc] = 1;
+  df_id->dfc->mark_m_visited[i_final_m_loc] = 1;
   if (dff.n_field_codes > 0) {
     seek_char = ((sf[valStart] == '\"') || (sf[valStart] == '\'')) ? sf[valStart + 1] : sf[valStart];
     iLocChar = LOC_CHAR(seek_char);
     if ((iLocChar >= 0) && (iLocChar < 26+26+10)) {
-      vpt(3, " we have fix field %ld, with val \'%c\' which we believe is iLC=%d for \"%s\" \n",
-        (long int) fixField, (char) seek_char, (int) dff.field_loc[iLocChar], 
+      vpt(3, "FixField=%ld:\"%s\", with val \'%c\' which we believe is iLC=%d for \"%s\", should be typ=\"%s\".  Goal Column is i_final_m_loc=%ld.  dff.n_field_codes=%ld.\n",
+        (long int) fixField, dff.nm != NULL ? dff.nm : (dff.fixtitle != NULL ? dff.fixtitle : "NONAME"),
+        (char) seek_char, (int) dff.field_loc[iLocChar], 
         ((dff.field_loc[iLocChar] >= 0) && (dff.field_loc[iLocChar] < dff.n_field_codes))  ? 
-         dff.field_codes_arr + dff.field_codes_loc[dff.field_loc[iLocChar]] : " ERROR_BAD_FIELD"); 
+         dff.field_codes_arr + dff.field_codes_loc[dff.field_loc[iLocChar]] : " ERROR_BAD_FIELD",
+         What_DF_DataType(dff.typ),
+         (long int) i_final_m_loc, dff.n_field_codes); 
       iLC = dff.field_loc[iLocChar];
       if ((iLC >= 0) && (iLC < dff.n_field_codes)) {
         duckdb_vector_assign_string_element(ddbv, df_id->on_chunk_line, 
@@ -559,7 +608,8 @@ int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iS
   } else {
     vpt(2, " --- We will do a fill_in_chunk for on_typ = \"%s\". prop_known_loc=%ld, print_loc=%ld/%ld.\n",  What_DF_DataType(on_typ),
       (long int) prop_known_loc, (long int) dfl->final_known_print_loc[prop_known_loc], (long int) df_id->dfc->n_total_print_columns );
-    return(fill_in_chunk(on_typ, ddbv, df_id, sf, valStart, valEnd, verbose-1, dff.width, dff.scale, 
+    return(fill_in_chunk(on_typ, ddbv, df_id, sf, valStart, valEnd, verbose-1, 
+      on_typ==str ? dff.rtrunc : dff.width, on_typ==str ? dff.ltrunc : dff.scale, 
       dff.fmttyp, dfl->final_known_print_loc[prop_known_loc]));
 
   }
@@ -575,14 +625,19 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
   int on_chunk_line = df_id->on_chunk_line;
   DF_config_file *dfc = df_id->dfc;
   if (sf[valStart] == '\"') { valStart++; }
-  if ((sf[valEnd] == '\"') || (sf[valEnd] == '}') || (sf[valEnd] == ',') || (sf[valEnd]==' ') || (sf[valEnd]==']')) {
+  if ((sf[valEnd] == '\"') || (sf[valEnd] == '}') || (sf[valEnd] == ',') || (sf[valEnd]==' ') || (sf[valEnd]==']') || (sf[valEnd]=='\n')) {
      vL = valEnd - valStart;
   } else {
      vL = valEnd - valStart + 1;
   }
+  if (on_typ == fix2end) {
+    printf("fill_in_chunk: I think error, type is fix2end but we were called anyway! \n");
+    return(-10);
+  }
   vpt(2, " -- nCol = %ld, Beginning with on_typ=%s, sf[%ld:%ld] = \"%.*s\" value (vL=%ld). width=%ld,scale=%ld, fmttyp=\"%s\". \n",
     (long int) nCol, What_DF_DataType(on_typ), (long int) valStart, (long int) valEnd, valEnd-valStart, sf + valStart, (long int) vL,
-    (long int) width, (long int) scale, What_DF_TSType(fmttyp));
+    (long int) width, (long int) scale, 
+    ((on_typ == tms) || (on_typ == tns) || (on_typ == tus)) ? What_DF_TSType(fmttyp) : " -- Not a TimeType");
   switch (on_typ) {
     case i32 : 
       memcpy(df_id->int_scratch,  sf + valStart, vL < 10 ? vL : 10); df_id->int_scratch[vL<10?vL:10] = '\0';
@@ -597,7 +652,7 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
       if (errno != 0) {
         SETINVALID(on_chunk_line);
       } else {
-        *(((int64_t *) ddbv) + df_id->on_chunk_line) = load_i64;
+        *(((int64_t *) vddbv) + df_id->on_chunk_line) = load_i64;
       }
       break;
     case f32 :
@@ -666,13 +721,13 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
       }
       vpt(2, " Note, Decimal(%ld,%ld) working buffer[%ld:%ld] = %.*s, with st,end=[%ld,%ld] we calculated dLoc=%ld, foundscale=%ld, load_i64=%ld. \n",
         (long int) width, (long int) scale, 
-        (long int) valStart-2, (long int) valEnd+2, valEnd-valStart+4, sf+valStart-2, (long int) valStart, (long int) valEnd, (long int) dLoc,
+        (long int) valStart, (long int) valEnd, valEnd-valStart, sf+valStart, (long int) valStart, (long int) valEnd, (long int) dLoc,
         (long int) foundscale, (long int) load_i64);
       break;
     case str :
-      vpt(3, " -- we have vL=%ld, assigning a string element to ddbv for on_chunk_line=%ld, value sf[%ld:%ld] = \"%.*s\". \n",
-        (long int) vL,  (long int) on_chunk_line, (long int) valStart, (long int) valStart + vL, vL, sf + valStart);
-      duckdb_vector_assign_string_element_len(ddbv, on_chunk_line, sf +valStart, vL);  
+      vpt(3, " -- we have vL=%ld, assigning a string element (-%ld) to ddbv for on_chunk_line=%ld, value sf[%ld:%ld] = \"%.*s\". \n",
+        (long int) vL,  (long int) width, (long int) on_chunk_line, (long int) valStart, (long int) valStart + vL, vL, sf + valStart);
+      duckdb_vector_assign_string_element_len(ddbv, on_chunk_line, sf +valStart + scale, (vL-width-scale >= 0) ? vL-width-scale : vL);  
       break;
     case enum_date:
       memcpy(df_id->int_scratch, sf+valStart,4); df_id->int_scratch[4] = '\0';
@@ -833,9 +888,90 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
   }
   return(1);
 }
+int add_null_line_to_chunk(duckdb_data_chunk out_chunk, duckdb_function_info df_info, df_init_data *df_id, int verbose) {
+  char stt[] = "add_null_line_to_chunk()";
+  printf("%s: Request to add null line to this chunk. \n", stt);
+  vpt(1, " Now we need to set the columns. \n");
+  DF_config_file *dfc = df_id->dfc;  DF_field_list* dfl = df_id->dfl;
+  int i_col=0;
+  int nf_or_s = 0;  int on_s = 0; int on_f = 0;
+  DF_DataType on_typ;
+  int i_m;
+  char MYNONE[] = "";
+
+  for (i_col = 0; i_col < dfc->n_total_multiplicity_columns; i_col++) {
+    vpt(2, "Start i_col=%ld/%ld. \n", (long int) i_col, dfc->n_total_multiplicity_columns);
+    nf_or_s = dfc->mark_m_visited[dfc->n_total_multiplicity_columns + i_col];
+    if (nf_or_s >= 0) {
+      on_s = (int) nf_or_s;  on_typ = (DF_DataType) dfc->schemas[on_s].typ;
+    } else {
+      on_f = (-1*nf_or_s) - 1; on_typ = (DF_DataType) dfc->fxs[on_f].typ;
+    } 
+    vpt(3, " -- on i_col=%ld/%ld, nf_or_s=%ld:\"%s\": on_typ=\"%s\", on_type=\"%s\". \n",
+      (long int) i_col, (long int) dfc->n_total_multiplicity_columns, (long int) nf_or_s,
+      nf_or_s >= 0 ? dfc->schemas[on_s].nm : (dfc->fxs[on_f].nm != NULL ? dfc->fxs[on_f].nm : dfc->fxs[on_f].fixtitle),
+      What_DF_DataType(on_typ),  WHAT_DDB_TYPE_STR(WHAT_DDB_TYPE(on_typ))
+    );
+    duckdb_vector ddbv = duckdb_data_chunk_get_vector(out_chunk, i_col);
+    void * vddbv =  (void*) ((on_typ == str) ? NULL : duckdb_vector_get_data(ddbv)); 
+    vpt(3, " -- we have the vector i_col=%ld. \n", (long int) i_col);
+    switch (on_typ) {
+      case i32 : 
+        *(((int32_t *) vddbv) + df_id->on_chunk_line) = 0; break;
+      case decimal_gen :
+      case decimal154 :
+      case decimal153 :
+      case decimal184 :
+      case decimal185 :
+      case tms : 
+      case tus :
+      case tns :
+      case i64 :
+      case enum_date :
+        *(((int64_t *) vddbv) + df_id->on_chunk_line) = (long int) 0; break;
+      case f32 :
+        *(((float *) vddbv) + df_id->on_chunk_line) = 0; break;
+      case f64 :
+        *(((double *) vddbv) + df_id->on_chunk_line) = 0; break;
+      case str :
+        if (verbose >= 20) {
+         duckdb_logical_type ltype = duckdb_vector_get_column_type(ddbv); 
+         duckdb_type dtype = duckdb_get_type_id(ltype);
+         printf(" -- Assessing Logical type of ltype column col i_col=%d. \n", (int) i_col);
+         printf(" -- type for this column is type = %ld aka \"%s\"", (long int) dtype,
+           WHAT_DDB_TYPE_STR(dtype));
+         duckdb_destroy_logical_type(&ltype);
+         for (int icol2 = 0; icol2 < dfc->n_total_multiplicity_columns; icol2++) {
+           duckdb_vector oddbv = duckdb_data_chunk_get_vector(out_chunk, icol2);
+           duckdb_logical_type ltype2 = duckdb_vector_get_column_type(oddbv);
+           duckdb_type dtype2 = duckdb_get_type_id(ltype2);
+           printf("[col=%ld/%ld: dtype=%ld or \"%s\"] \n",
+           (long int) icol2, (long int) dfc->n_total_multiplicity_columns, (long int) dtype2,
+           WHAT_DDB_TYPE_STR(dtype2));
+           duckdb_destroy_logical_type(&ltype2);
+         }
+        }
+        //printf(" --- Assigning a NONE string=\"%.*s\"!\n", 4, MYNONE);
+        duckdb_vector_assign_string_element_len(ddbv, df_id->on_chunk_line, MYNONE, 4);
+        //printf(" --- How did assigment to line work? \n");
+        break;
+      default :
+        printf("add_null_line_to_chunk[nf_or_s=%ld]:%s, we have not implemented i_col=%ld/%ld for on_typ=\"%s\", on_type=\"%s\". \n",
+          (long int) nf_or_s, 
+           nf_or_s >= 0 ? dfc->schemas[on_s].nm : (dfc->fxs[on_f].nm != NULL ? dfc->fxs[on_f].nm : dfc->fxs[on_f].fixtitle),
+          (long int) i_col, (long int) dfc->n_total_multiplicity_columns, What_DF_DataType(on_typ), WHAT_DDB_TYPE_STR(WHAT_DDB_TYPE(on_typ))); 
+    }
+    vpt(3, " ---- done adding line i_col=%ld. \n", i_col);
+  }
+  vpt(1, " --- All done, i_col = %ld. \n", i_col);
+  return(1);
+}
 int add_line_to_chunk(duckdb_data_chunk out_chunk, 
   duckdb_function_info df_info, df_init_data *df_id, int verbose) {
   DF_field_list *dfl = df_id->dfl;
+
+  //printf("Bad line stuff here we go before seeing data, we thing total print columns is %ld \n", df_id->dfc->n_total_print_columns);
+  //return(0);
   #ifdef DDBUG
   char stt[500];
   sprintf(stt, " df_main.c->add_line_to_chunk(v=%d,chunk_ln=%d/%d,on_ln=%ld/%ld): ", 
@@ -855,32 +991,17 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
   iStr fieldStart; iStr fieldEnd;  int n_total_added_fields = 0;
   DF_config_file *dfc = df_id->dfc;
   char *sf = df_id->buffer;  iStr end_ln = df_id->iLineEnd;
-  for (int i_pt = 0; i_pt < df_id->dfc->n_total_print_columns; i_pt++) {
-    df_id->dfc->mark_visited[i_pt] = 0;
-  }
   char on_char_sep = dfl->char_sep;
   for (df_id->ion_schema = 0; df_id->ion_schema < dfc->n_schemas; df_id->ion_schema++) {
+    //if (df_id->ion_schema >= 4) {
+    //  printf("FOUR LINES ADDED(ion_schema=%ld), we thing total print columns is %ld \n", (long int) df_id->ion_schema, df_id->dfc->n_total_print_columns);
+    //  return(0);
+    //}
     fieldStart = ii; NEXTCHARSEP(); fieldEnd = ii;
     if ((fieldEnd-1 > fieldStart) && (sf[fieldEnd-1] == df_id->dfl->char_sep)) { fieldEnd--; }
     while((fieldEnd-1 > fieldStart) && ((sf[fieldEnd-1] == ' ') || (sf[fieldEnd-1] == '\t') || (sf[fieldEnd-1] == '\n'))) { fieldEnd--; } 
     while((fieldStart < fieldEnd-1) && ((sf[fieldStart] == ' ') || (sf[fieldStart] == '\t'))) { fieldStart++; }
-    if (dfc->schemas[df_id->ion_schema].typ != fix42) {
-       if ((sf[fieldStart] == '\"') && (sf[fieldEnd-1] == '\"')) {
-         fieldStart++; fieldEnd--;
-       }
-       if ((dfc->schemas[df_id->ion_schema].final_o_loc < 0) || (dfc->schemas[df_id->ion_schema].final_m_loc < 0)) {
-         vpt(2, "We are on ion_schema = %ld, however final_o_loc=%ld, final_m_loc=%ld so no print. \n", (long int) df_id->ion_schema,
-           (long int) dfc->schemas[df_id->ion_schema].final_o_loc, (long int) dfc->schemas[df_id->ion_schema].final_m_loc);
-       } else {
-         attempt = add_schema_entry_to_chunk(df_id, df_id->buffer, fieldStart, fieldEnd, out_chunk, verbose-1);
-         if (attempt < 0) {
-           //vpt(-1, " ERROR received %ld from last attempt to add schema entry to chunk. Trying again \n", (long int) attempt);
-           //attempt = add_schema_entry_to_chunk(df_id, ion_schema, df_id->buffer, fieldStart, fieldEnd, df_id->on_chunk_line, out_chunk, verbose + 5);
-           vpt(-1, "  We had received %ld from attempt to add schema entry to chunk\n", (long int) attempt);
-           duckdb_function_set_error(df_info, "Attempted to Add Schema entry but failed. \n"); return(-1);
-         }
-       }
-    } else {
+    if (dfc->schemas[df_id->ion_schema].typ == fix42) { 
        if ((sf[fieldStart] != '{') || (sf[fieldEnd-1] != '}')) {
          vpt(0, "ERROR (fix42 version) (ion_schema=%ld/%ld) on fieldStart = %ld/%ld, we had sf[%ld:%ld]=\"%.*s\" with "
             "sf[fieldStart=%ld]=\'%c\', sf[fieldEnd-1=%ld]=\'%c\'\n",  (long int) df_id->ion_schema, (long int) dfc->n_schemas,
@@ -896,25 +1017,101 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
        if (attempt < 0) {
          //vpt(-1, " ERROR received %ld from last attempt to add fix field entry to chunk. Trying again \n", (long int) attempt);
          //attempt = add_fixfields_entries_to_chunk(df_id, df_id->buffer, fieldStart, fieldEnd, df_id->on_chunk_line,out_chunk, verbose+5);
-         vpt(-1, "  We had received %ld from attempt to add fix_field entry to chunk and tried again \n", (long int) attempt);
-         duckdb_function_set_error(df_info, "Attempted to Add Fix Field entry but failed. \n"); return(-1);
+		 vpt(-1, "  We had received %ld from attempt to add fix_field entry to chunk and tried again \n", (long int) attempt);
+		 duckdb_function_set_error(df_info, "Attempted to Add Fix Field entry but failed. \n"); return(-1);
        } else {
          vpt(2, " after add_fixfields_entries_to_chunk we get attempt=%ld for on_chunk_line=%ld. or line %ld/%ld \n",
            (long int) attempt, (long int) df_id->on_chunk_line, (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines);
        }
+       n_total_added_fields+=attempt;
       //NEXTCOMMA();  
+    } else if (dfc->schemas[df_id->ion_schema].typ == fix2end) { 
+       // We now zoom off to end of the line. 
+       fieldEnd = end_ln;
+       attempt = add_fix2end_entries_to_chunk(df_id, df_id->buffer, df_id->ion_schema, fieldStart, end_ln, out_chunk, verbose+2);
+
+       printf("add_fix2end returns = %ld, we think total multiplicity columns is %ld \n", (long int) attempt, df_id->dfc->n_total_multiplicity_columns);
+       if (attempt < 0) {
+         //vpt(-1, " ERROR received %ld from last attempt to add fix field entry to chunk. Trying again \n", (long int) attempt);
+         //attempt = add_fixfields_entries_to_chunk(df_id, df_id->buffer, fieldStart, fieldEnd, df_id->on_chunk_line,out_chunk, verbose+5);
+         vpt(-1, "  We had received %ld from attempt to add fix2end entry to chunk and tried again. ion_schema=%ld. \n",
+           (long int) attempt, (long int) df_id->ion_schema);
+         duckdb_function_set_error(df_info, "Attempted to Add fix2end entry but failed. \n"); return(-1);
+       } else {
+         vpt(2, " after add_fix2end_entries_to_chunk we get attempt=%ld for on_chunk_line=%ld. or line %ld/%ld \n",
+           (long int) attempt, (long int) df_id->on_chunk_line, (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines);
+       }
+       // Fix 2 end needs to be empty
+       n_total_added_fields+=attempt;
+       break;
+      //NEXTCOMMA();  
+    } else {
+       if ((sf[fieldStart] == '\"') && (sf[fieldEnd-1] == '\"')) {
+         fieldStart++; fieldEnd--;
+       }
+       if ((dfc->schemas[df_id->ion_schema].final_o_loc < 0) || (dfc->schemas[df_id->ion_schema].final_m_loc < 0)) {
+         vpt(2, "We are on ion_schema = %ld, however final_o_loc=%ld, final_m_loc=%ld so no print. \n", (long int) df_id->ion_schema,
+           (long int) dfc->schemas[df_id->ion_schema].final_o_loc, (long int) dfc->schemas[df_id->ion_schema].final_m_loc);
+       } else {
+         attempt = add_schema_entry_to_chunk(df_id, df_id->buffer, fieldStart, fieldEnd, out_chunk, verbose-1);
+         if (attempt < 0) {
+           //vpt(-1, " ERROR received %ld from last attempt to add schema entry to chunk. Trying again \n", (long int) attempt);
+           //attempt = add_schema_entry_to_chunk(df_id, ion_schema, df_id->buffer, fieldStart, fieldEnd, df_id->on_chunk_line, out_chunk, verbose + 5);
+		 vpt(-1, "  We had received %ld from attempt to add schema entry to chunk\n", (long int) attempt);
+           duckdb_function_set_error(df_info, "Attempted to Add Schema entry but failed. \n"); return(-1);
+         }
+      }
+      n_total_added_fields++;
     }
-    n_total_added_fields += attempt;
   }
-  int on_pt;
-  for (on_pt = 0; on_pt < df_id->dfc->n_total_multiplicity_columns; on_pt++) {
-    if (df_id->dfc->mark_visited[on_pt] == 0) {
-       duckdb_vector ddbv = duckdb_data_chunk_get_vector(out_chunk, on_pt);
-       int64_t * ddbv_validity = NULL;
-       SETINVALID(df_id->on_chunk_line);
+  int on_mt;
+  vpt(-2, "Ok it is time to test for nulls in the visited graph.\n");
+  int cnt_null = 0;
+  for (on_mt = 0; on_mt < df_id->dfc->n_total_multiplicity_columns; on_mt++) {
+    if (df_id->dfc->mark_m_visited[on_mt] <= 0) {
+       if (df_id->dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_mt] >= 0) {
+         vpt(-1, " ERROR weird, we didn't visit column %ld/%ld but it should be a schema result: %ld. \n",
+           (long int) on_mt, (long int) df_id->dfc->n_total_multiplicity_columns,
+           (long int) (df_id->dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_mt]) );
+       } else {
+         cnt_null++;
+         int ifld = (int)  ( (long int) (-1*df_id->dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_mt] -1 ));
+         vpt(1, " on_mt=%ld/%ld.  NULLING out mvisited[%ld]=%ld for ifld=%ld or %ld:%s of type %s. \n",
+           (long int) on_mt, (long int) df_id->dfc->n_total_multiplicity_columns,
+           (long int) dfc->n_total_multiplicity_columns + on_mt,
+           (long int) (df_id->dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_mt]),
+           (long int) ifld, (long int)  df_id->dfc->fxs[ifld].field_code, df_id->dfc->fxs[ifld].nm,
+           What_DF_DataType(df_id->dfc->fxs[ifld].typ));
+         duckdb_vector ddbv = duckdb_data_chunk_get_vector(out_chunk, on_mt);
+         void * vddbv =  (void*) ((dfc->fxs[ifld].typ == str) ? NULL : duckdb_vector_get_data(ddbv)); 
+         switch (dfc->fxs[ifld].typ) {
+           case i64 :
+           case tms :
+           case tus :
+           case tns :
+             *(((int64_t *) ddbv) + df_id->on_chunk_line) = 0; break;
+           case i32 : 
+             *(((int32_t *) vddbv) + df_id->on_chunk_line) = 0; break;
+           case f32 :
+             *(((float *) vddbv) + df_id->on_chunk_line) = 0.0; break;
+           case f64 :
+             *(((float *) vddbv) + df_id->on_chunk_line) = 0.0; break;
+           case str : 
+             duckdb_vector_assign_string_element_len(ddbv, df_id->on_chunk_line, " ", 1);  
+             break;
+           default :
+             break;
+         }
+         int64_t * ddbv_validity = NULL;
+         SETINVALID(df_id->on_chunk_line);
+       }
+       //void *v_ddbv_validity = duckdb_vector_get_validity(ddbv);
+       // Set the value at row_index to NULL
+       //duckdb_validity_set_row_invalid(v_ddbv_validity, df_id->on_chunk_line);
     }
   }
-  vpt(1, " Completed the whole line added %ld fields.\n", (long int) n_total_added_fields);
+  vpt(-3, " We nulled out %ld values. \n", (long int) cnt_null);
+  vpt(-3, " Completed the whole line added %ld fields.\n", (long int) n_total_added_fields);
   return(1);
 }
 void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk out_chunk) {
@@ -936,8 +1133,25 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
        (long int) df_id->on_chunk,  (long int) df_id->dfl->n_loc_lines, (long int) df_id->dfl->n_total_lines); 
   }
   DF_field_list *dfl = df_id->dfl;
+  if (dfl == NULL) { 
+    vpt(-100, "MMM Error, dfl element of df_id is null we can't go forward. \n");
+    duckdb_function_set_error(df_info, "No dfl at this stage in buffer"); return;
+    return;
+  }
   iStr iLineEnd;
   int on_chunk_line = 0; df_id->on_chunk_line = 0;
+
+  /*
+  // Debug: Test an empty table.
+  printf("MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM\n");
+  printf("MMM df_main.c --- Test early exit from algo. \n");
+  printf("%s --- We are premature end to see if we can delete object, df_id->on_overall_line=%ld/df_id->dfl->n_total_lines=%ld. \n",
+    stt, (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines);
+  printf("MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM\n");
+  duckdb_data_chunk_set_size(out_chunk, 0);
+  return;
+  */
+
   if (df_id->on_overall_line >= df_id->dfl->n_total_lines) {
     vpt(1, " --- Last loop we have on_overall_line=%ld=total=%ld.  We are on chunk %ld/%ld\n",
        (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines,
@@ -945,6 +1159,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
     duckdb_data_chunk_set_size(out_chunk, 0);
     return;
   }
+
   int add_line_error;
   char error_text[500];
   while ((df_id->tbytesread < dfl->file_total_bytes) && (df_id->bytesread > 0)) {
@@ -953,10 +1168,14 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
       (long int) df_id->buffreads, (long int) df_id->bytesread, (long int) df_id->remainder, (long int) df_id->tbytesread);
     vpt(3, " here is the complete buffer so far: \n%.*s\nLet's begin...\n", (long int) df_id->bytesread, df_id->buffer);
     while (df_id->onstr < df_id->bytesread) {
-      vpt(3, " on reading_line=%ld, onstr=%ld/%ld, tbytesread=%ld, \"%.*s...\"\n",
-        (long int) df_id->on_overall_line, (long int) df_id->onstr, (long int) df_id->bytesread,  (long int) df_id->tbytesread, 30, df_id->buffer + df_id->onstr);
+      vpt(3, " on reading_line=%ld, onstr=%ld/%ld, tbytesread=%ld.  \n", 
+        (long int) df_id->on_overall_line, (long int) df_id->onstr, (long int) df_id->bytesread,  (long int) df_id->tbytesread);
+
       while ((df_id->onstr < df_id->bytesread) && (df_id->buffer[df_id->onstr] == '\n')) {df_id->onstr++; }
       df_id->iLineEnd = get_next_newln(df_id->buffer, df_id->onstr, df_id->bytesread, verbose-2); 
+      vpt(3, " on reading_line=%ld, onstr=%ld/%ld, tbytesread=%ld, \"%.*s...\"\n",
+        (long int) df_id->on_overall_line, (long int) df_id->onstr, (long int) df_id->bytesread,  (long int) df_id->tbytesread, 
+        df_id->iLineEnd - df_id->onstr < 80 ? df_id->iLineEnd - df_id->onstr : 80, df_id->buffer + df_id->onstr);
       if ((df_id->iLineEnd < 0) || (df_id->iLineEnd >= df_id->bytesread)) {
         vpt(-1, " ISSUE -- we received a newline at %ld, when we started from sf[%ld:%ld] = \"%.*s\", tbytesread=%ld/%ld, overall line at %ld/%ld\n",
           (long int) df_id->iLineEnd, df_id->onstr, 
@@ -966,11 +1185,34 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
           (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines);
       }
       if (df_id->iLineEnd >= df_id->bytesread) { break; }
-      if (df_id->buffer[df_id->iLineEnd] != '\n') { printf("duckfix_main_table_function, iLineEnd=%ld, but buffer[%ld]=\'%c\' ? \n",
-                                      (long int) df_id->iLineEnd, (long int) df_id->iLineEnd, df_id->buffer[df_id->iLineEnd]);  
+      if (df_id->buffer[df_id->iLineEnd] != '\n') { 
+         printf("duckfix_main_table_function, iLineEnd=%ld, but buffer[%ld]=\'%c\' ? \n",
+            (long int) df_id->iLineEnd, (long int) df_id->iLineEnd, df_id->buffer[df_id->iLineEnd]);  
          duckdb_function_set_error(df_info, "Failed to reach an end line or end of buffer"); return;
       }
-      add_line_error = add_line_to_chunk(out_chunk, df_info, df_id, verbose-2);
+      clear_m_visited(df_id->dfc); 
+      //if (df_id->dfc->n_total_multiplicity_columns != df_id->dfc->n_total_print_columns) {
+      //  add_line_error = add_null_line_to_chunk(out_chunk, df_info, df_id, verbose+2);
+      //}
+      add_line_error = add_line_to_chunk(out_chunk, df_info, df_id, verbose+2);
+      //printf("%s -- EARLY end after one line . error message = %ld\n", stt, add_line_error);
+      //df_id->on_overall_line = 1; df_id->dfl->n_total_lines = 1;
+      //duckdb_data_chunk_set_size(out_chunk, 1);
+      //df_id->on_chunk++;
+      //printf("%s -- Done early end one line. \n", stt);
+      //return;
+      /* 
+      add_line_error = add_null_line_to_chunk(out_chunk, df_info, df_id, verbose+2);
+      add_line_error = add_line_to_chunk(out_chunk, df_info, df_id, verbose+2);
+      printf("%s -- EARLY end after one line . error message = %ld\n", stt, add_line_error);
+      df_id->on_overall_line = 1; df_id->dfl->n_total_lines = 1;
+      duckdb_data_chunk_set_size(out_chunk, 1);
+      df_id->on_chunk++;
+      printf("%s -- Done early end one line. \n", stt);
+      return;
+      */
+      //
+
       if (add_line_error < 0) {
         vpt(-10,"Error on update with [onstr,iLineEnd]=[%ld,%ld] for \n%.*s\nWhat went wrong?\n",
          (long int) df_id->onstr, (long int) df_id->iLineEnd, (df_id->iLineEnd)-(df_id->onstr) +1, df_id->buffer+df_id->onstr);
@@ -984,10 +1226,13 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
         (long int) df_id->on_overall_line, (long int) dfl->n_total_lines, (long int) df_id->onstr,
         (long int) df_id->iLineEnd);
       if (verbose >= 2) {
-        printf("MMM     ENDL (onstr=%ld, iLineEnd=%ld) -------------------------------------------------------------------\n",
-          (long int) df_id->onstr, (long int) df_id->iLineEnd);
+        printf("MMM     END OF LINE (onstr=%ld, iLineEnd=%ld, chunkline=%ld/%ld, overallline=%ld/%ld) -------------------------------------------------------------------\n\n",
+          (long int) df_id->onstr, (long int) df_id->iLineEnd,
+          (long int) df_id->on_chunk_line, (long int) dfl->standard_vector_size,
+          (long int) df_id->on_overall_line, (long int) dfl->n_total_lines);
       }
       df_id->onstr = df_id->iLineEnd+1;  df_id->on_overall_line++;  on_chunk_line++;  df_id->on_chunk_line = on_chunk_line;
+      vpt(3, "  After END OF LINE we updated chunks and info. \n");
       if (df_id->on_chunk_line >= dfl->standard_vector_size) {
         vpt(2, "On Chunk %d/%d,  on_chunk_line=%ld/%ld, Reached vector max read position with bytesread=%ld, tbytesread=%ld",
           (int) df_id->on_chunk, (int) dfl->n_loc_lines, 
@@ -1001,9 +1246,14 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
         duckdb_data_chunk_set_size(out_chunk, dfl->standard_vector_size);
         df_id->on_chunk++;
         return;
-      } else if (df_id->on_overall_line >= df_id->dfl->n_total_lines) {
+      } else if (df_id->on_overall_line >= dfl->n_total_lines) {
+        vpt(2, "MMM      ENDDOC(onstr=%ld, iLineEnd=%ld)::: Overall Line now exceeds total lines %ld/%ld, we are likely having a conclusion and setting size to %ld \n",
+          (long int) df_id->onstr, (long int) df_id->iLineEnd,
+          (long int) df_id->on_overall_line, (long int) dfl->n_total_lines,
+          (long int) df_id->on_chunk_line);
         duckdb_data_chunk_set_size(out_chunk, df_id->on_chunk_line);
         df_id->on_chunk++;
+        vpt(2, "MMM      ENDDOC -- All done returning from main. \n"); 
         return;
       }
     }
@@ -1039,11 +1289,14 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
   }
   // If we exit loop, we have read the whole file and likely no more lines to read
   if (on_chunk_line >= dfl->standard_vector_size) {
+    vpt(1, "Typical Loop end, more to go: on_chunk_line=%ld/%ld, triggers likely end of loop. \n", (long int) on_chunk_line, 
+        (long int) dfl->standard_vector_size);
     duckdb_data_chunk_set_size(out_chunk, dfl->standard_vector_size);
   } else {
-    vpt(1, "At end of loop we have on_chunk_line=%ld/%ld and bytesread=%ld. \n",  (long int) on_chunk_line, 
+    vpt(1, "Likely conclusion At end of loop we have on_chunk_line=%ld/%ld and bytesread=%ld. \n",  (long int) on_chunk_line, 
       (long int) dfl->standard_vector_size, (long int) df_id->bytesread);
     duckdb_data_chunk_set_size(out_chunk, on_chunk_line);
   }
+  vpt(1, " End and increment chunk. \n");
   df_id->on_chunk++;
 }

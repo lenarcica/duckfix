@@ -58,6 +58,7 @@ DUCKDB_EXTENSION_EXTERN
 
 void destroy_df_init_data( void *v_df_id) {
   char stt[] = "df_init.c->destroy_df_init_data(): ";
+  printf("%s --- We are deleting df_id, why was this triggered? \n", stt);
   df_init_data *df_id = (df_init_data*) v_df_id;
   //duckdb_destroy_result(ta_id->p_result);
   int verbose = df_id->verbose-1;
@@ -124,7 +125,7 @@ void duckfix_init(duckdb_init_info i_info) {
     destroy_df_init_data((void*) df_id);
     return; 
   }
-  df_id->st_buffer_loc = 0; df_id->end_buffer_loc=0;  df_id->verbose = verbose; 
+  df_id->st_buffer_loc = 0; df_id->end_buffer_loc=0;  df_id->verbose = verbose+1; 
   df_id->actual_rows_read = 0; df_id->on_overall_line = 0; df_id->on_chunk_line = 0;
   df_id->dfl=NULL; df_id->dfc = NULL;
   df_id->dfl = df_bd->dfl; df_id->dfc = df_bd->dfc;

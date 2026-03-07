@@ -185,6 +185,25 @@ iStr load_file_to_str(char **out_p_sf, char *json_filename, int verbose) {
   out_p_sf[0] = sf; sf = NULL;  return(file_len);
   return(file_len);
 }
+
+iStr get_first_key(char *assignment, char *sf, iStr on_i, iStr nmax, int verbose) {
+  char stt[300];
+  sprintf(stt, "get_first_key(%.*s):",200, (char*) assignment);
+  vpt(2, "fkfkfkfkfkfkfkfkfkfkfkfkfkfkfkfkfkfk\n");
+  vpt(2, " Starting. \n");
+  iStr ii = on_i;
+  if (sf[ii] != '{') {
+    vpt(-10, " ERROR get_first_key, sf[%ld]=\'%c\', we want to get first key. \n", (long int) on_i, sf[on_i]);
+    return(-103403);
+  }
+  ii++;
+  PUSH_OUT_WHITE();
+  if (sf[ii] != '\"') {
+    vpt(-10, "ERROR get_first_key, on_i original=%ld for \'%c\' but sf[ii=%ld]=\'%c\'. \n",
+     (long int) on_i, sf[on_i], ii, sf[ii]); return(-3040323);
+  }
+  return(ii);
+}
 // Perhaps overkill to have to jump to next key.
 iStr get_next_key(char* assignment, char *sf, iStr on_i, iStr nmax, int verbose) {
   iStr jj; iStr st_key = -1; iStr end_key = -1;
@@ -262,7 +281,7 @@ iStr get_next_key(char* assignment, char *sf, iStr on_i, iStr nmax, int verbose)
         (long int) ii, sf[ii], (long int) jj, nmax); return(-1);
     }
     end_value = jj; ii = jj+1;
-  } else if (((sf[ii] >= '0') && (sf[ii] <= '9')) || (sf[ii] = '.')) {
+  } else if (((sf[ii] >= '0') && (sf[ii] <= '9')) || (sf[ii] == '.') || (sf[ii] == '-')) {
     vpt(1, "  we are looking for an end number with sf[ii=%ld]=\'%c\'\n",  (long int) ii, sf[ii]);
     jj = get_end_number((char*) stt, sf, ii, nmax);  start_value = ii; 
     if (jj < ii) {
@@ -584,7 +603,7 @@ iStr find_key(const char *seek_key, iStr len_key, char*sf, iStr st, iStr nmax, i
   vpt(2, "  We begin, st=%ld/%ld on sf[%ld]=\'%c\'. \n", (long int) st, (long int) nmax, (long int) st, sf[st]);
   if ((sf[st] != '{') && (sf[st] != '\"')) { printf("%s, Issue, sf does not start with open bracket, starts with \'%c\', probably won't work. \n", stt, sf[st]); return(-2); }
   iStr ii, jj; iStr next_key = -1;
-  ii = sf[st] == '\"' ? st : get_next_key(stt, sf, st, nmax, verbose-1); 
+  ii = (sf[st] == '\"') ? st : get_next_key(stt, sf, st, nmax, verbose-1); 
   int count_keys = 0;
   while ((ii >= 0) && (ii < nmax)) {
     if (ii < 0) {
@@ -642,11 +661,17 @@ iStr get_value_bounds(char* assignment, char*sf, iStr key_loc, iStr nmax, int ve
   iStr ii = key_loc;
   if (sf[ii] != '\"') {
     printf("-------------------------------------------------------------------------------------------------\n");
-    printf("--- ERROR get_value_bounds:  Not acceptable. you supplied sf[key_loc=%ld]=\'%c\'. \n",
-        (long int) key_loc, sf[key_loc]);
-    printf(" --- Note get_value_bounds, key_loc, sf[key_loc=%ld] != \'\"\'.  Instead it is \'%c\'.   We start with sf[%ld:%ld] = |%.*s| \n",
-      (long int) key_loc, (char) sf[key_loc], (long int) key_loc, key_loc + 20 < nmax ? (key_loc + 20) : nmax,
-      (key_loc + 20 < nmax ? (key_loc + 20) : nmax) - key_loc, sf + key_loc);
+    printf("--- ERROR get_value_bounds:  Not acceptable. you supplied sf[key_loc=%ld]=\'%c\'. nmax=%ld.\n",
+        (long int) key_loc, sf[key_loc], (long int) nmax);
+    if (nmax < key_loc) {
+      printf("--- Unfortunately we can't print because nmax=%ld and key_loc=%ld is bigger. \n", (long int) nmax, (long int) key_loc);
+    } else {
+      printf(" --- Note get_value_bounds, key_loc, sf[key_loc=%ld/%ld] != \'\"\'.  Instead it is \'%c\'.  \n", (long int) key_loc,
+      (long int) nmax, (key_loc < 0) || (key_loc >= nmax) ? 'X' : sf[key_loc]);
+      printf(" ---   We start with sf[%ld:%ld] = |%.*s| \n",
+        (long int) key_loc, (long int) ((key_loc + 20) < nmax) ? (key_loc + 20) : nmax,
+        (key_loc + 20 < nmax ? 20 : nmax-key_loc), sf + key_loc);
+    }
     printf(" --- Highly likely we will not succeed after this, I wonder what we were looking for that returned this? \n");
     printf(" --- This is a value error, inspect who called this!. \n");
     printf("-------------------------------------------------------------------------------------------------\n");
@@ -684,7 +709,7 @@ iStr get_value_bounds(char* assignment, char*sf, iStr key_loc, iStr nmax, int ve
     p_vend[0] = get_end_bracket(assignment, sf, ii, nmax);
     return(ii);
   }
-  if ((sf[ii]=='-') || (sf[ii] == '.')  || ((sf[ii] >= '0') && (sf[ii] <= '9'))){
+  if ((sf[ii]=='-') || (sf[ii] == '.')  || ((sf[ii] >= '0') && (sf[ii] <= '9'))) {
     p_vst[0] = ii;
     p_vend[0] = get_end_number(assignment, sf, ii, nmax);
     return(ii);
@@ -708,6 +733,7 @@ DF_Schema *create_blank_schemas(int n_schemas) {
     dfs[ii].nm = NULL; dfs[ii].typ = UNKNOWN; dfs[ii].desc = NULL;
     dfs[ii].timestamp_format = NULL;  dfs[ii].priority = -1;
     dfs[ii].width = (char) 0; dfs[ii].scale = (char) 0;  dfs[ii].fmttyp=UNKNOWN_TS;
+    dfs[ii].final_o_loc=-1; dfs[ii].final_m_loc=-1; dfs[ii].ltrunc=0;dfs[ii].rtrunc=0;
   }
   return(dfs);
 }
@@ -756,9 +782,11 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
   char stt[300]; 
   sprintf(stt, "get_config_file(n=%ld,v=%ld): ", (long int) nmax, (long int) verbose);
   if (verbose >= 1) { printf("------------------------------------------------------------------------------------\n"); }
-  vpt(1, " --- Initiate. \n");
+  vpt(-11, " --- Initiate. \n");
+  //printf(" --- HERE is sf: \n%.*s\n\n\n", nmax-on_i, sf + on_i);
   int n_schemas = get_n_schema("get_config_file", sf, 0, nmax, 0);
-  vpt(1, " --- We received n_schemas = %ld. \n", n_schemas);
+  //printf(" --- HERE after get_n_Schema sf: \n%.*s\n\n\n", nmax-on_i, sf + on_i);
+  vpt(-11, " --- We received n_schemas = %ld. \n", n_schemas);
   if (n_schemas <= 0) {
     printf("get_config_file: ERROR no schema, no config file. \n"); return(NULL);
   }
@@ -779,7 +807,18 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
   DF_config_file *dfc = new_config_file();
   if (dfc == NULL) {  printf("ERROR: DF_config file, failed to allocate dfc. \n");  return(NULL); }
   iStr vst, vend;
+  iStr i_loc, st0,end0;  char old_char;  iStr st_V, end_V; iStr sch_st, sch_end;
   vpt(3, " -- Searching for initial whole config \"name\".  \n");
+
+  SchemaSeeker_STR("name",4, (dfc->name), on_i, (nmax), i_loc, st0, end0, 1);
+  SchemaSeeker_STR("desc",4, (dfc->desc), on_i, (nmax), i_loc, st0, end0, 0);
+  SchemaSeeker_STR("info",4, (dfc->info), on_i, (nmax), i_loc, st0, end0, 0);
+  SchemaSeeker_CHAR("general_sep",11, (dfc->general_sep), on_i, (nmax), i_loc, st0, end0, 0);
+
+  iStr iSchema = -1;
+  SchemaSeeker_START("schema",6, on_i, (nmax), iSchema, sch_st, sch_end, 1);
+  sch_st = (sch_st >= 1) && (sf[sch_st-1] == '{') ? sch_st-1 : ((sf[sch_st]=='{') ? sch_st : sch_st);
+/*
   iStr iName = find_key("name",4,sf,on_i,nmax, verbose-1);
   if (iName < 0) { printf("ERROR: note sf[nmax-1] = \'%c\' \n", (long int) nmax); }
   if ((iName >= 0) && (iName < nmax))  {
@@ -833,6 +872,7 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
   }
 
 
+  SchemaSeeker_STR("info",4, (dfc->info), on_i, (nmax), i_loc, st0, end0, 1);
   vpt(3, " -- Searching for initial whole config \"info\". \n");
   iStr iInfo = find_key("info",4,sf,on_i,nmax,0);
   if ((iInfo >= 0) && (iInfo < nmax))  {
@@ -841,6 +881,12 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
       dfc->info = malloc(sizeof(char)*(1+vend-vst));
       if (dfc->info != NULL) { sprintf(dfc->info,"%.*s\0", vend-vst-1, sf + vst + 1); 
       } else { printf("%s: FAILED to allocate info. \n", stt); delete_config_file(&dfc, verbose-1); return(NULL); } 
+    } else {
+      vpt(-3, "Error, we looked for \"info\" with iInfo=%d, sf[iInfo=%ld]=\'%c\', sf[%ld:%ld] \n", 
+          (long int) iInfo, (long int) iInfo, sf[iInfo], 
+          (iInfo -2 >= 0 ? iInfo-2 : 0), (iInfo+4 <= nmax ? iInfo+4 : nmax),
+          ((iInfo+4 <= nmax ? iInfo+4 : nmax) - (iInfo-2 >= 0 ? iInfo-2 : 0)),
+          (sf + (iInfo-2 >= 0 ? iInfo-2 : 0)) );
     }
   }
   iStr iSchema = find_key("schema",6,sf,on_i,nmax, 0);
@@ -868,37 +914,47 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
      (int) (.5*(vend-vst-1) < 15 ? .5 *(vend-vst-1) : 15), sf + vst + 1, 
      (int) (.5*(vend-vst-1) < 15 ? .5 *(vend-vst-1) : 15), sf + ((int) ( vend - (.5*(vend-vst-1) < 15 ? .5 * (vend-vst-1) : 15)))
   );
+  */
+  vpt(2, " -- We found starting statistics for schemas, iSchema=%ld, st_V,end_V=[%ld,%ld] \n",
+    (long int) iSchema, (long int) sch_st, (long int) sch_end);
   dfc->schemas = create_blank_schemas( n_schemas);   dfc->n_schemas = n_schemas;
   if (dfc->schemas == NULL) { printf("%s: FAILED to allocate schemas \n", stt); 
     delete_config_file(&dfc, verbose); return(NULL);
   }
-  iStr oniS = vst;
-  oniS = get_next_key("get_config_file", sf, oniS,vend, verbose-1);
+  iStr oniS = (sch_st >= 1) && (sf[sch_st-1] == '{') ? sch_st-1 : ((sf[sch_st]=='{') ? sch_st : sch_st);
+  oniS = get_first_key("get_config_file", sf, sch_st,sch_end, verbose-1);
+  if (oniS < 0) {
+    vpt(3, " ERROR can't find any keys in schemas, oniS = %ld. sf[%ld:%ld]=\"\"\"\n%.*s\n\"\"\"\n", 
+      (long int) oniS, (long int) sch_st, (long int) sch_end, sch_end-sch_st, sf + sch_st);
+    delete_config_file(&dfc, 10); return(NULL);
+  }
   vpt(3, "------------------------------------------------------------------------------- \n");
   vpt(3, " -- Initiate Schema (iSchema=%ld/%ld)  for %ld schemas, read starting at oniS=%ld, sf[oniS=%ld:%ld] = \"%.*s...\"\n",
     (long int) iSchema, (long int) nmax, (long int) n_schemas, (long int) oniS, oniS, oniS + (nmax-oniS < 15 ? nmax-oniS: 15),
     (nmax-oniS < 15 ? nmax-oniS: 15), sf + oniS);
   for (int i_s = 0; i_s < n_schemas; i_s++) {
-    iStr st0, end0;
-    st0 = oniS;  end0 = get_end_quote("get_config_file", sf, st0, vend);
+    vpt(-2, " i_s=%ld/%ld starting read of a schema. \n", (long int) i_s, dfc->n_schemas);
+    st0 = oniS;  end0 = get_end_quote("get_config_file", sf, st0, sch_end);
     if ((st0 < 0) || (end0 < st0)) {
       vpt(0, " ERROR we have i_s=%ld/%ld oniS=%ld,  for name search but st0/end0 = [%ld,%ld] \n", (long int) i_s, (long int) n_schemas,
         (long int) oniS, (long int) st0, (long int) end0);
       delete_config_file(&dfc, verbose); return(NULL);
       return(NULL);
     }
-    vpt(2, " -- We are on i_s=%d/%d starting at oniS=%ld, (vst,vend)=[%ld,%ld], nm is sf[%ld:%ld] = \"%.*s\" \n",
+    vpt(2, " -- We are on i_s=%d/%d starting at oniS=%ld, (sch_st,sch_end)=[%ld,%ld], nm is sf[%ld:%ld] = \"%.*s\" \n",
       (int) i_s, (int) n_schemas, 
-      (long int) oniS, (long int) vst, (long int) vend, (long int) st0+1, (long int) end0, end0-st0-1, sf + st0+1); 
+      (long int) oniS, (long int) sch_st, (long int) sch_end, (long int) st0+1, (long int) end0, end0-st0-1, sf + st0+1); 
     dfc->schemas[i_s].fmttyp = UNKNOWN_TS;
     dfc->schemas[i_s].nm = malloc(sizeof(char) * (end0-st0+1));
     sprintf(dfc->schemas[i_s].nm, "%.*s\0", end0-st0-1, sf + st0 + 1);
-    iStr st_V, end_V;
     st_V = get_value_bounds("get_config_file", sf, oniS, nmax, verbose, &st_V, &end_V);
+    //printf(" Here is schema line now: %ld/%ld: \"%.*s\"\n",
+    // (long int) i_s, (long int) n_schemas, end_V-oniS, sf + oniS); 
     if (st_V < 0) {
       vpt(0, " ERROR we found i_s=%d/%d: oniS=%ld, end0=%ld, but [st_V,end_V]=[%ld,%ld].\n",
        (int) i_s, (int) n_schemas, (long int) oniS, (long int) end0, (long int) st_V, (long int) end_V);
-      return(dfc);
+      delete_config_file(&dfc, verbose); return(NULL);
+      return(NULL);
     } else {
       vpt(2, " Success finding st_V, end_V for i_s=%ld/%ld, oniS=%ld/%ld, we have sf[st_V=%ld,end_V+1=%ld] = \"%.*s\"\n",
           (long int) i_s, (long int) nmax, (long int) oniS, (long int) nmax, (long int) st_V, (long int) end_V+1,
@@ -907,140 +963,70 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
     vpt(3, ": i_s=%d/%d Looking for \"desc\" where oniS=%ld/%ld but values from [%ld:%ld]. \n", 
       (int) i_s, (int) nmax, (long int) oniS,
       (long int) nmax, (long int) st_V, (long int) end_V);
-    iStr desc_loc = find_key("desc",4,sf,st_V, end_V+1, 0);
-    if (desc_loc < 0) {
-      vpt(0, ": ERROR i_s=%ld/%ld, although we found nm at sf[oniS+1=%ld,end0=%ld] = \"%.*s\". No desc_located between [%ld,%ld].\n",
-        (int) i_s, (int) n_schemas, (long int) oniS+1, (long int) end0, end0-oniS-1, sf+oniS + 1,  
-        (long int) st_V, (long int) end_V);
-      desc_loc = find_key("desc",4,sf,st_V, end_V+1, 3);
-      vpt(0, ": ERROR i_s=%ld/%ld, although we found nm at sf[oniS+1=%ld,end0=%ld] = \"%.*s\". No desc_located between [%ld,%ld].\n",
-        (int) i_s, (int) n_schemas, (long int) oniS+1, (long int) end0, end0-oniS-1, sf+oniS + 1,  
-        (long int) st_V, (long int) end_V);
-      delete_config_file(&dfc, verbose); return(NULL);
-      return(dfc);
-    }
-    if ((desc_loc >= 0) && (desc_loc < end_V+1)) { 
-      vpt(3, ": Found desc_loc=%ld, we will copy it's value into desc field of schmea. \n", desc_loc);
-      copy_in_val_str("get_config_file", sf, desc_loc, nmax, verbose-2, &( (dfc->schemas[i_s]).desc)); 
-      vpt(3, ": Success copying desc_loc=%ld value into i_s=%ld/%ld schema. \n", (long int) desc_loc,
-        (long int) i_s, (long int) n_schemas);
-    }
-    iStr priority_loc = find_key("priority", 8, sf, st_V, end_V+1,0);
-    if ((priority_loc  < st_V) || (priority_loc >= end_V)) {
-      dfc->schemas[i_s].priority=-1;
-    } else {
-      vpt(2, ":  Looking for priority_loc value bounds, pl=%ld. \n", (long int) priority_loc);
-      st0 = get_value_bounds("get_config_file", sf, priority_loc, nmax, verbose-2, &st0, &end0);
-      if (sf[end0] == '\"') {
-      } else if (((sf[end0] >= '0') && (sf[end0] <= '9')) || (sf[end0] == '.')) {
-        end0++;
-      }
-      char old_end = sf[end0];
-      int numpriority = -1;  sf[end0] = '\0'; 
-      numpriority = atoi(sf+st0); sf[end0] = old_end;
-      vpt(2, ":  After priority_loc=%ld between [%ld:%ld] we turned |%.*s| into %ld. with old_end=\'%c\', and sf[end0=%ld]=\'%c\'.\n",
-        (long int) priority_loc, (long int) st0, (long int) end0, end0-st0, sf + st0, (long int) numpriority,
-        (char) old_end, (long int) end0, sf[end0]);
-      if (verbose >= 2) {
-         printf(" -- Note now that sf[%ld:%ld] = |%.*s|, hope we are in good shape. \n",
-           st_V, end_V+1, end_V+1-st_V, sf + st_V);
-      }
-      dfc->schemas[i_s].priority = numpriority;
-    }
 
-    dfc->schemas[i_s].fixequal=':';
-    iStr fixequal_loc = find_key("fixequal",8,sf,st_V, end_V+1,0);
-    if ((fixequal_loc >= st_V) && (fixequal_loc < end_V)) {
-      vpt(2, ":  Looking for fixequal_loc value bounds, pl=%ld. sf[%ld]=\'%c\'. \n", (long int) fixequal_loc, (long int) fixequal_loc, sf[fixequal_loc]);
-      st0 = get_value_bounds("get_config_file",sf,fixequal_loc,nmax, verbose-2, &st0,&end0);
-      if (st0 < 0) {
-        vpt(-3, " ERROR we had fixequal_loc=%ld, but get_value_bounds returned [%ld:%ld] for error. \n", (long int) fixequal_loc, (long int) st0, (long int) end0);
-        printf("  Doesn't make sense that we would find fixequal inside [st_V:end_V]=sf[%ld:%ld]=|%.*s| \n",
-          (long int) st_V, (long int) end_V, end_V+1-st_V, sf + st_V); 
-        delete_config_file(&dfc, verbose); return(NULL);
-      }
-      dfc->schemas[i_s].fixequal= sf[(sf[st0]=='\"') || (sf[st0]=='\'') ? st0+1 : st0];
-    } else {
-      vpt(2, ": fixequal_loc not found for this field where are calling i_s=%ld/%ld: %s. \n",
-        (long int) i_s, (long int) n_schemas, dfc->schemas[i_s].nm); 
-    } 
-    iStr typ_loc = find_key("typ",3,sf,st_V,end_V+1,0);
-    if ((typ_loc < 0) || (typ_loc >= end_V)) {
-      vpt(0, "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT\n");
-      vpt(0, "TTT i_s = %ld/%ld, oniS=%ld/%ld failed to find typ in sf[%ld:%ld] \n", (long int) i_s, (long int) n_schemas, 
-        (long int) oniS, (long int) nmax, (long int) st_V, (long int) end_V); 
-      vpt(0, "TTT Trying again: \n");
-      typ_loc = find_key("typ",3,sf,st_V,end_V+1,0); 
-      if (typ_loc < 0) {
-        vpt(0, "ERROR TTT: We don't have it typ_loc=%ld, for oniS=%ld/%ld, we looked between st_V/end_V = [%ld,%ld]\n",
-          (long int) typ_loc, (long int) oniS, (long int) nmax, (long int) st_V, (long int) end_V);
-      }
-      return(dfc);
+    //SchemaSeeker(seek_str, seek_str_l, dpg, seek_b, seek_e, i_loc, st0, end0, failend, int0str1) 
+    //printf("--- Before we look for desc now we have i_s=%ld line sf[%ld:%ld] = |%.*s| \n",
+    //  (long int) i_s, oniS, end_V, end_V-oniS, sf + oniS);
+    SchemaSeeker_STR("desc",4, (dfc->schemas[i_s].desc), st_V, (end_V+1), i_loc, st0, end0, 1);
+
+    dfc->schemas[i_s].ltrunc = 0; dfc->schemas[i_s].rtrunc=0;
+
+    //printf("--- Before we look for rtrunc now we have i_s=%ld line sf[%ld:%ld] = |%.*s| \n",
+    //  (long int) i_s, oniS, end_V, end_V-oniS, sf + oniS);
+    SchemaSeeker_INT("rtrunc",6, (dfc->schemas[i_s].rtrunc), st_V, (end_V+1), i_loc, st0, end0, 0);
+
+    //printf("--- Before we look for ltrunc now we have i_s=%ld line sf[%ld:%ld] = |%.*s| \n",
+    // (long int) i_s, oniS, end_V, end_V-oniS, sf + oniS);
+    SchemaSeeker_INT("ltrunc",6, (dfc->schemas[i_s].ltrunc), st_V, (end_V+1), i_loc, st0, end0, 0);
+    if (dfc->schemas[i_s].ltrunc < 0) { dfc->schemas[i_s].ltrunc = 0; }
+    if (dfc->schemas[i_s].rtrunc < 0) { dfc->schemas[i_s].rtrunc = 0; }
+    printf("--- Looking for Priority now we have i_s=%ld line sf[%ld:%ld] = |%.*s| \n",
+      (long int) i_s, oniS, end_V, end_V-oniS, sf + oniS);
+    SchemaSeeker_INT("priority",8, (dfc->schemas[i_s].priority), st_V, (end_V+1), i_loc, st0, end0, 0);
+    if (sf[st0] == '.') {
+      vpt(0, "ERROR i_s=%ld/%ld, we have i_loc=%ld for \"priority\" but sf[%ld:%ld] = |%.*s| \n",
+        (long int) i_s, (long int) n_schemas, (long int) i_loc, (long int) i_loc-1, end0,
+        end0-i_loc+1, sf + i_loc-1);
+      delete_config_file(&dfc,5);  return(NULL);
     }
-    if (typ_loc >= 0) {
-        st0 = get_value_bounds("get_config_file", sf, typ_loc, nmax, verbose-2, &st0, &end0);
-        if (st0 < 0) {
-          vpt(-3, "ERROR: We tried to get_value_bounds for typ, even though typ_loc = %ld. bounds returned[%ld,%ld] \n",
-            (long int) typ_loc, (long int) st0, (long int) end0);
-          printf("ERROR on get_value_bounds unfortunate: sf[%ld:%ld] = |%.*s|. \n",
-            (long int) typ_loc, (long int)  (typ_loc+20 < nmax) ? typ_loc + 20 : nmax,
-                                ((typ_loc+20 < nmax) ? typ_loc + 20 : nmax) - typ_loc,
-                                sf + typ_loc);
-        }
-        vpt(5, "Hey, for typ_loc =%ld, we got st0/end0 = sf[%ld+1:%ld]=\"%.*s\"\n",
-           (long int) typ_loc, (long int) st0, (long int) end0, end0 - st0-1, sf + st0 + 1);
-        vpt(5, " Does it equal i32 ? %ld .\n",
-           (long int) str_eq("i32",3,sf, st0+1, end0));
-        vpt(5, " Does it equal str ? %d .\n",
-           (long int) str_eq("str",3,sf, st0+1, end0));
-        vpt(5, " Does it equal tms ? %d .\n",
-           (long int) str_eq("tms",3,sf, st0+1, end0));
-        vpt(5, " Does it equal fix42 ? %d .\n",
-           (long int) str_eq("fix42",5,sf, st0+1, end0));
-        vpt(5, " Does it equal fix2end ? %d .\n",
-           (long int) str_eq("fix2end",7,sf, st0+1, end0));
-        dfc->schemas[i_s].typ = MATCHTYPE(sf, st0, end0); 
-        vpt(3, " After finding the data we have a type \"%s\" or int = %ld, we read \"%.*s\"\n", 
+   
+    SchemaSeeker_CHAR("fixequal",8, (dfc->schemas[i_s].fixequal), st_V, (end_V+1), i_loc, st0, end0, 0);
+    iStr typ_loc = 0;
+    SchemaSeeker_START("typ",3, st_V, (end_V+1), typ_loc, st0, end0, 1);
+    dfc->schemas[i_s].typ = MATCHTYPE(sf,st0,end0);
+    if (dfc->schemas[i_s].typ == UNKNOWN) {
+      vpt(-20, "ERROR were not able to read a datatype for column %ld/%ld %s, sf[st0=%ld:end0=%ld]=\"%.*s\" \n",
+        (long int) i_s, (long int) n_schemas, dfc->schemas[i_s].nm, (long int) st0, (long int) end0, end0-st0, sf + st0);
+      delete_config_file(&dfc, 10); return(NULL);
+    }
+    vpt(3, " After finding the data we have a type \"%s\" or int = %ld, we read \"%.*s\"\n", 
           What_DF_DataType(dfc->schemas[i_s].typ), (int) dfc->schemas[i_s].typ,
           end0-st0-1, sf + st0+1);
+    if (typ_loc >= 0) {
         if (dfc->schemas[i_s].typ == decimal154) { dfc->schemas[i_s].scale=4; dfc->schemas[i_s].width=15; 
         } else if (dfc->schemas[i_s].typ == decimal153) { dfc->schemas[i_s].scale=3; dfc->schemas[i_s].width=15; 
         } else if (dfc->schemas[i_s].typ == decimal184) { dfc->schemas[i_s].scale=4; dfc->schemas[i_s].width=18; 
         } else if (dfc->schemas[i_s].typ == decimal185) { dfc->schemas[i_s].scale=5; dfc->schemas[i_s].width=18; 
         } else if (dfc->schemas[i_s].typ == decimal_gen) {
-          iStr width_loc = find_key("width", 5, sf, st_V, end_V, verbose-2);
-          if (width_loc >= st_V) {
-            st0 = get_value_bounds("schema", sf, width_loc, nmax, verbose-2, &st0, &end0);
-            char OSF = sf[end0+1]; sf[end0+1] = '\0'; char a_width = atoi((char*) sf + st0); sf[end0+1] = OSF;
-            dfc->schemas[i_s].width = a_width;
-          }
-          iStr scale_loc = find_key("scale", 5, sf, st_V, end_V, verbose-2);
-          if (scale_loc >= st_V) {
-            st0 = get_value_bounds("schema", sf, scale_loc, nmax, verbose-2, &st0, &end0);
-            char OSF = sf[end0+1]; sf[end0+1] = '\0'; char a_scale = atoi((char*) sf + st0); sf[end0+1] = OSF;
-            dfc->schemas[i_s].scale = a_scale;
-          }
+
+          SchemaSeeker_INT("width",5, (dfc->schemas[i_s].width), st_V, (end_V+1), i_loc, st0, end0, 1);
+          SchemaSeeker_INT("scale",5, (dfc->schemas[i_s].scale), st_V, (end_V+1), i_loc, st0, end0, 1);
         }
         if ((dfc->schemas[i_s].typ == tus) || (dfc->schemas[i_s].typ == tns) || (dfc->schemas[i_s].typ == tms)) {
            vpt(2, " --- Because we found timestamp, we are searching for \"fmt\" key. \n");
-           iStr fmt_loc = find_key("fmt",3,sf, st_V, end_V, verbose-2);
-           if (fmt_loc < 0) {  vpt(0," i_s=%ld/%ld: Issue, we had a tus/tns found at typ_loc=%ld but no corresponding fmt. \n", 
-             (long int) i_s, (long int) nmax, (long int) typ_loc);
-           } else {
-             st0 = get_value_bounds("get_config_file", sf, fmt_loc, nmax, verbose-2, &st0, &end0);
-             if (st0 < 0) { vpt(0, " i_s = %ld/%ld: Issue, even though fmt key was found for typ_loc=%ld at %ld no value! \n",
-               (long int) i_s, (long int) nmax, (long int) typ_loc, (long int) fmt_loc); 
-             } else {
-               dfc->schemas[i_s].timestamp_format = malloc(sizeof(char) * (end0-st0+1));
-               sprintf(dfc->schemas[i_s].timestamp_format, "%.*s\0", end0-st0-1, sf + st0+1);
-               vpt(3, "We copied in a timestamp format for i_s=%ld/%ld of \"%s\"\n", i_s, n_schemas, dfc->schemas[i_s].timestamp_format);
-
-               dfc->schemas[i_s].fmttyp  = MATCHTSTYPE(sf, (st0), (end0) );
-             }
-           }
+           iStr fmt_loc = 0;
+           SchemaSeeker_STR("fmt",3, dfc->schemas[i_s].timestamp_format, st_V, (end_V+1), fmt_loc, st0, end0, 1);
+           dfc->schemas[i_s].fmttyp  = MATCHTSTYPE(sf, (st0), (end0) );
         }
     }
-    oniS = get_next_key("get_config_file", sf, oniS,vend, verbose-2);
+    vpt(-10, "i_s=%ld/%ld:nm=%s: %s, %s oniS=%ld getting next key with sch_end=%ld. \n",
+      (long int) i_s, (long int) dfc->n_schemas, 
+      (dfc->schemas[i_s].nm != NULL ? dfc->schemas[i_s].nm : "NONAME"),
+      What_DF_DataType(dfc->schemas[i_s].typ),
+      ((dfc->schemas[i_s].typ != tus) && (dfc->schemas[i_s].typ != tms) && (dfc->schemas[i_s].typ != tns)) ?
+      "" : What_DF_TSType(dfc->schemas[i_s].fmttyp),
+      (long int) oniS, (long int) sch_end);
+    oniS = get_next_key("get_config_file", sf, oniS,sch_end, verbose-2);
   }
   vpt(1, " Done reading in Schemas, can now return dfc\n");
   vpt(1, " Now populating fix_fields. \n");
@@ -1065,14 +1051,16 @@ void PRINT_dfc(DF_config_file *dfc) {
     printf("-- NO SCHEMAS  Nothing to print after desc.\n"); 
    } else {
      for (int i_s = 0; i_s < dfc->n_schemas; i_s++) {
-        printf("--  schema[%ld/%ld] = {nm=\"%s\",priority=%ld, desc=\"%s\",typ=\"%s\"",
+        printf("--  schema[%ld/%ld] = {nm=\"%s\",priority=%ld, desc=\"%s\",typ=\"%s\", lt=%d,rt=%d",
           (long int) i_s, (long int) dfc->n_schemas,
           dfc->schemas[i_s].nm != NULL ? dfc->schemas[i_s].nm : "NULL",
           (long int) dfc->schemas[i_s].priority,
           dfc->schemas[i_s].desc != NULL ? dfc->schemas[i_s].desc : "NULL",
-          (char*) ( What_DF_DataType( (dfc->schemas[i_s].typ) )) );
+          (char*) ( What_DF_DataType( (dfc->schemas[i_s].typ) )),
+          (int) dfc->schemas[i_s].ltrunc, (int) dfc->schemas[i_s].rtrunc
+        );
         if ((dfc->schemas[i_s].typ == fix42) || (dfc->schemas[i_s].typ == fix2end)) {
-          printf(",fixequal=\'%c\'", dfc->schemas[i_s].fixequal);
+          printf(",fixequal=\'%c\'", dfc->schemas[i_s].fixequal );
         }
         if (dfc->schemas[i_s].typ == decimal_gen) {
           printf("[w=%ld,scale=%ld]", 
@@ -1090,8 +1078,10 @@ void PRINT_dfc(DF_config_file *dfc) {
      printf("-- NO Fix fields yet. \n");
    } else {
      for (int i_f = 0; i_f < dfc->nfields; i_f++) {
-       printf("-- fix_fields[%ld/%ld] = {field_code=%ld, [keep=%ld,priority=%ld, typ=%s", 
-         (long int) i_f, (long int) dfc->nfields, (long int) dfc->fxs[i_f].field_code, (long int) dfc->fxs[i_f].keep,
+       printf("-- fix_fields[%ld/%ld] = {field_code=%ld, nm=\"%s\", [keep=%ld,priority=%ld, typ=%s", 
+         (long int) i_f, (long int) dfc->nfields, (long int) dfc->fxs[i_f].field_code, 
+         dfc->fxs[i_f].nm != NULL ? dfc->fxs[i_f].nm : "NONM",
+         (long int) dfc->fxs[i_f].keep,
          (long int) dfc->fxs[i_f].priority, What_DF_DataType(dfc->fxs[i_f].typ) );
        if (dfc->fxs[i_f].maxmultiplicity > 0) { printf(",maxm=%ld", dfc->fxs[i_f].maxmultiplicity); }
        if (dfc->fxs[i_f].typ == decimal_gen) {
@@ -1113,16 +1103,12 @@ void PRINT_dfc(DF_config_file *dfc) {
          printf("    --- { \n    ");  int i_ff_print = 0;
          for (int i_ff = 0; i_ff < NCHARS; i_ff++) {
            if (dfc->fxs[i_f].field_loc[i_ff] >= 0) {
-             //printf("dfc->fixs[i_f=%ld/%ld].field_loc[i_ff=%ld/%ld] = %ld/%ld. All char len = %ld\n",
-             //  (long int) i_f, (long int) dfc->nfields, (long int) i_ff, (long int) NCHARS, (long int) dfc->fxs[i_f].field_loc[i_ff],
-             //  (long int) dfc->fxs[i_f].n_field_codes, (long int) dfc->fxs[i_f].field_codes_arr[dfc->fxs[i_f].n_field_codes]);
              printf("%ld: %c", (long int) i_ff_print, (char) (i_ff < 10 ? '0' + i_ff : i_ff < 26 ? 'a' + (i_ff - 10) : 'A' + (i_ff-36)));
              iStr loc_f = dfc->fxs[i_f].field_loc[i_ff];
              iStr loc_ff = dfc->fxs[i_f].field_codes_loc[loc_f];
              //printf(" --- loc_f=%ld, loc_ff=%ld. \n", (long int) loc_f, (long int) loc_ff);
              printf("=\"%s\"",  (char*) dfc->fxs[i_f].field_codes_arr + loc_ff);
              if (i_ff_print < dfc->fxs[i_f].n_field_codes -1) { printf(","); }
-             //printf("\n NOTE i_ff_print+1%5 = %d \n", (int) (i_ff_print+1) % 5);
              if (((i_ff_print+1) % 5) == 0) {  printf("\n    "); } else { printf(" "); } 
              i_ff_print++;
            }
@@ -1388,211 +1374,48 @@ int populate_fixfield(iStr i_fst, iStr nmax, char *sf, int verbose,
   }
   vpt(1, " -- We are ready to start processing values sf[st_v=%ld:end_v=%ld] = \n\"\"\"\n%.*s\n      \"\"\"\n",
     (long int) st_v, (long int) end_v, end_v-st_v + 1, sf + st_v);
-  iStr st_v0, end_v0;
-  iStr iKeep = find_key("keep", 4, sf, st_v, end_v+1, verbose-3); 
-  if ((iKeep < 0) || (sf[iKeep] == '}')) {
-    vpt(-1, " ERROR, looking at field_code=%ld values, did not find keep field. sf[%ld:%ld] = \"%.*s\" \n",
-      num, st_v,  st_v + 30 > end_v ? end_v : st_v + 30, (st_v+30 > end_v) ? end_v-st_v : 30, sf + st_v);
-    iKeep = find_key("keep", 4, sf, st_v, end_v, verbose+2); 
-    vpt(-1, " ERROR, looking at field_code=%ld values, did not find keep field. sf[%ld:%ld] = \"%.*s\" \n",
-      num, st_v,  st_v + 30 > end_v ? end_v : st_v + 30, (st_v+30 > end_v) ? end_v-st_v : 30, sf + st_v);
-    vpt(-1, "We tried again, iKeep now %ld, Note sf[st_v=%ld:end_v=%ld] = \"\"\"\n%.*s\n    \"\"\"\n",
-      (long int) iKeep, (long int) st_v, (long int) end_v, (int) (end_v-st_v+1), sf + st_v);
-    printf("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\n");
-    return(-105302);
-  } else {
-     st_v0 = get_value_bounds(stt, sf, iKeep, end_v, verbose-1, &st_v0, &end_v0);
-     if (st_v0 < 0)  {
-       vpt(0, " ERROR, looking at field_code=%ld values, found keep field at %ld but still no val bounds. sf[%ld:%ld] = \"%.*s\" \n",
-         num, (long int) iKeep, st_v,  st_v + 30 > end_v ? end_v : st_v + 30, (st_v+30 > end_v) ? end_v-st_v : 30, sf + st_v);
-     }  else {
-       int keep_num; sfend_v0 = sf[end_v0]; sf[end_v0] = '\0';  keep_num=atoi(sf + st_v0 + (sf[st_v0]=='\"' ? 1 : 0));
-       sf[end_v0] = sfend_v0; 
-       dfs[i_onfxs].keep = (short) keep_num;
-       vpt(2, " success keep = %ld. \n", (long int) keep_num);
-     }
-  }
-  iStr iPriority = find_key("priority", 8, sf, st_v, end_v+1, verbose-3); 
-  if ((iPriority < 0) || (sf[iPriority] == '}')) {
-    vpt(0, " ERROR, looking at field_code=%ld values, did not find \"priority\" field. sf[%ld:%ld] = \n\"\"\"\n%.*s\n       \"\"\" \n",
-      num, st_v,  st_v + 30 > end_v ? end_v : st_v + 30, (st_v+30 > end_v) ? end_v-st_v : 30, sf + st_v);
-    iPriority = find_key("priority", 8, sf, st_v, end_v, verbose+3); 
-    vpt(0, " ERROR, looking at field_code=%ld values, did not find \"priority\" field. sf[%ld:%ld] = \n\"\"\"\n%.*s\n       \"\"\" \n",
-      num, st_v,  st_v + 30 > end_v ? end_v : st_v + 30, (st_v+30 > end_v) ? end_v-st_v : 30, sf + st_v);
-    vpt(0, "We tried again, iPriority now %ld, Note sf[st_v=%ld:end_v=%ld] = \"\"\"\n%.*s\n        \"\"\"\n",
-      (long int) iPriority, (long int) st_v, (long int) end_v, (int) (end_v-st_v+1), sf + st_v);
-    printf("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\n");
-    return(-106652);
-   
-  } else {
-     st_v0 = get_value_bounds(stt, sf, iPriority, end_v+1, verbose-1, &st_v0, &end_v0);
-     if (st_v0 < 0)  {
-       vpt(0, " ERROR, looking at field_code=%ld values, found \"priority\" field at %ld but still no val bounds. sf[%ld:%ld] = \"%.*s\" \n",
-         num, (long int) iPriority, st_v,  st_v + 30 > end_v ? end_v : st_v + 30, (st_v+30 > end_v) ? end_v-st_v : 30, sf + st_v);
-     }  else {
-       int priority_num; sfend_v0 = sf[end_v0]; sf[end_v0] = '\0';  priority_num=atoi(sf + st_v0 + (sf[st_v0]=='\"' ? 1 : 0));
-       sf[end_v0] = sfend_v0; 
-       dfs[i_onfxs].priority = (short) priority_num;
-       vpt(2, " success, priority filled to %ld. \n", (long int) dfs[i_onfxs].priority);
-     }
-  }
 
-  iStr iMaxMultiplicity = find_key("maxmultiplicity", 15, sf, st_v, end_v+1, verbose-3); 
-  if ((iMaxMultiplicity < 0) || (sf[iMaxMultiplicity] == '}')) {
-    dfs[i_onfxs].maxmultiplicity = 1;
-  } else {
-     st_v0 = get_value_bounds(stt, sf, iMaxMultiplicity, end_v+1, verbose-1, &st_v0, &end_v0);
-     if (st_v0 < 0)  {
-       vpt(0, " ERROR, looking at field_code=%ld values, found \"maxmultiplicity\" field at %ld but still no val bounds. sf[%ld:%ld] = \"%.*s\" \n",
-         num, (long int) iMaxMultiplicity, st_v,  st_v + 30 > end_v ? end_v : st_v + 30, (st_v+30 > end_v) ? end_v-st_v : 30, sf + st_v);
-     }  else {
-       int maxmultiplicity_num; sfend_v0 = sf[end_v0]; sf[end_v0] = '\0';  maxmultiplicity_num=atoi(sf + st_v0 + (sf[st_v0]=='\"' ? 1 : 0));
-       sf[end_v0] = sfend_v0; 
-       dfs[i_onfxs].maxmultiplicity = (short) maxmultiplicity_num;
-       vpt(4, " success, maxmultiplicity filled to %ld. \n", (long int) dfs[i_onfxs].maxmultiplicity);
-     }
-  }
-  iStr iFixTitle = find_key("fixtitle", 8,  sf, st_v, end_v+1, verbose-2); 
-  if ((iFixTitle < 0) || (sf[iFixTitle] == '}')) {
-    vpt(0, " ERROR, looking at field_code=%ld values, did not find fixtitle field. sf[%ld:%ld] = \"%.*s\" \n",
-      (long int) num, (long int) st_v,  (long int) (st_v + 30 > end_v ? end_v : st_v + 30),
-      (int) ((st_v+30 > end_v) ? end_v-st_v : 30), (char*) (sf + st_v) );
-    iFixTitle = find_key("fixtitle", 8,  sf, st_v, end_v+1, verbose+3); 
-    vpt(0, " ERROR, looking at field_code=%ld values, did not find fixtitle field. sf[%ld:%ld] = \"%.*s\" \n",
-      (long int) num, (long int) st_v,  (long int) (st_v + 30 > end_v ? end_v : st_v + 30),
-      (int) ((st_v+30 > end_v) ? end_v-st_v : 30), (char*) (sf + st_v) );
-    vpt(0, " After that search iFixTitle found at %ld. \n", iFixTitle);
-    printf("Note sf[st_v=%ld:end_v=%ld] = \"\"\"\n%.*s\n    \"\"\"\n",
-      (long int) st_v, (long int) end_v, (int) (end_v-st_v+1), sf + st_v);
-    printf("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\n");
-    return(-11532);
-  } else {
-     st_v0 = get_value_bounds(stt, sf, iFixTitle, end_v, verbose-1, &st_v0, &end_v0);
-     if (st_v0 < 0)  {
-       vpt(0, " ERROR, looking at field_code=%ld values, found fixtitle field at %ld but still no val bounds. sf[%ld:%ld] = \"%.*s\" \n",
-         (long int) num, (long int) iFixTitle, (long int) st_v,  (long int) (st_v + 30 > end_v ? end_v : st_v + 30), 
-         (int) ((st_v+30 > end_v) ? end_v-st_v : 30), (char*) (sf + st_v) );
-     } else {
-       dfs[i_onfxs].fixtitle = (char*) malloc(sizeof(char)*(end_v0-st_v0));
-       if (dfs[i_onfxs].fixtitle != NULL) {
-         sprintf(dfs[i_onfxs].fixtitle, "%.*s\0", end_v0-st_v0-1, sf + st_v0+1);
-       }
-       vpt(2, " success, fixtitle filled to %s. \n", dfs[i_onfxs].fixtitle);
-     }
-  }
-  iStr iDesc = find_key("desc", 4, sf, st_v, end_v+1, verbose-3); 
-  if ((iDesc < 0) || (sf[iDesc] == '}')) {
-    vpt(0, " ERROR, looking at field_code=%ld values, did not find desc field. sf[%ld:%ld] = \n\"\"\"\n%.*s\n   \"\"\" \n",
-      (long int) num, (long int) st_v,  (long int) end_v, end_v-st_v+1, sf + st_v);
-    iDesc = find_key("desc", 4, sf, st_v, end_v+1, verbose+1); 
-    vpt(0, " ERROR, looking at field_code=%ld values, did not find desc field. sf[%ld:%ld] = \n\"\"\"\n%.*s\n   \"\"\" \n",
-      (long int) num, (long int) st_v,  (long int) end_v, end_v-st_v+1, sf + st_v);
-    vpt(0, " ERROR follow up, we found iDesc after second look at %ld. \n", (long int ) iDesc);
-    printf(" --- Note sf[%ld:%ld]=\"\"\"\n%.*s\n    \"\"\"\n", (long int) st_v, (long int) end_v,
-      (int) (end_v-st_v+1), sf + st_v);
-    vpt(0, " ERROR follow up, we found iDesc after second look at %ld. \n", (long int ) iDesc);
-    printf("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\n");
-    return(-134302);
-  } else {
-     st_v0 = get_value_bounds(stt, sf, iDesc, end_v, verbose-1, &st_v0, &end_v0);
-     if (st_v0 < 0)  {
-       vpt(0, " ERROR, looking at field_code=%ld values, found desc field at %ld but still no val bounds. sf[%ld:%ld] = \"%.*s\" \n",
-         num, (long int) iDesc, st_v,  st_v + 30 > end_v ? end_v : st_v + 30, (st_v+30 > end_v) ? end_v-st_v : 30, sf + st_v);
-       return(-304032);
-     } else {
-       dfs[i_onfxs].desc = (char*) malloc(sizeof(char)*(end_v0-st_v0));
-       if (dfs[i_onfxs].desc != NULL) {
-         sprintf(dfs[i_onfxs].desc, "%.*s\0", end_v0-st_v0-1, sf + st_v0+1);
-         vpt(2, " success, desc filled to \"%s\".\n",  dfs[i_onfxs].desc);
-       } else {
-         vpt(0, "ERROR: field_code=%ld, failed to allocate %ld bytes for desc field found at %ld. \n",
-           dfs[i_onfxs].field_code, (long int) end_v0-st_v0, (long int) iDesc);  return(-235032); 
-       }
-     }
-  }
-  iStr iTyp = find_key("typ", 3, sf, st_v, end_v+1, verbose-3);   DF_DataType on_typ;
-  if ((iTyp < 0) || sf[iTyp] == '}') {
-    vpt(0, " ERROR, looking at field_code=%ld values, did not find typ field. sf[%ld:%ld] = \"%.*s\" \n",
-      num, st_v,  st_v + 30 > end_v ? end_v : st_v + 30, (st_v+30 > end_v) ? end_v-st_v : 30, sf + st_v);
-    iTyp = find_key("typ", 3, sf, st_v, end_v, verbose+1);  
-    vpt(0, " Did we find iTyp that time?  Now equal to %ld: sf[%ld:%ld]=\"\"\"\n%.*s\n\"\"\" \n", (long int) iTyp,
-    (long int) st_v, (long int) end_v, (int) (end_v-st_v+1), sf + st_v);
-    printf("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\n");
-    return(-304035);
-  }
+  iStr st_v0, end_v0; iStr i_loc; char old_char;
+  dfs[i_onfxs].keep = -1;
+  FieldSeeker_INT("keep", 4, dfs[i_onfxs].keep, st_v, end_v+1, i_loc, st_v0, end_v0, 0);
+  FieldSeeker_INT("priority", 8, dfs[i_onfxs].priority, st_v, end_v+1, i_loc, st_v0, end_v0, 0);
+  FieldSeeker_INT("maxmultiplicity", 15, dfs[i_onfxs].maxmultiplicity, st_v, end_v+1, i_loc, st_v0, end_v0, 0);
+  FieldSeeker_INT("ltrunc", 6, dfs[i_onfxs].ltrunc, st_v, end_v+1, i_loc, st_v0, end_v0, 0);
+  FieldSeeker_INT("rtrunc", 6, dfs[i_onfxs].rtrunc, st_v, end_v+1, i_loc, st_v0, end_v0, 0);
+  if (dfs[i_onfxs].ltrunc <0) { dfs[i_onfxs].ltrunc=0; }
+  if (dfs[i_onfxs].rtrunc <0) { dfs[i_onfxs].rtrunc=0; }
+
+  FieldSeeker_STR("nm", 2, dfs[i_onfxs].nm, st_v, end_v+1, i_loc, st_v0, end_v0, 1);
+  FieldSeeker_STR("fixtitle", 8, dfs[i_onfxs].fixtitle, st_v, end_v+1, i_loc, st_v0, end_v0, 1);
+  FieldSeeker_STR("desc", 4, dfs[i_onfxs].desc, st_v, end_v+1, i_loc, st_v0, end_v0, 0);
+  /*
+  */
+  iStr iTyp = -1;
+  FieldSeeker_START("typ", 3, st_v, end_v+1, iTyp, st_v0, end_v0, 1);
   if ((iTyp < 0) || (sf[iTyp] == '}')) {
-  } else {
-     st_v0 = get_value_bounds(stt, sf, iTyp, end_v, verbose-1, &st_v0, &end_v0);
-     if (st_v0 < 0)  {
-       vpt(0, " ERROR, looking at field_code=%ld values, found typ field at %ld but still no val bounds. sf[%ld:%ld] = \"%.*s\" \n",
-         num, (long int) iDesc, st_v,  st_v + 30 > end_v ? end_v : st_v + 30, (st_v+30 > end_v) ? end_v-st_v : 30, sf + st_v);
-     } else {
-       iStr st_v0_loc = sf[st_v0] == '\"' ? st_v0 : (sf[st_v0-1] == '\"') ? st_v0-1 : st_v0;
-       dfs[i_onfxs].typ = MATCHTYPE(sf, st_v0_loc, (end_v0)); on_typ = dfs[i_onfxs].typ;
-       vpt(1, " we had sf[%ld:%ld]=\"%.*s\", which we map to typ=\"%s\". \n",
-         (long int) (st_v0_loc+1), (long int) (end_v0), (end_v0-st_v0_loc-1), sf + st_v0_loc+1,
-         What_DF_DataType( dfs[i_onfxs].typ));         
-       if (dfs[i_onfxs].typ == UNKNOWN) {
-         vpt(-1, " Further ERROR, sf[%ld:%ld]=\"%.*s\" mapped to UNKNOWN. \n",
-           (long int) (st_v0_loc+1), (long int) end_v0, (end_v0-st_v0_loc-1), sf + st_v0_loc+1);
-         printf("We have an Error trying to run MATCHTYPE \n");
-         printf("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\n");
-         return(-304503);
-       }
-       if (dfs[i_onfxs].typ == decimal154) { dfs[i_onfxs].width=15; dfs[i_onfxs].scale = 4; }
-       if (dfs[i_onfxs].typ == decimal153) { dfs[i_onfxs].width=15; dfs[i_onfxs].scale = 3; }
-       if (dfs[i_onfxs].typ == decimal184) { dfs[i_onfxs].width=18; dfs[i_onfxs].scale = 4; }
-       if (dfs[i_onfxs].typ == decimal185) { dfs[i_onfxs].width=18; dfs[i_onfxs].scale = 5; }
-       if (dfs[i_onfxs].typ == decimal_gen) {
-          iStr width_loc = find_key("width", 5, sf, st_v, end_v, verbose-2);
-          if (width_loc >= st_v) {
-            st_v0 = get_value_bounds("fxs", sf, width_loc, nmax, verbose-2, &st_v0, &end_v0);
-            st_v0 = sf[st_v0] == '\"' ? st_v0+1 : ((sf[st_v0] >= '0') && (sf[st_v0] <= '9')) ? st_v0 : st_v0+1;
-            end_v0 = sf[end_v0] == '\"' ? end_v0-1 : sf[end_v0] == ',' ? end_v0-1 : ((sf[end_v0] >= '0') && (sf[end_v0] <= '9')) ? end_v0: end_v0;
-            char OSF = sf[end_v0+1]; sf[end_v0+1] = '\0'; char a_width = atoi((char*) sf + st_v0); sf[end_v0+1] = OSF;
-            dfs[i_onfxs].width = a_width;
-          } else {
-            vpt(-1, "Error did not locate width got width_loc = %ld even those field %d is decimal_gen type. \n",
-              (long int) width_loc, dfs[i_onfxs].field_code); return(-403230);
-          }
-          iStr scale_loc = find_key("scale", 5, sf, st_v, end_v, verbose-2);
-          if (scale_loc >= st_v) {
-            st_v0 = get_value_bounds("fxs", sf, scale_loc, nmax, verbose-2, &st_v0, &end_v0);
-            st_v0 = sf[st_v0] == '\"' ? st_v0+1 : ((sf[st_v0] >= '0') && (sf[st_v0] <= '9')) ? st_v0 : st_v0+1;
-            end_v0 = sf[end_v0] == '\"' ? end_v0-1 : sf[end_v0] == ',' ? end_v0-1 : ((sf[end_v0] >= '0') && (sf[end_v0] <= '9')) ? end_v0: end_v0;
-            char OSF = sf[end_v0+1]; sf[end_v0+1] = '\0'; char a_scale = atoi((char*) sf + st_v0); sf[end_v0+1] = OSF;
-            dfs[i_onfxs].scale = a_scale;
-          }
-       }
-       if ((dfs[i_onfxs].typ == tms) || (dfs[i_onfxs].typ == tns) ||  (dfs[i_onfxs].typ == tus)) {
-         iStr iFmt = find_key("fmt",3, sf, st_v, end_v+1, verbose);
-         if ((iFmt < 0) || sf[iFmt] == '}') {
-           vpt(0," ISSUE field_code=%ld, we found typ=", (long int) num);
-           printf("%s", What_DF_DataType(on_typ));
-           printf("but despite this, count not find fmt in \"\"\"\n%.*s\n   \"\"\".\n",
-             (int) ( (end_v-st_v > 30) ? 30 : end_v-st_v), (char*) (sf + (int) st_v));
-         }
-         st_v0 = get_value_bounds(stt, sf, iFmt, end_v, verbose-1, &st_v0, &end_v0); 
-         if (st_v0 < 0) {
-           vpt(0, " ISSUE field_code=%ld, ", (long int) num);
-           printf("we are on typ = \"%s\"", What_DF_DataType(on_typ));
-           printf(", found fmt field at %ld.  But still no value bounds. \n", (long int) iFmt);
-         } else {
-           dfs[i_onfxs].fmt = (char*) malloc(sizeof(char) * (end_v0-st_v0));
-           if (dfs[i_onfxs].fmt != NULL) {
-             sprintf(dfs[i_onfxs].fmt, "%.*s\0", end_v0-st_v0-1, sf + st_v0+1);
-           } else {  
-             vpt(0, "ERROR: field_code=%ld, failed to allocate %ld bytes for fmt field found at %ld. \n",
-               (long int) num, (long int)  end_v0-st_v0, iFmt); return(-1);
-           }
-           dfs[i_onfxs].fmttyp = MATCHTSTYPE(sf, st_v0, end_v0);
-         }
-       }
-     }
+    vpt(-10, "ERROR: could not find iTyp got %ld. \n", iTyp);
+  } 
+  dfs[i_onfxs].typ = MATCHTYPE(sf, st_v0, (end_v0));  dfs[i_onfxs].typ;
+  vpt(1, " we had sf[%ld:%ld] = \"%.*s\" which we map to typ=\"%s\". \n",
+    (long int) st_v0, (long int) end_v0, end_v0-st_v0, sf + st_v0,
+    What_DF_DataType( dfs[i_onfxs].typ));
+  if ((dfs[i_onfxs].typ == str) || (dfs[i_onfxs].typ == i32) || (dfs[i_onfxs].typ == i64)) {
+  } else if (dfs[i_onfxs].typ == decimal154) { dfs[i_onfxs].width=15; dfs[i_onfxs].scale = 4; 
+  } else if (dfs[i_onfxs].typ == decimal153) { dfs[i_onfxs].width=15; dfs[i_onfxs].scale = 3; 
+  } else if (dfs[i_onfxs].typ == decimal184) { dfs[i_onfxs].width=18; dfs[i_onfxs].scale = 4;
+  } else if (dfs[i_onfxs].typ == decimal185) { dfs[i_onfxs].width=18; dfs[i_onfxs].scale = 5; 
+  } else if (dfs[i_onfxs].typ == decimal_gen) {
+    FieldSeeker_INT("width", 5, dfs[i_onfxs].width, st_v, end_v+1, i_loc, st_v0, end_v0, 0);
+    FieldSeeker_INT("scale", 5, dfs[i_onfxs].scale, st_v, end_v+1, i_loc, st_v0, end_v0, 0);
+  } else if ((dfs[i_onfxs].typ == tms) || (dfs[i_onfxs].typ == tns) ||  (dfs[i_onfxs].typ == tus)) {
+    iStr iFmt = 0;
+    FieldSeeker_STR("fmt", 3, dfs[i_onfxs].fmt, st_v, end_v+1, iFmt, st_v0, end_v0, 1);
+    dfs[i_onfxs].fmttyp = MATCHTSTYPE(sf, st_v0, end_v0);
   }
   
   vpt(1, " -- looking for encode. sf[end_v=%ld]=\'%c\'\n", (long int) end_v, sf[end_v]);
-  iStr iEncode = find_key("encode", 6, sf, st_v, end_v+1, verbose-3);
+  iStr iEncode = -1; dfs[i_onfxs].n_field_codes=0;
+  FieldSeeker_START("encode", 6, st_v, end_v+1, iEncode, st_v0, end_v0, 0);
   if ((iEncode >= 0) && (sf[iEncode] != '}')) {
     vpt(1, " -- Note encode was successfully found at %ld between [%ld,%ld] \n", (long int) iEncode, (long int) st_v, (long int) end_v);
     int success_encode = populate_encode(stt, dfs+i_onfxs, i_onfxs, sf, st_v, end_v+1, verbose-2);
@@ -1611,6 +1434,11 @@ int populate_fixfield(iStr i_fst, iStr nmax, char *sf, int verbose,
       printf("%.*s\n    \"\"\"\n", (int) (end_v-st_v+1), (char*) (sf + st_v));
     }
   }
+  vpt(-10, "Loaded i_onfxs=%ld. %ld:nm=%s of typ=\"%s\" %s. n_field_codes=%ld, priority=%ld\n",
+    (long int) i_onfxs,  (long int) dfs[i_onfxs].field_code, dfs[i_onfxs].nm,
+    What_DF_DataType(dfs[i_onfxs].typ), 
+    ((dfs[i_onfxs].typ != tms) && (dfs[i_onfxs].typ!=tus) && (dfs[i_onfxs].typ!=tus)) ?
+    "" :  What_DF_TSType(dfs[i_onfxs].fmttyp), dfs[i_onfxs].n_field_codes, dfs[i_onfxs].priority);
   vpt(1, " --- All concluded with ifield =%ld, field_code=%ld. \n",
       (long int) i_onfxs, (long int) dfs[i_onfxs].field_code);
   return(1);
@@ -1713,11 +1541,13 @@ DF_Fix_Field *create_blank_fix_fields(int n_fix_fields, int verbose) {
     vpt(0, " ERROR failed to allocate fxs. \n"); return(NULL);
   }
   for (int ii = 0; ii < n_fix_fields; ii++) {
+    fxs[ii].nm = NULL;
     fxs[ii].field_code = -1; fxs[ii].keep = -1; fxs[ii].fixtitle = NULL;
     fxs[ii].typ = UNKNOWN;   fxs[ii].desc = NULL;  fxs[ii].fmt = NULL;
     for (int jj =0; jj < NCHARS; jj++) { fxs[ii].field_loc[jj] = -1; }
     fxs[ii].field_codes_loc = NULL; fxs[ii].field_codes_arr = NULL; fxs[ii].n_field_codes = 0;
     fxs[ii].width = (char) 0; fxs[ii].scale = (char) 0;  fxs[ii].fmttyp = UNKNOWN_TS;
+    fxs[ii].rtrunc=0; fxs[ii].ltrunc=0;
   }
   vpt(1, " create_blank_fix_fields.  Returning blanked fields \n");
   return(fxs);
@@ -1734,6 +1564,10 @@ int delete_fix_fields(int n_fix_fields, DF_Fix_Field **p_fxs, int verbose) {
     //  vpt(2, " Free fxs[ii=%ld/%ld].nm. \n", (long int) ii, (long int) n_fix_fields);
     //  free(fxs[ii].nm); fxs[ii].nm = NULL;
     //}
+    if (fxs[ii].nm != NULL) {
+      vpt(3, " Free fxs[ii=%ld/%ld][%d].nm. \n", (long int) ii, (long int) n_fix_fields, fxs[ii].field_code);
+      free(fxs[ii].nm); fxs[ii].nm = NULL;
+    }
     if (fxs[ii].fixtitle != NULL) {
       vpt(3, " Free fxs[ii=%ld/%ld][%d].fixtitle. \n", (long int) ii, (long int) n_fix_fields, fxs[ii].field_code);
       free(fxs[ii].fixtitle); fxs[ii].fixtitle = NULL;
@@ -1780,8 +1614,9 @@ int *order_unique_fix_fields(char* assignment, char*sf, iStr on_i, iStr nmax, in
      iStr endq = get_end_quote(stt, sf, onFieldKey, end_v);  char sfend_v0;
      if (endq < 0) { vpt(0, "ERROR endq=%ld for onFieldKey=%ld for onikey=%ld \n", (long int) endq, (long int) onFieldKey, (long int) onikey);
                      free(unique_fix_fields); return(NULL); } 
+     char old_char = sf[endq];
      sf[endq] = '\0'; int num = atoi(sf + onFieldKey + 1);
-     sf[endq] = '\"';
+     sf[endq] = old_char;
      unique_fix_fields[onikey] = num;
      if (onikey < n_fix_fields -1) {
        onFieldKey =get_next_key("order_unique_fix_fields", sf, onFieldKey, end_v, verbose-1);

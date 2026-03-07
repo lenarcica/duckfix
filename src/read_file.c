@@ -105,7 +105,8 @@ int PRINT_dfl(DF_field_list *dfl) {
   printf("     ");  int n_used_known = 0;
   for (int ii = 0; ii < dfl->n_known_fields; ii++) {
     if (dfl->known_usage_count[ii] > 0) { n_used_known++; }
-    printf("[%ld:%ld,MX=%ld]", (long int) dfl->ordered_known_fields[ii], (long int) dfl->known_usage_count[ii], (long int) dfl->known_multiplicity[ii]);
+    printf("[%ld:%ld,MX=%ld,pl%ld:m%ld]", (long int) dfl->ordered_known_fields[ii], (long int) dfl->known_usage_count[ii], (long int) dfl->known_multiplicity[ii],
+     dfl->final_known_print_loc[ii], dfl->final_known_multiplicity_loc[ii]);
     if (ii < dfl->n_known_fields - 1) { printf(",");
       if ((ii+1) % 6 == 0) { printf("\n     "); }
     }
@@ -308,7 +309,7 @@ int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld
   vpt(2, "We have field list inspecting = {%.%s}. \n",
     end_fld - st_fld - 1, sf + st_fld);
   iStr iKey = 0; int cnt_keys = 0;
-  iKey = get_next_key("update_field_list_on_field", sf, st_fld, end_fld, verbose-1); 
+  iKey = get_first_key("update_field_list_on_field", sf, st_fld, end_fld, verbose-1); 
   int num = 0;  int update_code;  int nKeys = 0; int nEntry = 1;
   while((iKey > 0) && (iKey <= end_fld) && (sf[iKey] != '}')) {
     if (sf[iKey] != '\"') { vpt(0, "ERROR, iKey=%ld/%ld between [%ld,%ld], cnt_keys=%ld.  We are at sf[%ld]=\'%c\'\n",
@@ -327,7 +328,11 @@ int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld
     }
     vpt(2, " on iKey=%ld, we determined num=%ld.  Add to field list. \n", (long int) iKey, (long int) num);
 
-    iStr st_v, end_v;  st_v = get_value_bounds(stt, sf, endq+1, end_fld, verbose-1, &st_v, &end_v);
+    iStr st_v, end_v;  st_v = get_value_bounds(stt, sf, iKey, end_fld, verbose-1, &st_v, &end_v);
+    if ((st_v < 0) || (st_v >= end_fld)) {
+      vpt(-1030, " ERROR we were update_field_list_on_field[num=%ld] but received st_v=%ld on a value bounds assessment. iKey=%ld/%ld.\n",
+        (long int) num, (long int) st_v, (long int) iKey, end_fld);  return(-4032);
+    }
     nEntry = 1;
     if (num == 18) {
       for (iStr ii = st_v; ii < end_v; ii++) {
@@ -689,7 +694,7 @@ int loc_any_schema_at_priority(DF_config_file *dfc, int nloc, int tgt_priority, 
   int i_s = -1;
   if (nloc >= dfc->n_schemas-1) { return(-1); }
   for (i_s = nloc+1; i_s < dfc->n_schemas; i_s++) {
-    if ((dfc->schemas[i_s].typ != fix42) && (dfc->schemas[i_s].priority == tgt_priority)) { return(i_s); } }
+    if ((dfc->schemas[i_s].typ != fix42) && (dfc->schemas[i_s].typ != fix2end) && (dfc->schemas[i_s].priority == tgt_priority)) { return(i_s); } }
   return(-1);
 }
 int loc_lowest_priority_schema_gt(DF_config_file *dfc, int tgt, int verbose) {
@@ -698,7 +703,7 @@ int loc_lowest_priority_schema_gt(DF_config_file *dfc, int tgt, int verbose) {
     (long int) tgt, (long int) verbose); 
   int i_s = -1; int loc_min = -1; int on_min = -1;
   for (i_s = 0; i_s < dfc->n_schemas; i_s++) {
-    if ((dfc->schemas[i_s].priority >= 0) && (dfc->schemas[i_s].typ != fix42)){
+    if ((dfc->schemas[i_s].priority >= 0) && (dfc->schemas[i_s].typ != fix2end) && (dfc->schemas[i_s].typ != fix42)){
        if (dfc->schemas[i_s].priority >= tgt) {
          if (loc_min < 0) {
            loc_min = i_s; on_min = dfc->schemas[i_s].priority;
@@ -735,48 +740,62 @@ int configure_column_order(DF_config_file *dfc, DF_field_list *dfl, int verbose)
   vpt(1, " We start with min schema=%d[%d] and field=%d [loc %d, %d] \n",
     on_s, p_on_s, ((on_f >= 0) && (on_f < dfc->nfields)) ? dfl->ordered_known_fields[on_f] : -999,
     on_f, p_on_f); 
-  int on_final_loc = 0;
-  int n_on_f; int n_on_s;
+  int on_final_o_loc = 0; int on_final_m_loc = 0;
+  int n_on_f; int n_on_s;  
+  int nkeep = 0;
   while ((p_on_s >= 0) || (p_on_f >= 0)) {
-    vpt(2, " -- step %ld:  on_s=[%ld,p_=%ld], on_f=[%ld,p=%ld] \n",
-       (long int) on_final_loc, (long int) on_s, (long int) p_on_s,
-       (long int) on_f, (long int) p_on_f);
+    vpt(2, " -- step %ld:  on_s=[%ld,p_=%ld], on_f=[%ld,p=%ld] start: o_loc=%ld, m_loc=%ld\n",
+       (long int) on_final_o_loc, (long int) on_s, (long int) p_on_s,
+       (long int) on_f, (long int) p_on_f, (long int) on_final_o_loc, (long int) on_final_m_loc);
     if ((on_f < 0) || ((on_s >= 0) && (p_on_s <= p_on_f))) {
-      dfc->schemas[on_s].final_o_loc = on_final_loc;  
+      dfc->schemas[on_s].final_o_loc = on_final_o_loc;  
+      dfc->schemas[on_s].final_m_loc = on_final_m_loc;  
       n_on_s = next_priority_schema(dfc, on_s, verbose-1);
       if (n_on_s == on_s) { vpt(-10, " ERROR: n_on_s=%ld, on_s=%ld. We didn't jump correct\n", (long int) n_on_s,
          (long int) on_s);  return(-10); }
       on_s = n_on_s;
       p_on_s =  ((on_s >= 0) && (on_s < dfc->n_schemas)) ? dfc->schemas[on_s].priority : -999;
+      on_final_m_loc++;
     } else {
-      dfl->final_known_print_loc[on_f] = on_final_loc; 
+      dfl->final_known_print_loc[on_f] = on_final_o_loc; 
+      dfl->final_known_multiplicity_loc[on_f] = on_final_m_loc;
       n_on_f = next_priority_fixfield(dfc, dfl, on_f, verbose-1);
       if (on_f == n_on_f) { 
         vpt(-10, "ERROR: n_on_f=%ld, on_f=%ld.  This doesn't jump. \n", (long int) n_on_f, on_f);
         return(-10);
       }
+      nkeep = ((dfl->known_multiplicity[on_f] < dfc->fxs[on_f].maxmultiplicity) ? dfl->known_multiplicity[on_f] :
+         dfc->fxs[on_f].maxmultiplicity);  nkeep = nkeep >= 1 ? nkeep : 1;
       on_f = n_on_f;
       p_on_f =  ((on_f >= 0) && (on_f < dfc->nfields)) ? dfc->fxs[on_f].priority : -999;
+      on_final_m_loc += nkeep;
     }
-    on_final_loc++;
-    if (on_final_loc >= dfc->n_schemas + dfc->nfields+1) { 
+    on_final_o_loc++;
+    if (on_final_o_loc >= dfc->n_schemas + dfc->nfields+1) { 
       printf("ERROR ERROR ERROR ERROR ERROR ERROR ERROR \n");
-      printf("cco-%s: ERROR we have on_final_loc=%ld, but n_schemas=%ld, nfields=%ld. \n",
-        stt, (long int) on_final_loc, (long int) dfc->n_schemas, dfc->nfields);
+      printf("cco-%s: ERROR we have on_final_o_loc=%ld, but n_schemas=%ld, nfields=%ld. \n",
+        stt, (long int) on_final_o_loc, (long int) dfc->n_schemas, dfc->nfields);
       return(-1);
     }
   }  
-  dfc->n_total_print_columns = on_final_loc;
-  dfc->n_total_multiplicity_columns = 0;
-  vpt(1, " ---- All concluded loop, on_final_loc=%ld. \n", (long int) on_final_loc);
-  dfc->mark_visited = (int*) malloc(sizeof(int)*2*on_final_loc);
+  dfc->n_total_print_columns = on_final_o_loc;
+  dfc->n_total_multiplicity_columns = on_final_m_loc;
+  vpt(1, " ---- All concluded loop, on_final_o_loc=%ld, on_final_m_loc=%ld. \n", (long int) on_final_o_loc, (long int) on_final_m_loc);
+  dfc->mark_visited = (int*) malloc(sizeof(int)*2*on_final_o_loc);
   if (dfc->mark_visited == NULL) {
     vpt(-1, "ERROR -trying to allocate dfc->mark_visited resulted in fail. \n");
     return(-104);
   }
+  dfc->mark_m_visited = (int*) malloc(sizeof(int)*2*on_final_m_loc);
+  if (dfc->mark_m_visited == NULL) {
+    vpt(-1, "ERROR -trying to allocate dfc->mark_m_visited length %ld: resulted in fail. \n", (long int) 2 *on_final_m_loc); 
+    free(dfc->mark_visited); dfc->mark_visited=NULL;
+    return(-104);
+  }
   vpt(1, " -- Now configure the mark_visited of length %ld (on_final_loc=%ld) \n", 
-     (long int) 2*on_final_loc,(long int) on_final_loc);
-  for (int ii = 0; ii < on_final_loc*2; ii++) { dfc->mark_visited[ii] = 0; }
+     (long int) 2*on_final_o_loc,(long int) on_final_o_loc);
+  for (int ii = 0; ii < on_final_o_loc*2; ii++) { dfc->mark_visited[ii] = 0; }
+  for (int ii = 0; ii < on_final_m_loc*2; ii++) { dfc->mark_m_visited[ii] = 0; }
   // repeat, lets mark mark_visited
   on_s = loc_lowest_priority_schema_gt(dfc, -1, verbose); 
   on_f = loc_lowest_priority_fixfield_gt(dfc,dfl, -1, verbose);
@@ -785,48 +804,53 @@ int configure_column_order(DF_config_file *dfc, DF_field_list *dfl, int verbose)
   if (verbose >= 2) { printf("cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco-cco\n"); }
   vpt(1, " ----- cco: We start again with on_s=[%ld,p=%ld], on_f=[%ld,p=%ld] \n", 
     (long int) on_s, (long int) p_on_s, (long int) on_f, (long int) p_on_f);
-  int on_pt = 0;  int error_form = 0;
+  int error_form = 0;
+  on_final_o_loc = 0; on_final_m_loc = 0; 
   while ((p_on_s >= 0) || (p_on_f >= 0)) {
-    vpt(2, " on_pt=%ld/%ld  with on_s=[%ld,p=%ld], on_f=[%ld,p=%ld] \n",
-      (long int) on_pt, (long int) on_final_loc,
-      (long int) on_s, (long int) p_on_s, (long int) on_f, (long int) p_on_f);
+    vpt(2, " on_final_o_loc=%ld/%ld  with on_s=[%ld,p=%ld], on_f=[%ld,p=%ld], o_loc=%ld, m_loc=%ld \n",
+      (long int) on_final_o_loc, (long int) dfc->n_total_print_columns,
+      (long int) on_s, (long int) p_on_s, (long int) on_f, (long int) p_on_f,
+      (long int) on_final_o_loc, (long int) on_final_m_loc);
     if ((on_f < 0) || ((on_s >= 0) && (p_on_s <= p_on_f))) {
-      dfc->schemas[on_s].final_m_loc = dfc->n_total_multiplicity_columns;
-      dfc->mark_visited[dfc->n_total_print_columns + on_pt] = on_s;
-      if (dfc->schemas[on_s].final_o_loc != on_pt) {
-        vpt(-1, " ERROR on_pt=%d/%d,  (on_s=%ld/%ld p=%ld, on_f=%ld/%ld p=%d but schema[%d].final_o_loc=%d, final_m_loc=%ld \n",
-          (int) on_pt, (int) on_final_loc, (long int) on_s, (long int) dfc->n_schemas, (int) p_on_s,
+      dfc->mark_visited[dfc->n_total_print_columns + on_final_o_loc] = on_s;
+      dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_final_m_loc] = on_s;
+      if (dfc->schemas[on_s].final_o_loc != on_final_o_loc) {
+        vpt(-1, " ERROR on_final_o_loc=%d/%d,  (on_s=%ld/%ld p=%ld, on_f=%ld/%ld p=%d but schema[%d].final_o_loc=%d, final_m_loc=%ld \n",
+          (int) on_final_o_loc, (int) dfc->n_total_print_columns, (long int) on_s, (long int) dfc->n_schemas, (int) p_on_s,
           (int) on_f, (int) dfl->n_known_fields,  (int) p_on_f,
           (int) on_s, (long int) dfc->schemas[on_s].final_o_loc, 
           (long int) dfc->schemas[on_s].final_m_loc);  error_form++; 
       } 
-      dfc->n_total_multiplicity_columns++;
+      on_final_m_loc++;
       on_s = next_priority_schema(dfc, on_s, verbose-1);
       p_on_s =  ((on_s >= 0) && (on_s < dfc->n_schemas)) ? dfc->schemas[on_s].priority : -999;
     } else {
-      dfc->mark_visited[dfc->n_total_print_columns + on_pt] = -on_f;
-      dfl->final_known_multiplicity_loc[on_f] = dfc->n_total_multiplicity_columns; 
-      if (dfl->final_known_print_loc[on_f] != on_pt) {
-        vpt(-1, " ERROR on_pt=%d/%d,  (on_s=%ld/%ld p=%ld, on_f=%ld/%ld p=%d but field[%d].final_known_print_loc=%d, final_multiplicity_loc=%ld\n",
-          (int) on_pt, (int) on_final_loc, (long int) on_s, (long int) dfc->n_schemas, (int) p_on_s,
+      dfc->mark_visited[dfc->n_total_print_columns + on_final_o_loc] = -on_f-1;
+      if (dfl->final_known_print_loc[on_f] != on_final_o_loc) {
+        vpt(-1, " ERROR on_final_o_loc=%d/%d,  (on_s=%ld/%ld p=%ld, on_f=%ld/%ld p=%d but field[%d].final_known_print_loc=%d, final_multiplicity_loc=%ld\n",
+          (int) on_final_o_loc, (int) dfc->n_total_print_columns, (long int) on_s, (long int) dfc->n_schemas, (int) p_on_s,
           (int) on_f, (int) dfl->n_known_fields,  (int) p_on_f,
           (int) on_f, (long int) dfl->final_known_print_loc[on_f],
           (long int) dfl->final_known_multiplicity_loc[on_f]);  error_form++; 
       } 
-      if (dfl->known_multiplicity[on_f] <= 1) {
-        dfc->n_total_multiplicity_columns++;
+      nkeep = dfl->known_multiplicity[on_f] < dfc->fxs[on_f].maxmultiplicity ? dfl->known_multiplicity[on_f] : dfc->fxs[on_f].maxmultiplicity;
+      nkeep = nkeep >= 1 ? nkeep : 1;
+      if (nkeep <= 1) {
+        dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_final_m_loc] = -on_f-1;
+        on_final_m_loc++;
       } else {
-        dfc->n_total_multiplicity_columns += (dfl->known_multiplicity[on_f] < dfc->fxs[on_f].maxmultiplicity) ? 
-          (dfl->known_multiplicity[on_f]) : dfc->fxs[on_f].maxmultiplicity;
+        for (int ipp = 0; ipp < nkeep; ipp++) {
+          dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_final_m_loc] = -on_f-1;  on_final_m_loc++;
+        }
       }
       on_f = next_priority_fixfield(dfc, dfl, on_f, verbose-1);
       p_on_f =  ((on_f >= 0) && (on_f < dfc->nfields)) ? dfc->fxs[on_f].priority : -999;
     }
-    on_pt++;
-    if (on_pt > on_final_loc) { 
+    on_final_o_loc++;
+    if (on_final_o_loc > dfc->n_total_print_columns) { 
       printf("ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR\n");
-      printf("cco-%s: ERROR we have on_final_loc=%ld, but n_schemas=%ld, n_fields=%ld. on_pt=%ld we exceeded!\n",
-        stt, (long int) on_final_loc, (long int) dfc->n_schemas, dfc->nfields, (long int) on_pt);
+      printf("cco-%s: ERROR we have on_final_o_loc=%ld, but n_schemas=%ld, n_fields=%ld. n_total_print_columns=%ld we exceeded!\n",
+        stt, (long int) on_final_o_loc, (long int) dfc->n_schemas, dfc->nfields, (long int) dfc->n_total_print_columns);
       free(dfc->mark_visited); dfc->mark_visited = NULL;
       return(-1);
     }
@@ -838,14 +862,21 @@ int configure_column_order(DF_config_file *dfc, DF_field_list *dfl, int verbose)
     printf("ERROR --- A fail. \n");
     free(dfc->mark_visited); dfc->mark_visited=NULL; return(-1);
   } 
-  vpt(1, " We have concluded with on_pt=%ld, versus on_final_loc=%ld. \n", (long int) on_pt, (long int) on_final_loc);
+  vpt(1, " We have concluded with on_final_o_loc=%ld, versus on_final_m_loc=%ld. \n", (long int) on_final_o_loc, (long int) on_final_m_loc);
   if (error_form > 0) {
     vpt(-1, "Calculating mark_visited failed. \n"); return(-10);
   }
   vpt(0, "Mark Visited returns all correct. \n");
   return(1);
 } 
-
+int clear_m_visited(DF_config_file *dfc) {
+  if (dfc == NULL) { return(-10); } 
+  if ((dfc->mark_m_visited == 0) || (dfc->n_total_multiplicity_columns <= 0)) { return(-5); }
+  for (int ii = 0; ii < dfc->n_total_multiplicity_columns;ii++) {
+    dfc->mark_m_visited[ii] = 0;
+  }
+  return(1);
+}
 int PRINT_final_print_loc(DF_config_file *dfc, DF_field_list *dfl) {
   char stt[500];  int verbose =0;
   sprintf(stt, "PRINT_priorities(ns=%ld,nfx=%ld)",
@@ -858,20 +889,25 @@ int PRINT_final_print_loc(DF_config_file *dfc, DF_field_list *dfl) {
   int on_f = loc_lowest_priority_fixfield_gt(dfc,dfl, -1, verbose);
   int p_on_s =  ((on_s >= 0) && (on_s < dfc->n_schemas)) ? dfc->schemas[on_s].priority : -1;
   int p_on_f =  ((on_f >= 0) && (on_f < dfc->nfields)) ? dfc->fxs[on_f].priority : -1;
-  int on_pt = 0;
+  int on_pt = 0; int on_mt = 0;
   printf(" --- Printing target table order [%ld columns] (start with S[%ld:%ld],F[%ld:%ld])\n", dfc->n_total_print_columns,
     (long int) on_s, (long int) p_on_s, (long int) on_f, (long int) p_on_f);
-  printf(" -- mark_visited = ["); 
-  for (on_pt = 0; on_pt < dfc->n_total_print_columns; on_pt++) {
-    printf("%d", dfc->mark_visited[dfc->n_total_print_columns + on_pt]);
-    if (on_pt < dfc->n_total_print_columns -1) { printf(","); if ((on_pt+1)%10 == 0) { printf("\n              "); } }
+  printf(" -- mark_m_visited = [\n"); 
+  for (on_mt = 0; on_mt < dfc->n_total_multiplicity_columns; on_mt++) {
+    printf("    (%d,%d)", (int) on_mt, (int) dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_mt]);
+    if (on_mt < dfc->n_total_multiplicity_columns -1) { printf(",\n"); } else {printf("\n"); }
+    //on_mt +=  (dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_mt] >= 0) ? 1 :
+    //            ((dfc->fxs[-1-dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_mt]].maxmultiplicity <= 
+    //             dfl->known_multiplicity[-1 -dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_mt]]) ?
+    //             dfc->fxs[-1-dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_mt]].maxmultiplicity :
+    //             dfl->known_multiplicity[-1 -dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_mt]]);
   }
   printf("]\n");
   printf("[    ");
-  on_pt = 0;
+  on_pt = 0; on_mt;
   while ((on_s >= 0) || (on_f >= 0)) {
     if ((on_f < 0) || ((on_s >= 0) && (p_on_s <= p_on_f))) {
-      printf("[%d=%d (mplcit=%ld):on_s=%d=%d,Sch:\"%s\",%s,",
+      printf("[%d=(o_loc=%d,m_loc=%ld):on_s=%d=%d,Sch:\"%s\",%s,",
         on_pt, (int) dfc->schemas[on_s].final_o_loc, (int) dfc->schemas[on_s].final_m_loc, (int) on_s, 
         (int) dfc->mark_visited[dfc->n_total_print_columns + on_pt],
         dfc->schemas[on_s].nm, What_DF_DataType(dfc->schemas[on_s].typ));
@@ -892,7 +928,8 @@ int PRINT_final_print_loc(DF_config_file *dfc, DF_field_list *dfl) {
       if ((dfc->fxs[on_f].typ == tms) || (dfc->fxs[on_f].typ == tus) || (dfc->fxs[on_f].typ == tns)) {
         printf("%s,", What_DF_TSType(dfc->fxs[on_f].fmttyp));
       }
-      printf("priority=%d]", (int) dfc->fxs[on_f].priority);
+      printf("priority=%d,m_col_loc=%ld]", (int) dfc->fxs[on_f].priority,
+         dfl->final_known_multiplicity_loc[on_f]);
       on_f = next_priority_fixfield(dfc, dfl, on_f, verbose-1);
       p_on_f =  ((on_f >= 0) && (on_f < dfc->nfields)) ? dfc->fxs[on_f].priority : -1;
     }
