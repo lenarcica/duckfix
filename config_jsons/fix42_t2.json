@@ -1,0 +1,134 @@
+{
+  "name": "Fix42example",
+  "description": "Json part example for test of duckfix infrastructure",
+  "info" : "\nWe assume we receive log files which are in a csv or other separated format\nSome of the elements will be JSON elements of a FIX message that need to be \nparsed into a table.  These could be different messages with different fields activated. \n As we see in the example, only the json elements are actually JSON FIX.  \nWe need to parse these into table columns but there are other columns to worry aobut.",
+  "example_line": 
+  "10:23:43.503323 {Z} : A: 8=FIX4.2 9=101 49=JOYB 18=M",
+  "schema":{
+    "time1": { "desc":"some timestamp","typ":"tus", "fmt":"%H:%M:%S.%f", "priority": 0},
+    "bsentry1": { "desc":"vague string", "typ":"str", "priority":-1, "rtrunc":1, "ltrunc":1, "keep":1},
+    "bsentry2": { "desc":"uselesscolon", "typ":"str", "priority":-10, "rtrunc":1, "ltrunc":0, "keep":0}, 
+    "AorB": { "desc":"A or a B", "typ":"str", "priority":2, "rtrunc":1},
+    "fixfields": {"desc":"RestAreFixEntries, non json","typ":"fix2end","priority":3, "fixequal":"=" }
+  },
+  "general_sep":" ",
+  "fix_type":"4.20",
+  "fix_fields":{
+    "5":{"fixtitle":"AdvTransType", "keep":0,"priority":2,
+         "nm":"advertisement_trantype", "typ":"str", "desc":"Identifies Advertisement <7> message transaction type",
+         "encode": {
+          "N":"New","C":"Cancel","R":"Replace"
+        }
+    }, 
+    "8":{"nm":"begstring","keep":1,"priority":10,
+        "fixtitle":"BeginString","typ":"str",
+        "desc":"Identifies beginning of new message, always first field never encrypted"
+       },
+    "9":{"nm":"bodylength","keep":0,"priority":-1,
+         "fixtitle":"BodyLength","typ":"i32", "maxmultiplicity":1,
+         "desc":"Length of th message"
+        },
+    "10":{"nm":"checksum","keep":0,"priority":-1,
+          "fixtitle":"CheckSum","typ":"str", "maxmultiplicity":1,
+          "desc":"Fix message chcksum"
+         },
+    "12":{"nm":"commission","keep":1,"priority":40,
+           "fixtitle":"Commission","typ":"Decimal", "scale":"3", "width":"15",
+           "desc":"A commission charged" },
+    "18":{"nm":"execinst","keep":1,"priority":50,
+            "fixtitle":"ExecInst","typ":"str", "maxmultiplicity":5,
+            "desc":"Instructions for order handling on exchange trading floor, or for more than one instruction, separate instructions with an additional space.",
+            "encode":{ "1":"NotHeld","2":"Work", "3":"GoAlong","4":"OverDay","5":"Held","6":"ParticipateNoInitiate","7":"StrictScale",
+                       "9":"StayOnBidSide","0":"StayOnOffer","A":"NoCross","B":"OkCross","C":"CallFirst","D":"PercentVolume",
+                       "E":"DNI","F":"DNR","G":"AllOrNone","I":"InstitutionsOnly","L":"LastPeg","M":"MidPricePeg","N":"NonNegotiable",
+                       "O":"OpeningPeg","P":"MarketPeg","R":"PrimaryPeg","S":"Suspend","T":"FixedPegToLocalBestBid","U":"CustDispInstrRule11",
+                       "V":"NettingForex","W":"PegVWAP"
+            }
+        },
+    "31":{"nm":"execprice","keep":1,"priority":4,
+          "fixtitle":"LastPx", "typ":"Decimal(15,4)",
+          "desc":"Price of this (last) fill."
+         },
+    "32":{"nm":"execqty","keep":1,"priority":5,
+          "fixtitle":"LastShares", "typ":"Decimal(15,3)",
+          "desc":"Quantity of shares bought/sold on this (last) fill.  Field not required for ExecTrasnType<20>"
+         },
+    "35":{"nm":"fmtype","keep":1,"priority":2,
+          "fixtitle":"MsgType","typ":"str",
+          "desc":"Fix Message type",
+          "encode": {
+       "0":"heartbeat","1":"testrequest","2":"resendrequest",
+       "3":"reject","4":"seqreset","5":"logout","6":"ioi",
+       "7":"advert","8":"exreport","9":"ordcancelreq",
+       "A":"logon","B":"news","C":"email","D":"ordsingle",
+       "E":"ordlist","F":"ordcancelreq","G":"ordcancelreplacereq",
+       "H":"ordstatreq","J":"allocation","K":"listcancelreq",
+       "L":"listexecute","M":"liststatusreq","N":"liststatus",
+       "P":"allocack","Q":"dontknowtrade","R":"quotereq","S":"quote",
+       "T":"settlementinstr","V":"mkdatareq","W":"mkdatasnap","X":"mkdataincr",
+       "Y":"mktdatarej","Z":"quotecancel","a":"quotestatusreq","b":"quoteack",
+       "c":"secdefreq","d":"secdef","e":"secstatreq","f":"secstat",
+       "g":"tradstatreq","h":"tradsesstat","i":"massquote","j":"busmesrej",
+       "k":"bidreq","l":"bidresponse","m":"liststrikeprice"}
+         },
+    "38":{"nm":"ordqty","keep":1,"priority":20,
+           "fixtitle":"OrderQty","typ":"Decimal(15,4)",
+           "desc":"Quantity Initially ordered"
+         },
+    "40":{"nm":"ordtype","keep":1,"priority":11,
+          "fixtitle":"OrdType", "typ":"str",
+          "desc":"Used In",
+          "encode": {
+           "1":"Market", "2":"Limit","3":"Stop","4":"StopLimit","5":"MOC",
+           "6":"WithorWithout","7":"LimitOrBetter","8":"LimitWoWithout",
+           "9":"OnBasis","A":"OnClose","B":"LOC","C":"ForexMkt","D":"PrevQuoted",
+           "E":"PrevIndicated","F":"ForexLmt","G":"ForexSwp","H":"ForexPrevQuoted",
+           "I":"Funari","P":"Pegged"
+          }
+    },
+    "43":{"nm":"posdup","keep":0,"priority":-1,
+           "fixtitle":"PosDupFlag", "typ":"str",
+           "desc":"Indicates possible retransmission of message with this sequence number",
+           "encode":{"Y":"Y","N":"N"}},
+    "49":{"nm":"sndrcmpid","keep":2,"priority":40,
+           "fixtitle":"SenderCompID", "typ":"str",
+           "desc": "Assigned value used to identify firm sending message"
+         },
+    "52":{"nm":"sendtime", "keep":1,"priority":10,"fixtitle":"SendingTime<52>",
+            "desc":"Time of message transmission, always expresed in UTC", 
+            "typ":"tns","fmt":"%Y-%m-%d %H:%M:%S.%f"},
+    "59":{"nm":"tif","keep":1,"priority":15,"fixtitle":"TimeInForce<59>",
+           "desc":"time in force", "typ":"str",
+           "encode": { "0":"Day", "1":"GoodTillCancel","2":"AtTheOpen",
+                       "3":"IOC","4":"FillOrKill","5":"GoodTillCrosss","6":"GoodTillDate"
+           }
+       },
+    "104":{"nm":"ioiqual", "keep":0,"priority":-400,"fixtitle":"IOIQualifier",
+           "desc":"Code to qualify IOI use.:","typ":"str",
+            "encode":{"A":"AllOrNone", "C":"AtClose","I":"InTouch","L":"Limit",
+                      "M":"MoreBehind","O":"AtOpen","P":"TakingPosition", "Q":"AtMarket",
+                      "R":"ReadyToTrade","S":"PortfolioShown","T":"ThroughDay","V":"Versus",
+                      "W":"WorkingAway","X":"CrossOpportunity"}
+    },
+    "111":{"nm":"maxfloor","keep":0,"priority":-2,
+           "fixtitle":"MaxFloor","typ":"i32",
+           "desc":"Maximum Number of Shares within an order to be shown on the exchange floor at any given time."
+         },
+    "150":{"nm":"exectype","keep":1,"priority":3,
+            "fixtitle":"ExecType","typ":"str",
+            "desc":"An Excution typ of the message of ExecutionReport",
+            "encode":{
+            "0":"new","1":"partialfill","2":"fill","3":"doneforday","4":"cancel",
+            "5":"replace","6":"pendcancel","7":"stopped","8":"reject",
+            "9":"suspend","A":"pendnew","B":"calculated","C":"Expired",
+            "D":"Restated","E":"pendreplace" }
+           },
+     "151":{"nm":"lvsqty","keep":1,"priority":30,
+            "fixtitle":"LeavesQty","typ":"Decimal(15,4)",
+            "desc":"quantity remaining after a trade"
+           }
+
+  }
+}
+
+
