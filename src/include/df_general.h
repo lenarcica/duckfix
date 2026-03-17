@@ -265,6 +265,15 @@ typedef enum{
    (str_eq("Decimal(15,4)",13,sf, (st_v0), end_v0)) ? decimal154 : \
    (str_eq("decimal",7,sf, (st_v0), end_v0)) ? decimal_gen : \
    (str_eq("Decimal",7,sf, (st_v0), end_v0)) ? decimal_gen : \
+   (str_eq("Decimal_General",15,sf, (st_v0), end_v0)) ? decimal_gen : \
+   (str_eq("decimal_General",15,sf, (st_v0), end_v0)) ? decimal_gen : \
+   (str_eq("decimal_general",15,sf, (st_v0), end_v0)) ? decimal_gen : \
+   (str_eq("Decimal_general",15,sf, (st_v0), end_v0)) ? decimal_gen : \
+   (str_eq("Decimal_gen",11,sf, (st_v0), end_v0)) ? decimal_gen : \
+   (str_eq("decimal_gen",11,sf, (st_v0), end_v0)) ? decimal_gen : \
+   (str_eq("Decimal_Gen",11,sf, (st_v0), end_v0)) ? decimal_gen : \
+   (str_eq("DecGen",6,sf, (st_v0), end_v0)) ? decimal_gen : \
+   (str_eq("decgen",6,sf, (st_v0), end_v0)) ? decimal_gen : \
    (str_eq("fix42",5,sf, (st_v0), end_v0)) ? fix42 : \
    (str_eq("fix2end",7,sf, (st_v0), end_v0)) ? fix2end : \
    (str_eq("fix2End",7,sf, (st_v0), end_v0)) ? fix2end : \
@@ -346,6 +355,7 @@ typedef struct _DF_config_file {
   int n_total_multiplicity_columns;
   int *mark_visited;
   int *mark_m_visited;
+  int n_read_cols;
 } DF_config_file; 
 #endif
 
@@ -422,17 +432,17 @@ ii++
 
 #ifndef NEXTCHAREQ
 #define NEXTCHAREQ() \
-for(;ii < end_ln; ii++) { \
+for(; ii < end_ln; ii++) { \
   if (sf[ii] == on_char_eq) { break; \
   } else if (sf[ii] == '\n') { break; \
   } else if (sf[ii] == on_char_sep) { \
   } else if ((sf[ii] == ' ') || (sf[ii] == '\t')) { \
   } else if (sf[ii]=='\"') { \
-    ii = get_end_quote("nextcomma",sf,ii,end_ln); \
+    ii = get_end_quote("nextchareq",sf,ii,end_ln); \
   } else if (sf[ii]=='[') { \
-    ii =  get_end_bracket("nextcomma",sf,ii,end_ln); \
+    ii =  get_end_bracket("nextchareq",sf,ii,end_ln); \
   } else if (sf[ii]=='{') { \
-    ii =  get_end_brace("nextcomma", sf, ii, end_ln); \
+    ii =  get_end_brace("nextchareq", sf, ii, end_ln); \
   } \
 } \
 ii++ 

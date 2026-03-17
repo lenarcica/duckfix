@@ -76,6 +76,8 @@ typedef struct _df_extra_info {
   int32_t verbose;
 } df_extra_info;
 
+#define MAXINTREAD 22
+
 typedef struct _df_init_data {
   int32_t verbose;
   //duckdb_connection ddb_con;
@@ -87,6 +89,7 @@ typedef struct _df_init_data {
   FILE *fpo;
   int on_overall_line; int on_chunk_line;
   int st_buffer_loc; int end_buffer_loc;
+  //iStr st_line; iStr end_line;
   //duckdb_data_chunk on_in_chunk;
   //idx_t on_in_row;
   //idx_t on_in_row_count;
@@ -101,7 +104,8 @@ typedef struct _df_init_data {
   DF_config_file *dfc;
   DF_field_list *dfl;
   duckdb_date_struct dds;
-  char int_scratch[22]; // Maximum number of digits to read i64 integer
+  char int_scratch[MAXINTREAD]; // Maximum number of digits to read i64 integer
+  int DONE;
 
 } df_init_data; 
 

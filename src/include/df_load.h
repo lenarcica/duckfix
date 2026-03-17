@@ -67,7 +67,9 @@ iStr find_key(const char *seek_key, iStr len_key, char*sf, iStr st, iStr len_sf,
 int get_n_schema(char *assignment, char *sf, iStr on_i, iStr nmax, int verbose);
 int delete_schemas(int n_schemas, DF_Schema **p_schemas, int verbose);
 int delete_config_file(DF_config_file **pdfc, int verbose);
+DF_Fix_Field *create_blank_fix_fields(int n_fix_fields, int verbose);
 DF_Schema *create_blank_schemas(int n_schmeas);
+
 DF_config_file *new_config_file();
 DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose);
 void PRINT_dfc(DF_config_file *dfc);
@@ -77,3 +79,12 @@ int populate_fixfield(iStr i_fvals_start, iStr nmax, char* sf, int verbose,
 int populate_fix_fields(DF_config_file **p_dfc, char*sf, iStr on_i, iStr nmax, int verbose);
 int correct_brace(char *sf, iStr *p_st, iStr *p_end, iStr nmax);
 int populate_encode(char *assignment, DF_Fix_Field*dff, int i_onfxs, char*sf, iStr i_fvals_start, iStr nmax, int verbose);
+
+
+// Debug test for memory corruption
+int test_replace_string(char **p_ostr, int lstr, char *nmstr, int verbose);
+int test_replace_istrv(iStr **p_istrv, int ln_istrv, char *nm_istrv, int verbose);
+int test_replace_intv(int **p_intv, int ln_intv, char *nm_intv, int verbose);
+int test_replace_config_file(DF_config_file **p_odfc, int verbose);
+int copy_replace_schemas(DF_config_file *odfc, DF_config_file *ndfc, int verbose);
+int copy_replace_fields(DF_config_file *odfc, DF_config_file *ndfc, int verbose);
