@@ -80,6 +80,12 @@ void destroy_df_bind_data(void *v_df_bd) {
   return; 
 }
 void duckfix_bind(duckdb_bind_info b_info) {
+  #ifdef DEBUG_MODE 
+    printf("duckfix_bind:: Called, we have DEBUG_MODE is defined.\n");
+  #endif
+  #ifndef DEBUG_MODE
+    printf("duckfix_bind: Note DEBUG_MODE was not defined. \n");
+  #endif
   char stt[500]; 
   sprintf(stt, "df_bind.c->duckfix_bind(): ");
   df_extra_info *x_info = duckdb_bind_get_extra_info((duckdb_bind_info) b_info);
