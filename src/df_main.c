@@ -887,7 +887,12 @@ int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iS
 }
 int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
    char*sf, iStr valStart, iStr valEnd, int verbose, int width, int scale, DF_TSType fmttyp, int nCol) {
-  char stt[] = "    fill_in_chunk(): ";
+  #ifdef DEBUG_MODE
+    char stt[] = "    fill_in_chunk(): ";
+  #endif
+  #ifndef DEBUG_MODE
+    char stt[] = "    fill_in_chunk(): ";
+  #endif
   void * vddbv = (void *)duckdb_vector_get_data(ddbv);  uint64_t *ddbv_validity=NULL;
   int endl = valEnd-valStart;  duckdb_date ddd;
   char *end_pt; int32_t load_i32; int64_t load_i64;  int dLoc, ploc, foundscale; double flt64;
@@ -905,10 +910,12 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
     printf("fill_in_chunk: I think error, type is fix2end but we were called anyway! \n");
     return(-10);
   }
+  #ifdef DEBUG_MODE
   vpt(2, " -- nCol = %ld, Beginning with on_typ=%s, sf[%ld:%ld] = \"%.*s\" value (vL=%ld). width=%ld,scale=%ld, fmttyp=\"%s\". \n",
     (long int) nCol, What_DF_DataType(on_typ), (long int) valStart, (long int) valEnd, valEnd-valStart, sf + valStart, (long int) vL,
     (long int) width, (long int) scale, 
     ((on_typ == tms) || (on_typ == tns) || (on_typ == tus)) ? What_DF_TSType(fmttyp) : " -- Not a TimeType");
+  #endif
   switch (on_typ) {
     case i32 : 
       memcpy(df_id->int_scratch,  sf + valStart, vL < 10 ? vL : 10); df_id->int_scratch[vL<10?vL:10] = '\0';
@@ -975,7 +982,9 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
         // "   10.003, "; st= 4, dLoc =6, end=9.  (end+1 = 10);  ploc=5. 9-4=5
         vpt(0, "Error trying to record a decimal of %.*s \n", vL, sf+valStart); return(-1);
       } 
+      #ifdef DEBUG_MODE
       vpt(2, " -- Note before we read decimal, dLoc=%ld, but text is %s. \n", dLoc, df_id->int_scratch);
+      #endif
       foundscale = dLoc < 0 ? 0 : vL - dLoc;
       df_id->int_scratch[ploc] = '\0'; 
       end_pt = df_id->int_scratch + ploc;  errno = 0;
@@ -990,14 +999,18 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
       } else {
          *(((int64_t *) vddbv) +  on_chunk_line) = load_i64;
       }
+      #ifdef DEBUG_MODE
       vpt(2, " Note, Decimal(%ld,%ld) working buffer[%ld:%ld] = %.*s, with st,end=[%ld,%ld] we calculated dLoc=%ld, foundscale=%ld, load_i64=%ld. \n",
         (long int) width, (long int) scale, 
         (long int) valStart, (long int) valEnd, valEnd-valStart, sf+valStart, (long int) valStart, (long int) valEnd, (long int) dLoc,
         (long int) foundscale, (long int) load_i64);
+      #endif
       break;
     case str :
+      #ifdef DEBUG_MODE
       vpt(3, " -- we have vL=%ld, assigning a string element (-%ld) to ddbv for on_chunk_line=%ld, value sf[%ld:%ld] = \"%.*s\". \n",
         (long int) vL,  (long int) width, (long int) on_chunk_line, (long int) valStart, (long int) valStart + vL, vL, sf + valStart);
+      #endif
       duckdb_vector_assign_string_element_len(ddbv, on_chunk_line, sf +valStart + scale, (vL-width-scale >= 0) ? vL-width-scale : vL);  
       break;
     case enum_date:
@@ -1039,19 +1052,23 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
           if (vL-20 < precision) {
             for (jj = 0; jj < precision-(vL-20); jj++) { load_o64 *=10; }
           }
+          #ifdef DEBUG_MODE
           if (verbose >= 0) {
             printf("TimeProcess: Date read y=%d,m=%d,d=%d  Then H:M:S=%d:%d:%d, and f=%d. for %s. load_o64=%ld\n",
               (int) df_id->dds.year, (int) df_id->dds.month, (int) df_id->dds.day, (int)HH, (int)MM,(int)SS, (int) FF,
                 sf + valStart, (long int) load_o64);
           }
+          #endif
           precision = (on_typ==tns) ? 1000000000 : (on_typ==tus) ? 1000000 : 1000;
           load_i64 = ddd.days * ((int64_t) 24*60*60) * ((int64_t) precision)  + load_i64*((int64_t)precision) + load_o64;
+          #ifdef DEBUG_MODE
           if (load_i64 == 0) {
             printf("Concern ln=%ld/%ld we just got a time of zero. sf[%ld:%ld]=|%.*s| \n", df_id->on_overall_line, df_id->dfl->n_total_lines,
                (long int) valStart, (long int) valEnd, valEnd-valStart, sf + valStart);  
             *(((int64_t *)vddbv) + on_chunk_line) = (int64_t) load_i64;
             return(-444333);
           }
+          #endif
           *(((int64_t *)vddbv) + on_chunk_line) = (int64_t) load_i64;
           break;
         case MonthcDaycYearcHHcMMcSScF :
@@ -1176,9 +1193,14 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
   return(1);
 }
 int add_null_line_to_chunk(duckdb_data_chunk out_chunk, duckdb_function_info df_info, df_init_data *df_id, int verbose) {
+  #ifdef DEBUG_MODE
   char stt[] = "add_null_line_to_chunk()";
   printf("%s: Request to add null line to this chunk. \n", stt);
   vpt(1, " Now we need to set the columns. \n");
+  #endif
+  #ifndef DEBUG_MODE
+   char stt[] = "add_null_line_to_chunk()";
+  #endif
   DF_config_file *dfc = df_id->dfc;  DF_field_list* dfl = df_id->dfl;
   int i_col=0;
   int nf_or_s = 0;  int on_s = 0; int on_f = 0;
@@ -1193,7 +1215,10 @@ int add_null_line_to_chunk(duckdb_data_chunk out_chunk, duckdb_function_info df_
      (long int) duckdb_data_chunk_get_column_count(out_chunk), (long int) dfc->n_total_multiplicity_columns);
     return(-4032);
   }
-  printf("NULL assessment:\n");
+  #ifdef DEBUG_MODE
+  if (verbose >= 2) {
+    printf("NULL assessment:\n");
+  } 
   if (verbose >= -1) {
     printf("NULL assessment:\n");
     for (int icol2 = 0; icol2 < dfc->n_total_multiplicity_columns; icol2++) {
@@ -1211,9 +1236,12 @@ int add_null_line_to_chunk(duckdb_data_chunk out_chunk, duckdb_function_info df_
            duckdb_destroy_logical_type(&ltype3);
     }
   }
+  #endif
 
   for (i_col = 0; i_col < dfc->n_total_multiplicity_columns; i_col++) {
+    #ifdef DEBUG_MODE
     vpt(2, "Start i_col=%ld/%ld. \n", (long int) i_col, dfc->n_total_multiplicity_columns);
+    #endif
     nf_or_s = dfc->mark_m_visited[dfc->n_total_multiplicity_columns + i_col];
     if (nf_or_s >= 0) {
       on_s = (int) nf_or_s;  on_typ = (DF_DataType) dfc->schemas[on_s].typ;
