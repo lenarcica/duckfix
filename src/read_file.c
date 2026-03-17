@@ -30,9 +30,37 @@
   mykey[0] = 0
 #endif
 
+
+DF_field_list *create_nulled_field_list(DF_config_file *dfc, int verbose) {
+  char stt[]="create_nulled_field_list(): ";
+  int nfields = dfc->nfields;
+  if (nfields <= 0) {
+    printf("create_nulled_field_list: wont work becasue dfc->nfields=%ld. \n", (long int) dfc->nfields);
+    return(NULL);
+  }
+  DF_field_list *dfl = (DF_field_list*) malloc(1.0*sizeof(DF_field_list));
+  if (dfl == NULL) { return(NULL); }
+  dfl->n_known_fields = nfields;
+  dfl->num_used_known_fields = 0;
+  dfl->ordered_known_fields = NULL;  
+  dfl->known_usage_count = NULL;
+  dfl->known_multiplicity=NULL; dfl->unknown_multiplicity=NULL;
+  dfl->alloc_unknown = 0;  dfl->num_unknown = 0;
+  dfl->ordered_unknown_fields = NULL;
+  dfl->unknown_usage_count=NULL;
+  dfl->line_unknown = NULL;
+  dfl->final_known_print_loc = NULL; dfl->final_known_multiplicity_loc = NULL;
+  dfl->line_locs = NULL;  dfl->n_loc_lines = 0;  dfl->alloc_line_loc = 0;
+  dfl->finish = 0; // Send to 1 if success
+  return(dfl);
+}
 DF_field_list *create_blank_field_list(DF_config_file *dfc, int verbose) {
   char stt[]="create_blank_field_list(): ";
   int nfields = dfc->nfields;
+  if (nfields <= 0) {
+    printf("create_blank_field_list: wont work becasue dfc->nfields=%ld. \n", (long int) dfc->nfields);
+    return(NULL);
+  }
   DF_field_list *dfl = (DF_field_list*) malloc(1.0*sizeof(DF_field_list));
   if (dfl == NULL) { return(NULL); }
   dfl->n_known_fields = nfields;
@@ -60,7 +88,9 @@ DF_field_list *create_blank_field_list(DF_config_file *dfc, int verbose) {
   ALLOC_INT_ME_SIZE( (dfl->unknown_multiplicity) , nfields, "ordered_unknown_fields");
 
   dfl->alloc_line_loc = nfields < 50 ? 50 : nfields;
-  ALLOC_INT_ME_SIZE( (dfl->line_locs), dfl->alloc_line_loc, "line_locs"); 
+  char mst[400];
+  sprintf(mst, "line_locs size alloc_line_loc=%ld.\n", (long int) dfl->alloc_line_loc);
+  ALLOC_INT_ME_SIZE( (dfl->line_locs), dfl->alloc_line_loc, mst); 
   dfl->alloc_unknown = nfields;
   for (int ii = 0; ii < nfields; ii++) {
     dfl->ordered_known_fields[ii] = dfc->ordered_fields[ii];
@@ -75,6 +105,7 @@ DF_field_list *create_blank_field_list(DF_config_file *dfc, int verbose) {
   for (int ii = 0; ii < dfl->alloc_line_loc; ii++) {
     dfl->line_locs[ii] = -1;
   }
+  dfl->num_unknown = 0;
   return(dfl);
 }
 
@@ -118,7 +149,7 @@ int PRINT_dfl(DF_field_list *dfl) {
   printf("UNKNOWN[%ld/%ld] -- {\n", (long int) dfl->num_unknown, (long int) dfl->alloc_unknown);
   printf("    ");
   for (int ii = 0; ii < dfl->num_unknown; ii++) {
-    printf("[%ld:%ld:%ld,MX:%ld]", (long int) dfl->ordered_unknown_fields[ii], (long int) dfl->unknown_usage_count[ii],
+    printf("[fixfield=%ld:used %ld:%ld,MX:%ld]", (long int) dfl->ordered_unknown_fields[ii], (long int) dfl->unknown_usage_count[ii],
       (long int) dfl->line_unknown[ii], dfl->unknown_multiplicity[ii]);
     if (ii < dfl->num_unknown- 1) { printf(",");
       if ((ii+1) % 6 == 0) { printf("\n     "); }
@@ -173,26 +204,39 @@ int find_o_list(int num, int nlist, int *olist) {
   } 
   if (olist[iL] == num) { return(iL); }
   if (olist[iR] == num) { return(iR); }
+  if ((olist[iL] < num) && (olist[iR] > num)) { return(iR); }
   printf("\n\n Note find_o_list failed to find itick=%ld/%ld and iL=%ld,iM=%ld,iR=%ld, for [%d,%d,%d]  Lets try another approach\n", (long int) itick, (long int) nlist,
     (long int) iL, (long int) iM, (long int) iR, olist[iL], olist[iM], olist[iR]);
+  int nSortErrors = 0;
   for (iR = 0; iR < nlist; iR++) {
+    if ((iR < nlist-1) && (olist[iR] >= olist[iR+1])) {
+       printf("-- BIG ERROR COUNT we have that olist is not correclty sorted.  iR=%ld but olist[iR=%ld]=%ld >= %ld=olist[iR+1=%ld]   \n",
+         (long int) iR, (long int) iR, (long int) olist[iR], (long int) olist[iR+1], (long int) iR+1);
+       nSortErrors++;
+    }
     if (olist[iR] == num) {
-       printf("  --- Woah find_o_list is broke, we found oList[%ld/%ld]=%ld, which is a win!\n", (long int) iR, (long int) nlist, (long int) num);
+      printf("  --- Woah find_o_list is broken, we found oList[%ld/%ld]=%ld, which is a win or a fail!\n", (long int) iR, (long int) nlist, (long int) num);
+      printf("  --- Note up to this point we had %ld sort errors! \n", (long int) nSortErrors);
+      printf("XXX We return -iR-1. \n");
       printf("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
       printf("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
       printf("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
       printf("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
       printf("\n\n\n");
-      return(-iR);
+      return(-iR-1);
     }
+  }
+  if (nSortErrors > 0) {
+    printf("Error FindOList, we didn't find the target but we had %ld sort errors ! \n", (long int) nSortErrors);
+    return(-nSortErrors);
   }
   printf(" I guess fine, never found %ld in the list length %ld. \n", (long int) num, (long int) nlist);
   return(iR);
 }
 int add_to_field_list(DF_field_list *dfl, int num, int iline, int verbose, int multiplicity) {
    char stt[500];
-   if (num < 0) {
-     printf("add_to_field_list:: Fix fields are not negative, num=%ld. \n", (long int) num); return(-10);
+   if (num <= 0) {
+     printf("add_to_field_list:: Fix fields are zero or negative, num=%ld. \n", (long int) num); return(-10);
    }
    sprintf(stt, "add_to_field_list[num=%ld,line=%ld,v=%ld, multiplicity=%ld]: ",
      (long int) num, (long int) iline, (long int) verbose, (long int) multiplicity);
@@ -203,26 +247,30 @@ int add_to_field_list(DF_field_list *dfl, int num, int iline, int verbose, int m
    }
    if (prop_known_loc < 0) {
      vpt(0, " ERROR, prop_known_loc returned %ld.  Must be a problem with algo on search dfl->ordered_known_fields\n", (long int) prop_known_loc);
+     vpt(0, "  Note %ld translates to %ld/%ld, which returns %ld in known fields. \n", (long int) prop_known_loc,
+        (long int) (1-prop_known_loc), (long int) dfl->n_known_fields,  ((1-prop_known_loc) >= 0) && (1-prop_known_loc) < dfl->n_known_fields ?
+        dfl->ordered_known_fields[1-prop_known_loc] : -99999);
      printf("[");
      for (int ii = 0; ii < dfl->n_known_fields;ii++) {
        printf("%d", dfl->ordered_known_fields[ii]); if  (ii < dfl->n_known_fields-1) { printf(","); }
        if ((ii+1) % 25 == 0) { printf("\n"); }
      }
      printf("]\n");
-     return(-10);
+     return(-10032);
    }
-   vpt(2,"  we found prop_known_loc=%ld. and okf[%ld] = %d \n",
-     (long int) prop_known_loc,
+   vpt(2,"  we found prop_known_loc=%ld/%ld. and okf[%ld] = %d \n",
+     (long int) prop_known_loc, (long int) dfl->n_known_fields,
      ((prop_known_loc >= 0) && (prop_known_loc < dfl->n_known_fields)) ? prop_known_loc : -100,
      ((prop_known_loc >= 0) && (prop_known_loc < dfl->n_known_fields)) ? dfl->ordered_known_fields[prop_known_loc] : -999);
    if ((prop_known_loc >= 0) && (prop_known_loc < dfl->n_known_fields) && dfl->ordered_known_fields[prop_known_loc] == num) {
-      vpt(1, " found (num=%ld)  at %ld, current multiplicity=%ld, num_used_known=%ld [%ld total known] \n", (long int) num, (long int) prop_known_loc,
-         (long int) multiplicity, dfl->known_usage_count[prop_known_loc], dfl->num_used_known_fields);
+      vpt(1, " found (num=%ld)  at %ld, current multiplicity=%ld, num_used_known=%ld [%ld/%ld total known, %ld unknown] \n", (long int) num, (long int) prop_known_loc,
+         (long int) multiplicity, dfl->known_usage_count[prop_known_loc], (long int) dfl->num_used_known_fields, (long int) dfl->n_known_fields, (long int) dfl->num_unknown);
       if (dfl->known_usage_count[prop_known_loc] == 0) { dfl->num_used_known_fields++; }
       if (multiplicity > dfl->known_multiplicity[prop_known_loc]) { dfl->known_multiplicity[prop_known_loc] = multiplicity; }
       dfl->known_usage_count[prop_known_loc]++; 
       return(1);
    }
+   // Note if dfl->ordered_known_fields[prop_known_loc] != num, it is new number and this is location it "should be inserted to"
    if (dfl->num_unknown == 0) {
      if (verbose >= 0) {
         printf("-------------------------------------------------------------------------------------------\n");
@@ -236,18 +284,53 @@ int add_to_field_list(DF_field_list *dfl, int num, int iline, int verbose, int m
     printf("NEW VALUE and we have more value! [%ld] - (num unknown =%ld) ---------------------------------------------------\n", (long int) num,
       (long int) dfl->num_unknown);
    }
+
+   printf(" --- About to insert into ordered_unknown_fields length num_unknown=%ld, alloc_unknown=%ld. \n",
+     (long int) dfl->num_unknown, (long int) dfl->alloc_unknown);
+   /***************
+   int sort_errors = 0;
+   for (int ii = 0; ii < dfl->num_unknown -1; ii++) {
+     if ((ii < dfl->num_unknown-1) && (dfl->ordered_unknown_fields[ii] >= dfl->ordered_unknown_fields[ii+1])) {
+       sort_errors++;
+     }
+   }
+   if (sort_errors > 0) {
+     printf("ERROR -- ordered_unknown_fields failed to sort correctly. Errors = %ld\n [ ", (long int) sort_errors);
+     for (int ii = 0; ii < dfl->num_unknown; ii++) {
+       printf("%ld", dfl->ordered_unknown_fields[ii]); 
+       if (ii == dfl->num_unknown-1) { printf("]\n"); } else if ((ii+1)%10 == 0) {  printf(",\n"); } else { printf(", "); }
+     }
+     vpt(-34030, "Correct error before this somehow? \n"); return(-4303023);
+   } else {
+      printf("---- No errors found before search. \n");
+   }
+   *************/
    int prop_unknown_loc = dfl->num_unknown;
    if (dfl->num_unknown > 0) { 
      prop_unknown_loc = find_o_list((int) num, (int) dfl->num_unknown, (int*) dfl->ordered_unknown_fields);
-   } 
+   }
+   if ((prop_unknown_loc < 0) && (dfl->num_unknown + (prop_unknown_loc+1) >= 0) && (dfl->ordered_unknown_fields[1-prop_unknown_loc] == num)) {
+     vpt(-1030, "ERROR verficiation in unknown list.  We received prop_unknown_loc=%ld/%ld "
+                "translates into position %ld/%ld which is %ld in unknown fields.\n",
+      (long int) prop_unknown_loc, (long int) dfl->num_unknown, (long int) 1 - prop_unknown_loc, (long int) dfl->num_unknown, num);
+     vpt(-30430, "Fix find_o_list algo!\n");
+   } else if (prop_unknown_loc < 0) {
+     vpt(-3023, "ERROR prop_unknown_loc returned an error likely related to fail to sort. \n");
+   }
    if (prop_unknown_loc < 0) {
-     vpt(0, "ERROR, unknown loc returned %ld.  Must be a problem with algo. \n", (long int) prop_unknown_loc);
+     vpt(0, "ERROR, We were looking for num = %ld.  unknown loc returned %ld.  Must be a problem with algo (num_unknown=%ld). \n", 
+       (long int) num, (long int) prop_unknown_loc, (long int) dfl->num_unknown);
+     int bad_errors = 0;
      printf("[");
      for (int ii = 0; ii < dfl->num_unknown;ii++) {
        printf("%d", dfl->ordered_unknown_fields[ii]); if  (ii < dfl->num_unknown-1) { printf(","); }
        if ((ii+1) % 25 == 0) { printf("\n"); }
+       if ((ii < dfl->num_unknown-1) && (dfl->ordered_unknown_fields[ii] >= dfl->ordered_unknown_fields[ii+1])) {
+         bad_errors++;
+       }
      }
      printf("]\n");
+     printf(" --- Okay errors are also %ld so we have bad order in the loop. \n", bad_errors); return(-30323); 
    }
    if (prop_unknown_loc ==  dfl->num_unknown) {
      dfl->ordered_unknown_fields[dfl->num_unknown] = num; 
@@ -287,6 +370,14 @@ int add_to_field_list(DF_field_list *dfl, int num, int iline, int verbose, int m
    dfl->line_unknown[prop_unknown_loc] = iline; dfl->unknown_usage_count[prop_unknown_loc] =1;
    dfl->unknown_multiplicity[prop_unknown_loc] = multiplicity;
    dfl->num_unknown++;
+   for (int jj = 0; jj < dfl->num_unknown-1; jj++) {
+     if (dfl->ordered_unknown_fields[jj] >= dfl->ordered_unknown_fields[jj+1]) {
+       vpt(-10, " Error, we just tried to upgrade dfl->num_unknown=%ld, but for jj=%ld we have ouf[%ld]=%ld but ouf[%ld]=%ld. \n",
+         (long int) dfl->num_unknown, (long int) jj, (long int) jj, (long int) dfl->ordered_unknown_fields[jj], 
+         (long int) jj+1, (long int) dfl->ordered_unknown_fields[jj+1]); 
+       printf("Insertion created an error ! \n"); return(-302);
+     }
+   }
    return(5);
 }
 int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld, iStr end_fld, DF_config_file *dfc, DF_field_list *dfl, int verbose) {
@@ -324,7 +415,7 @@ int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld
     sf[endq] = '\0'; num = atoi(sf + iKey+1); sf[endq] = '\"';
     if (num <= 0) {
       vpt(0, "ERROR num picked out was %ld for sf[%ld:%ld] = \"%.*s\" \n", (long int) num, iKey+1, endq,
-          endq - iKey-1, sf + iKey+1);   return(-1);
+          endq - iKey-1, sf + iKey+1);   return(-103);
     }
     vpt(2, " on iKey=%ld, we determined num=%ld.  Add to field list. \n", (long int) iKey, (long int) num);
 
@@ -433,6 +524,13 @@ int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_f
       NEXTCHAREQ(); endq = ii;
       char dmmy = sf[endq]; sf[endq]='\0'; num=atoi(sf+iKey); sf[endq] = dmmy;
     }
+    if (num <= 0) {
+      vpt(-1030, "ERROR, iline=%ld, iKey=%ld/%ld, onfield=%ld, st_fld=%ld, we received num=%ld for sf[%ld:%ld]=|%.*s|. sf[%ld:%ld]=|%.*s|\n",
+        (long int) iline, (long int) iKey, (long int) end_fld, (long int) onfield, (long int) st_fld,
+        (long int) num, (long int) iKey, (long int) end_fld, end_fld-iKey, sf+iKey, (long int) st_fld, (long int) end_fld,
+        end_fld-st_fld, sf + st_fld);
+      return(-4032034);
+    }
     if (num == 18) {
       nEntries = get_multi_equals_bounds(sf, endq, end_fld, &st_v, &end_v, on_char_eq, on_char_sep);
       if ((nEntries < 0) || (st_v < 0)) {
@@ -445,13 +543,19 @@ int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_f
         vpt(-10, " --  ERROR I guess we will report an error. \n");
         return(-180430);
       }
-      printf("UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU\n");
-      vpt(-10, " NOTE update_field_list_on_fix2end: we got a num=18, and nEntries=%ld. sf[%ld:%ld] = |%.*s|\n", 
+      if (verbose >= 2) {
+        printf("UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU\n");
+      }
+      vpt(1, " NOTE update_field_list_on_fix2end: we got a num=18, and nEntries=%ld. sf[%ld:%ld] = |%.*s|\n", 
         (long int) nEntries, (long int) st_v, (long int) end_v, end_v-st_v, sf + st_v);
     } else {
       nEntries = 1;  NEXTCHARSEP();
     }
     vpt(1, "   --- We have key %ld found with multiplicity %ld. Total Keys=%ld.\n", (long int) iKey, (long int) nEntries, (long int) nKeys+1);
+    if (num <= 0) {
+      vpt(1, " --- We have zero working field lists. num is returned as %ld.\n", (long int) num);
+      return(-403023);
+    }
     update_code = add_to_field_list(dfl, num, iline, verbose+1, nEntries);
     if (update_code < 0) {  vpt(0, "ERROR, update_code=%d for adding num=%ld?  Why ? \n", (long int) update_code, (long int) num); return(-1); }
     if (update_code != 1) { vpt(1, "Note  we received an update_code of %ld for num=%ld. \n", (long int) update_code, (long int) num); }
@@ -875,6 +979,10 @@ int clear_m_visited(DF_config_file *dfc) {
   for (int ii = 0; ii < dfc->n_total_multiplicity_columns;ii++) {
     dfc->mark_m_visited[ii] = 0;
   }
+  for (int ii = 0; ii < dfc->n_total_print_columns; ii++) {
+    dfc->mark_visited[ii] = 0;
+  }
+  dfc->n_read_cols = 0;
   return(1);
 }
 int PRINT_final_print_loc(DF_config_file *dfc, DF_field_list *dfl) {
@@ -946,4 +1054,50 @@ int PRINT_final_print_loc(DF_config_file *dfc, DF_field_list *dfl) {
   return(1);
 } 
 
+#define itest(nnm, nm,ln,instr) \
+  iokf = test_replace_intv(&(nm), (ln), (instr), verbose); \
+  nnm = nm; nm = NULL
 
+int test_replace_field_list(DF_config_file *dfc, DF_field_list **p_dfl, int verbose) {
+  char stt[300];
+  DF_field_list *dfl = p_dfl[0];
+  if (p_dfl[0] == NULL) {
+    printf("test_replace_field_list, field List given is already null. \n"); return(-10430);
+  }
+  sprintf(stt, "test_replace_field_list(known=%ld, unknown=%ld): ", 
+    (long int) dfl->n_known_fields, (long int) dfl->num_unknown);
+  vpt(1, "  START \n");
+  if (p_dfl[0] == NULL) {
+    vpt(1, " ERROR, pdfl[0] is already NULL!\n");
+  }
+  DF_field_list *ndfl = create_nulled_field_list(dfc, verbose);
+  ndfl->char_sep = dfl->char_sep;  ndfl->n_known_fields = dfl->n_known_fields;
+  int iokf;
+  itest(ndfl->ordered_known_fields, dfl->ordered_known_fields, dfl->n_known_fields, "ordered_known_fields");
+  itest(ndfl->known_usage_count, dfl->known_usage_count, dfl->n_known_fields, "known_usage_count");
+  itest(ndfl->known_multiplicity, dfl->known_multiplicity, dfl->n_known_fields, "known_multiplicity");
+  itest(ndfl->final_known_print_loc, dfl->final_known_print_loc, dfl->n_known_fields, "final_known_print_loc");
+  itest(ndfl->final_known_multiplicity_loc, dfl->final_known_multiplicity_loc, 
+    dfl->n_known_fields, "final_known_multiplicity_loc");
+
+  ndfl->alloc_unknown = dfl->alloc_unknown;  ndfl->num_unknown = dfl->num_unknown;
+  itest(ndfl->ordered_unknown_fields, dfl->ordered_unknown_fields, dfl->alloc_unknown, "ordered_unknown_fields");
+  itest(ndfl->unknown_usage_count, dfl->unknown_usage_count, dfl->alloc_unknown, "unknown_usage_count");
+  itest(ndfl->unknown_multiplicity, dfl->unknown_multiplicity, dfl->alloc_unknown, "unknown_multiplicity");
+  itest(ndfl->line_unknown, dfl->line_unknown, dfl->alloc_unknown, "line_unknown");
+  ndfl->num_used_known_fields = dfl->num_used_known_fields;
+
+  ndfl->file_total_bytes = dfl->file_total_bytes; ndfl->finish = dfl->finish;
+  ndfl->standard_vector_size = dfl->standard_vector_size;
+  ndfl->n_total_lines = dfl->n_total_lines;
+  ndfl->alloc_line_loc = dfl->alloc_line_loc; ndfl->n_loc_lines = dfl->n_loc_lines;
+  itest( ndfl->line_locs, dfl->line_locs, dfl->alloc_line_loc, "line_locs");
+  vpt(1, "test_replace_field_list --- We are done with line_locs deleted. \n");
+  delete_field_list(p_dfl, verbose);
+  if (ndfl->ordered_known_fields == NULL) {
+    printf("ERROR test_replace_field_list  error after that work, dfl->ordered_known_fields is null. \n");
+    return(-403203);
+  }
+  p_dfl[0] = ndfl;
+  return(1); 
+}

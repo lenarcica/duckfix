@@ -41,22 +41,31 @@
 DUCKDB_EXTENSION_EXTERN
 
 void destroy_df_extra_info(void *v_df_xi) {
-  printf("destroy_df_extra_info() we have now called. \n");
+  //printf("destroy_df_extra_info() we have now called. \n");
   df_extra_info *df_xi = (df_extra_info*) v_df_xi;
   if (df_xi == NULL) { return; }
   if (df_xi->verbose > 0) {
     printf("destroy_df_xtra_info -- starting. \n");
   }
+  int verbose = df_xi->verbose;
   //if (df_xi->file_name != NULL) { free(df_xi->file_name); df_xi->file_name = NULL; }
-  printf("destroy_df_extra_info() deleting df_xi now. \n");
+  if (verbose >= 1) {
+    printf("destroy_df_extra_info() deleting df_xi now. \n");
+  }
   free(df_xi); 
-  printf("destroy_df_extra_info() all concluded df_xi was non null. \n");
+  if (verbose >= 1) {
+    printf("destroy_df_extra_info() all concluded df_xi was non null. \n");
+  }
 }
 void destroy_df_bind_data(void *v_df_bd) {
-  printf("destroy_df_bind_data() we have been called. \n");
+  if (v_df_bd == NULL) { return; }
   df_bind_data *df_bd = (df_bind_data*) v_df_bd;
   //duckdb_destroy_result(ta_bd->p_result);
   //duckdb_free(ta_bd->p_result);  ta_bd->p_result = NULL;
+  int verbose = df_bd->verbose;
+  if (verbose >= 1) {
+    printf("destroy_df_bind_data() we have been called. \n");
+  }
   if (df_bd->verbose > 0) {
     printf("destroy_df_bind_data INTIALIZING(%s,%s)\n",
       df_bd->dfc != NULL ? "dfc is not null" : "dfc is null",
@@ -184,8 +193,8 @@ void duckfix_bind(duckdb_bind_info b_info) {
   if (verbose >= 2) {
     PRINT_dfl(dfl);
   }
-  vpt(0, " --- Now move on to configure_column_order :::: \n");
-  int success_config = configure_column_order(dfc, dfl, verbose+3);
+  vpt(1, " --- Now move on to configure_column_order :::: \n");
+  int success_config = configure_column_order(dfc, dfl, verbose-1);
   if ((success_config < 0) || (dfc->n_total_print_columns <= 0)) {
     vpt(0, "ERROR success config after configure column order is %ld with total_print_columns set at %ld.  File \"%s\" and json file \"%s\"\n",
       (long int) success_config, (long int) dfc->n_total_print_columns, file_name, json_file_name);  
@@ -231,6 +240,9 @@ void duckfix_bind(duckdb_bind_info b_info) {
   DF_DataType ontyp; int width = -1; int scale = -1;
   char *ptitle; char ptitle_mult[50];
   int on_multiplicity = 1;  int i_multiplicity = 0;
+
+  int keepsf = -1;
+  int s0f1 = 0;
   while ((on_s >= 0) || (on_f >= 0)) {
     vpt(2, " on loop=%ld, with on_s=%ld (p_s=%ld), on_f=%ld (p_s=%ld) \n", 
        (long int) on_loop, (long int) on_s, (long int) p_on_s, (long int) on_f, (long int) p_on_f);
@@ -240,9 +252,9 @@ void duckfix_bind(duckdb_bind_info b_info) {
           (long int) on_loop, (long int) dfc->schemas[on_s].final_o_loc,
           WHAT_DDB_TYPE_STR( (WHAT_DDB_TYPE(dfc->schemas[on_s].typ))) );
       ontyp = dfc->schemas[on_s].typ; width = dfc->schemas[on_s].width;  scale = dfc->schemas[on_s].scale;
-      ptitle = dfc->schemas[on_s].nm; on_multiplicity = 1;
+      ptitle = dfc->schemas[on_s].nm; on_multiplicity = 1;  keepsf = on_s;
       on_s = next_priority_schema(dfc, on_s, verbose-1);
-      p_on_s =  ((on_s >= 0) && (on_s < dfc->n_schemas)) ? dfc->schemas[on_s].priority : -1;
+      p_on_s =  ((on_s >= 0) && (on_s < dfc->n_schemas)) ? dfc->schemas[on_s].priority : -1;  s0f1 = 0;
     } else {
       vpt(2, "  --- We see we will move field on_f=%ld for code =%ld, nm = %s, title=%s, type=%s.  col=%ld versus goal of %ld, aka type=\"%s\", multiplcity=%ld/%ld\n",
           (long int) on_f, (long int) dfc->fxs[on_f].field_code, 
@@ -264,10 +276,45 @@ void duckfix_bind(duckdb_bind_info b_info) {
       }
       on_multiplicity = dfl->known_multiplicity[on_f] < dfc->fxs[on_f].maxmultiplicity ? dfl->known_multiplicity[on_f] :
                         dfc->fxs[on_f].maxmultiplicity;
-      on_multiplicity = on_multiplicity >= 1 ? on_multiplicity : 1;
+      on_multiplicity = on_multiplicity >= 1 ? on_multiplicity : 1; keepsf = on_f;
       on_f = next_priority_fixfield(dfc, dfl, on_f, verbose-1);
-      p_on_f =  ((on_f >= 0) && (on_f < dfc->nfields)) ? dfc->fxs[on_f].priority : -1;
+      p_on_f =  ((on_f >= 0) && (on_f < dfc->nfields)) ? dfc->fxs[on_f].priority : -1; s0f1 = 1;
     }
+    int mv = dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_cols];
+    int fn = mv >= 0 ? -100 : -mv -1;
+    if ((mv >= 0) && (s0f1 > 0)) {
+      vpt(-10, "Error - we were moving forward but mark_m_visited[%ld + %ld] = %d, we were on s0f1=%d for ptitle=%s. \n",
+         (long int) dfc->n_total_multiplicity_columns, (long int) on_cols, (int) mv, (int) s0f1, ptitle);
+      duckdb_bind_set_error(b_info, " s0f1 versus mv bind wrong. \n"); 
+      delete_config_file(&dfc, verbose);
+      delete_field_list(&dfl, verbose);
+      return;
+    }
+    if (((mv >= 0) && (mv != keepsf)) || ((mv < 0) && (fn != keepsf))) {
+      int t_s = (mv >= 0) ? keepsf : on_s; int t_f = (mv >= 0) ? on_f : keepsf;
+      vpt(-10, "ERROR, mv=%d, fn=%d, but on_s=%d (priority=%ld), on_f=%d (priority=%ld). s0f1=%d\n",
+        (int) mv, (int) fn, t_s ,
+        ((t_s >= 0) && (t_s < dfc->n_schemas)) ? dfc->schemas[t_s].priority : -999,
+        (int) t_f, ((t_f >= 0) && (t_f < dfc->nfields)) ? dfc->fxs[t_f].priority : -999, (int) s0f1);
+      printf("--- So this population failed! \n");
+      duckdb_bind_set_error(b_info, " mv,fn on_s, on_f wrong. \n"); 
+      delete_config_file(&dfc, verbose);
+      delete_field_list(&dfl, verbose);
+      return;
+    }
+    if (((mv>=0) && (dfc->schemas[mv].typ != ontyp)) ||  ((mv < 0) && (dfc->fxs[fn].typ != ontyp))) {
+      vpt(-10, "ERROR mv=%d,fn=%d, but for %s we have ontyp=%s, but ontyp was given as %s for ptitle=%s. s0f1=%d\n",
+        (int) mv, (int) fn, mv >= 0 ? dfc->schemas[mv].nm : dfc->fxs[fn].nm, 
+        What_DF_DataType(mv>=0?dfc->schemas[mv].typ:dfc->fxs[fn].typ),
+        What_DF_DataType(ontyp), ptitle, (int) s0f1);
+      duckdb_bind_set_error(b_info, " assigned typ is wrong. \n"); 
+      delete_config_file(&dfc, verbose);
+      delete_field_list(&dfl, verbose);
+      return;
+  
+    }
+        
+
     for (i_multiplicity = 0; i_multiplicity < on_multiplicity; i_multiplicity++) {
       if ((ontyp == decimal185) || (ontyp==decimal184) || (ontyp==decimal153) || (ontyp==decimal154) ||
         (ontyp) == decimal_gen) {
@@ -292,6 +339,24 @@ void duckfix_bind(duckdb_bind_info b_info) {
     }
     on_loop++;
   }  
+
+  if (verbose >= 5) {
+    printf("--- Hey DFC and DFL tests. \n");
+    printf("---- Test DFC: \n");
+    int ttc = test_replace_config_file(&df_bd->dfc, 2);
+    printf("---- DFC test returned %ld. \n", ttc);
+    if (ttc < 0) {
+      printf("ERROR we can't really continue because of bad dfc. \n");
+      duckdb_bind_set_error(b_info, " ERROR dfc test returned Negative ttc"); 
+    }
+    ttc = test_replace_field_list(df_bd->dfc, &df_bd->dfl, 2);
+    printf("---- DFL field test reutnred %ld.\n", ttc);
+    if (df_bd->dfl->ordered_known_fields == NULL) { ttc = -430503; }
+    if (ttc < 0) {
+      printf("ERROR we can't really continue because of bad dfl. ttc=%ld\n", ttc);
+      duckdb_bind_set_error(b_info, " ERROR dfl test returned Negative ttc"); 
+    }
+  }
   vpt(1, " after %ld loops we have concluded adding columns (%ld) with on_cols=%ld for %ld multiplcity\n",
     (long int) on_loop, dfc->n_total_print_columns, (long int) on_cols, (long int) dfc->n_total_multiplicity_columns);
   vpt(1, " -- setting b_info and df_bd to bind data. \n");
@@ -301,6 +366,8 @@ void duckfix_bind(duckdb_bind_info b_info) {
   vpt(1, " -- now we are freeing json_file_name) with duckdb_free. \n");
   if (json_file_name != NULL) { duckdb_free(json_file_name);  json_file_name = NULL; }
   vpt(1, " -- we are done with bind, free to call init. \n");
+  //printf("--- Note df_bind->verbose=%d. %s\n", (int) df_bd->verbose, stt);
+  //duckdb_bind_set_error(b_info, " Looking at bind verbose. \n");
   return;
 }  
 

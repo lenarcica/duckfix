@@ -312,7 +312,9 @@ iStr get_next_key(char* assignment, char *sf, iStr on_i, iStr nmax, int verbose)
   if (sf[ii] == '}') { return(ii); }
   PUSH_OUT_WHITE();
   if ((ii >= nmax)) {
-    vpt(0, "ERROR, reached ii=%ld/%ld after whitespace removal but we didn't read a '}' at end. \n", (long int) ii, (long int) nmax);
+    printf("ERROR -- ERROR -- ERROR -- ERROR -- ERROR -- ERROR -- get_next_key call %s\n",stt);
+    printf("ERROR --- Concern, something has happened on get_next_key() ");
+    vpt(-10, "ERROR, reached ii=%ld/%ld after whitespace removal but we didn't read a '}' at end. \n", (long int) ii, (long int) nmax);
     printf(" note that sf[(nmax-1)=%ld] = \'%c\' \n", (long int) nmax-1, sf[nmax-1]);
     if (sf[nmax-1] == '}') { printf("WEIRD: alternative exists. \n"); return(nmax-1); }
     return(nmax+1);
@@ -723,6 +725,233 @@ iStr get_value_bounds(char* assignment, char*sf, iStr key_loc, iStr nmax, int ve
      (long int) key_loc, (long int) nmax, nmax - key_loc, sf + key_loc);
   return(-1); 
 }
+int test_replace_string(char **p_ostr, int lstr, char *nmstr, int verbose) {
+  char stt[300];
+  sprintf(stt, "copy_replace_string(%s,len=%ld): ", nmstr, lstr);
+  vpt(1, "  START \n");
+  if (p_ostr[0] == NULL) {
+    vpt(1, " ERROR, test string %s is already NULL!\n", nmstr);
+  }
+  char *nstr = malloc(sizeof(char)*(lstr+1));
+  if (nstr == NULL) {
+    printf("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF\n");
+    printf("FFF Fail to replace this test string. \n");
+    free(p_ostr[0]); p_ostr[0] = NULL;
+    return(-20);
+  }
+  char *ostr = p_ostr[0];
+  for (int ii = 0; ii < lstr; ii++) {
+    nstr[ii] = ostr[ii];  ostr[ii] = '\0'; ostr[ii] = nstr[ii];
+  }
+  nstr[lstr] = '\0';
+  free(ostr); p_ostr[0] = NULL;
+  p_ostr[0] = nstr;
+  vpt(1, " test_replace_string: new string is %s of length %ld. \n", nstr, (long int) lstr);
+  return(1); 
+}
+
+int test_replace_istrv(iStr **p_istrv, int ln_istrv, char *nm_istrv, int verbose) {
+  char stt[300];
+  sprintf(stt, "copy_replace_istrv(%s,len=%ld): ", nm_istrv, ln_istrv);
+  vpt(1, "  START \n");
+  if (p_istrv[0] == NULL) {
+    vpt(1, " ERROR, test string %s is already NULL!\n", nm_istrv);
+  }
+  iStr *n_istrv = malloc(sizeof(iStr)*ln_istrv);
+
+  if (n_istrv == NULL) {
+    printf("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF\n");
+    printf("FFF Fail to replace this test istrv. \n");
+    free(p_istrv[0]); p_istrv[0] = NULL;
+    return(-20);
+  }
+  iStr *istrv = p_istrv[0];
+  for (int ii = 0; ii < ln_istrv; ii++) {
+    n_istrv[ii] = istrv[ii];  istrv[ii] = 0; istrv[ii] = n_istrv[ii];
+  }
+  free(istrv); p_istrv[0] = NULL;
+  p_istrv[0] = n_istrv;
+  return(1); 
+}
+
+int test_replace_intv(int **p_intv, int ln_intv, char *nm_intv, int verbose) {
+  char stt[300];
+  sprintf(stt, "copy_replace_istrv(%s,len=%ld): ", nm_intv, ln_intv);
+  vpt(1, "  START \n");
+  if (p_intv[0] == NULL) {
+    vpt(1, " ERROR, test string %s is already NULL!\n", nm_intv);
+  }
+  int *n_intv = malloc(sizeof(int)*ln_intv);
+
+  if (n_intv == NULL) {
+    printf("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF\n");
+    printf("FFF Fail to replace this test istrv. \n");
+    free(p_intv[0]); p_intv[0] = NULL;
+    return(-20);
+  }
+  int *intv = p_intv[0];
+  for (int ii = 0; ii < ln_intv; ii++) {
+    n_intv[ii] = intv[ii];  intv[ii] = 0; intv[ii] = n_intv[ii];
+  }
+  free(intv); p_intv[0] = NULL;
+  p_intv[0] = n_intv;
+  return(1); 
+}
+int test_replace_config_file(DF_config_file **p_odfc, int verbose) {
+  char stt[300];
+  DF_config_file *odfc = p_odfc[0];
+  sprintf(stt, "test_replace_config_file(ns=%ld,nf=%ld): ",
+    (long int) odfc->n_schemas, (long int) odfc->nfields);
+  vpt(1, " We are starting creating odfc. \n");
+  DF_config_file *ndfc = new_config_file();
+
+  int itt = 0;
+
+  if (odfc->name != NULL) {
+    itt = test_replace_string(&odfc->name, strlen(odfc->name), "dfc->name",verbose);
+    if (itt < 0) {
+      vpt(-3020, "ERROR: fail on test_replace_string(name)");
+      delete_config_file(p_odfc, verbose);  return(-3);
+    }
+  }
+  ndfc->name = odfc->name; odfc->name=NULL;
+  if (odfc->desc != NULL) {
+    itt = test_replace_string(&odfc->desc, strlen(odfc->desc), "dfc->desc",verbose);
+    if (itt < 0) {
+      vpt(-3020, "ERROR: fail on test_replace_string(desc)");
+      delete_config_file(p_odfc, verbose);  return(-3);
+    }
+  }
+  ndfc->desc = odfc->desc; odfc->desc=NULL;
+
+  if (odfc->info != NULL) {
+    itt = test_replace_string(&odfc->info, strlen(odfc->info), "dfc->info",verbose);
+    if (itt < 0) {
+      vpt(-3020, "ERROR: fail on test_replace_string(info)");
+      delete_config_file(p_odfc, verbose);  return(-3);
+    }
+  }
+  ndfc->info = odfc->info; odfc->info=NULL;
+
+
+  if (odfc->exampleline != NULL) {
+    itt = test_replace_string(&odfc->exampleline, strlen(odfc->exampleline), "dfc->exampleline",verbose);
+    if (itt < 0) {
+      vpt(-3020, "ERROR: fail on test_replace_string(exampleline)");
+      delete_config_file(p_odfc, verbose);  return(-3);
+    }
+  }
+  ndfc->exampleline = odfc->exampleline; odfc->exampleline=NULL;
+
+  ndfc->n_schemas = odfc->n_schemas;  ndfc->nfields = odfc->nfields;
+  int srep = copy_replace_schemas(odfc, ndfc, verbose);
+  int frep = copy_replace_fields(odfc, ndfc, verbose);
+  vpt(1, "test_replace_config_file: We had srep=%ld, frep=%ld. \n", (long int) srep, (long int) frep);
+
+
+  test_replace_intv( &odfc->ordered_fields, (odfc->nfields), "ordered_fields", verbose);
+  test_replace_intv( &odfc->mark_visited, (odfc->n_total_print_columns*2), "mark_visited", verbose);
+  test_replace_intv( &odfc->mark_m_visited, odfc->n_total_multiplicity_columns *2, "mark_m_visited", verbose);
+
+
+  ndfc->ordered_fields = odfc->ordered_fields; odfc->ordered_fields = NULL;
+  ndfc->n_total_print_columns = odfc->n_total_print_columns;  ndfc->n_total_multiplicity_columns = odfc->n_total_multiplicity_columns;
+  ndfc->general_sep = odfc->general_sep;
+  ndfc->mark_visited = odfc->mark_visited; odfc->mark_visited = NULL;
+  ndfc->mark_m_visited = odfc->mark_m_visited; odfc->mark_m_visited = NULL;
+  delete_config_file(p_odfc, verbose);
+  p_odfc[0] = ndfc;
+  vpt(1, "test_replace_config_file -- all done. \n");
+  return(1);
+}
+int copy_replace_schemas(DF_config_file *odfc, DF_config_file *ndfc, int verbose) {
+  char stt[300];
+  sprintf(stt, "copy_replace_schemas(ns=%ld): ", (long int) odfc->n_schemas);
+  ndfc->n_schemas = odfc->n_schemas;
+  ndfc->schemas = create_blank_schemas(odfc->n_schemas);
+  DF_Schema *dfs = ndfc->schemas;
+  char mst[300];
+  for (int ii = 0; ii < odfc->n_schemas; ii++) {
+    if (odfc->schemas[ii].nm != NULL) {
+      sprintf(mst,"schemas[%d].nm",(int)ii); test_replace_string(&odfc->schemas[ii].nm, strlen(odfc->schemas[ii].nm), mst,verbose);
+    }
+    ndfc->schemas[ii].nm = odfc->schemas[ii].nm; odfc->schemas[ii].nm = NULL;
+    ndfc->schemas[ii].typ = odfc->schemas[ii].typ;
+    if (odfc->schemas[ii].desc != NULL) {
+      sprintf(mst,"schemas[%d].desc",ii); test_replace_string(&odfc->schemas[ii].desc, strlen(odfc->schemas[ii].desc), mst,verbose);
+    }
+    ndfc->schemas[ii].desc = odfc->schemas[ii].desc; odfc->schemas[ii].desc = NULL;
+    sprintf(mst, "schemas[%d].timestamp_format",ii); 
+    if (odfc->schemas[ii].timestamp_format != NULL) {
+      test_replace_string(&odfc->schemas[ii].timestamp_format, strlen(odfc->schemas[ii].timestamp_format), mst,verbose);
+    }
+    ndfc->schemas[ii].timestamp_format = odfc->schemas[ii].timestamp_format; odfc->schemas[ii].timestamp_format = NULL;
+    ndfc->schemas[ii].priority = odfc->schemas[ii].priority;  ndfc->schemas[ii].width = odfc->schemas[ii].width;
+    ndfc->schemas[ii].scale = odfc->schemas[ii].scale;  ndfc->schemas[ii].fmttyp = odfc->schemas[ii].fmttyp;
+    ndfc->schemas[ii].final_o_loc = odfc->schemas[ii].final_o_loc;
+    ndfc->schemas[ii].final_m_loc = odfc->schemas[ii].final_m_loc;
+    ndfc->schemas[ii].rtrunc = odfc->schemas[ii].rtrunc;
+    ndfc->schemas[ii].ltrunc = odfc->schemas[ii].ltrunc; ndfc->schemas[ii].fixequal = odfc->schemas[ii].fixequal;
+  }
+  delete_schemas(odfc->n_schemas, &odfc->schemas, verbose);
+  return(1);
+}
+int copy_replace_fields(DF_config_file *odfc, DF_config_file *ndfc, int verbose) {
+  char stt[300];
+  sprintf(stt, "copy_replace_fields(nf=%ld): ", (long int) odfc->nfields);
+  ndfc->nfields = odfc->nfields;
+  ndfc->fxs = create_blank_fix_fields( (int) odfc->nfields, (int) verbose);
+  char mst[300];
+  for (int ii = 0; ii < odfc->nfields; ii++) {
+    vpt(1, " -- ii=[%ld/%ld] start by replacing strings and arrays. \n", (long int) ii, (long int) odfc->nfields);
+    if (odfc->fxs[ii].nm != NULL) {
+      sprintf(mst, "fxs[%d].nm",ii);
+      test_replace_string(&odfc->fxs[ii].nm, strlen(odfc->fxs[ii].nm), mst,verbose);
+    }
+    ndfc->fxs[ii].nm = odfc->fxs[ii].nm; odfc->fxs[ii].nm = NULL;
+    if (odfc->fxs[ii].desc != NULL) {
+      sprintf(mst, "fxs[%d].desc", ii);
+      test_replace_string(&odfc->fxs[ii].desc, strlen(odfc->fxs[ii].desc),mst,verbose);
+    }
+    ndfc->fxs[ii].desc = odfc->fxs[ii].desc; odfc->fxs[ii].desc = NULL;
+    if (odfc->fxs[ii].fixtitle != NULL) {
+      sprintf(mst, "fxs[%d].fixtitle", ii);
+      test_replace_string(&odfc->fxs[ii].fixtitle, strlen(odfc->fxs[ii].fixtitle), mst,verbose);
+    }
+    ndfc->fxs[ii].fixtitle = odfc->fxs[ii].fixtitle; odfc->fxs[ii].fixtitle = NULL;
+    if (odfc->fxs[ii].fmt != NULL) {
+      sprintf(mst, "fxs[%d].fmt",ii);
+      test_replace_string(&odfc->fxs[ii].fmt, strlen(odfc->fxs[ii].fmt),mst,verbose);
+    }
+    ndfc->fxs[ii].fmt = odfc->fxs[ii].fmt; odfc->fxs[ii].fmt = NULL;
+
+    // Note reminder, field_codes arr is one big string, length is encoded in 1+ n_field_codes place of field_codes_loc
+    // which is the "total number of strings";
+    if (odfc->fxs[ii].field_codes_arr != NULL) {
+      sprintf(mst,"fxs[%d].field_codes_arr length presumed to be %ld",(int)ii, (long int) odfc->fxs[ii].field_codes_loc[odfc->fxs[ii].n_field_codes]);
+      test_replace_string(&odfc->fxs[ii].field_codes_arr, odfc->fxs[ii].field_codes_loc[odfc->fxs[ii].n_field_codes], mst,verbose);
+    }
+    ndfc->fxs[ii].field_codes_arr = odfc->fxs[ii].field_codes_arr; odfc->fxs[ii].field_codes_arr = NULL;
+    if (odfc->fxs[ii].field_codes_loc != NULL) {
+      sprintf(mst, "fxs[%d].field_codes_loc of length %ld.",(int) ii, (long int) (odfc->fxs[ii].n_field_codes));
+      test_replace_istrv(&odfc->fxs[ii].field_codes_loc, odfc->fxs[ii].n_field_codes+1,mst,verbose);
+    }
+    ndfc->fxs[ii].field_codes_loc = odfc->fxs[ii].field_codes_loc; odfc->fxs[ii].field_codes_loc = NULL;
+    vpt(1, " -- ii=[%ld/%ld] strings and arrays replaced. \n", (long int) ii, (long int) odfc->nfields);
+    ndfc->fxs[ii].field_code = odfc->fxs[ii].field_code;
+    ndfc->fxs[ii].typ = odfc->fxs[ii].typ;  ndfc->fxs[ii].width = odfc->fxs[ii].width;
+    ndfc->fxs[ii].scale = odfc->fxs[ii].scale;  ndfc->fxs[ii].priority = odfc->fxs[ii].priority;
+    ndfc->fxs[ii].ltrunc = odfc->fxs[ii].ltrunc;  ndfc->fxs[ii].rtrunc = odfc->fxs[ii].rtrunc;
+    ndfc->fxs[ii].n_field_codes = odfc->fxs[ii].n_field_codes;
+    ndfc->fxs[ii].fmttyp = odfc->fxs[ii].fmttyp; ndfc->fxs[ii].keep = odfc->fxs[ii].keep;
+    for (int jj = 0; jj < NCHARS;jj++) {
+      ndfc->fxs[ii].field_loc[jj] = odfc->fxs[ii].field_loc[jj];
+    }
+    vpt(1, " -- ii=[%ld/%ld] strings and arrays replaced nm=%s:typ=%s. \n", (long int) ii, (long int) odfc->nfields,
+      ndfc->fxs[ii].nm, What_DF_DataType(ndfc->fxs[ii].typ));
+  } 
+  return(1);
+}
 DF_Schema *create_blank_schemas(int n_schemas) {
   DF_Schema *dfs = malloc(sizeof(DF_Schema) * n_schemas);
   if (dfs == NULL) {
@@ -757,8 +986,10 @@ int delete_schemas(int n_schemas, DF_Schema **p_schemas, int verbose) {
 DF_config_file *new_config_file() {
   DF_config_file *dfc = malloc(sizeof(DF_config_file));
   if (dfc == NULL) {  printf("ERROR: DF_config file, failed to allocate dfc. \n");  return(NULL); }
-  dfc->schemas = NULL; dfc->name = NULL; dfc->info = NULL; dfc->desc = NULL; dfc->nfields = 0;
-  dfc->fxs = NULL;  dfc->mark_visited=NULL;
+  dfc->schemas = NULL; dfc->name = NULL; dfc->info = NULL; dfc->desc = NULL; dfc->exampleline=NULL; 
+  dfc->nfields = 0; dfc->ordered_fields=NULL;
+
+  dfc->fxs = NULL;  dfc->mark_visited=NULL; dfc->mark_m_visited=NULL;
   return(dfc);
   //for (int ii = 0; ii < NCHARS; ii++) { field_loc[ii]=-1; } 
 }
@@ -767,14 +998,30 @@ int delete_config_file(DF_config_file **pdfc, int verbose) {
   sprintf(stt, "delete_config_file(): ");
   vpt(2, "  Initiate. \n"); 
   DF_config_file *dfc = pdfc[0];
-  if (dfc->name != NULL) { vpt(3, " delete name because non null. \n"); free(dfc->name); dfc->name = NULL; }
+  if (verbose >= 1) {
+    printf("---------------------------------------------------------------------------------------------\n");
+    printf("-- Initiation of the config file deletion schedule. \n");
+  }
+  if (dfc->name != NULL) { 
+     vpt(3, " delete name because non null. \n"); 
+     vpt(3, " note that name is %s and length is %ld. \n", dfc->name, strlen(dfc->name)); 
+     free(dfc->name); dfc->name = NULL; 
+     vpt(3, " Successfully cleared name, onto next step. \n");
+  }
   if (dfc->info != NULL) { vpt(3, " delete info because non null. \n"); free(dfc->info); dfc->info = NULL; }
-  if (dfc->desc != NULL) { vpt(3, " delete desc becaue non null. \n"); free(dfc->desc); dfc->desc = NULL; }
+  if (dfc->desc != NULL) { vpt(3, " delete desc because non null. \n"); free(dfc->desc); dfc->desc = NULL; }
+  if (dfc->exampleline != NULL) { vpt(3, " delete exampleline because non null. \n"); free(dfc->exampleline); dfc->exampleline = NULL; }
   if (dfc->ordered_fields != NULL) { vpt(3, "delete ordered_fields. \n"); free(dfc->ordered_fields); dfc->ordered_fields=NULL; }
   if (dfc->mark_visited != NULL) { vpt(3, "delete mark_visited. \n"); free(dfc->mark_visited); dfc->mark_visited=NULL; }
+  if (dfc->mark_m_visited != NULL) { vpt(3, "delete mark_m_visited. \n"); free(dfc->mark_m_visited); dfc->mark_visited=NULL; }
   if (dfc->schemas != NULL) {
     vpt(2, " calling delete_schemas. n=%ld\n", dfc->n_schemas);
     delete_schemas(dfc->n_schemas, &dfc->schemas, verbose-1);
+  }
+
+  if (dfc->fxs != NULL) {
+    vpt(2, " calling delete_fix_fields. n=%ld\n", dfc->nfields);
+    delete_fix_fields(dfc->nfields, &dfc->fxs, verbose-1);
   }
   free(dfc);  pdfc[0] = NULL; return(1);
 }
@@ -782,11 +1029,11 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
   char stt[300]; 
   sprintf(stt, "get_config_file(n=%ld,v=%ld): ", (long int) nmax, (long int) verbose);
   if (verbose >= 1) { printf("------------------------------------------------------------------------------------\n"); }
-  vpt(-11, " --- Initiate. \n");
+  vpt(1, " --- Initiate. \n");
   //printf(" --- HERE is sf: \n%.*s\n\n\n", nmax-on_i, sf + on_i);
   int n_schemas = get_n_schema("get_config_file", sf, 0, nmax, 0);
   //printf(" --- HERE after get_n_Schema sf: \n%.*s\n\n\n", nmax-on_i, sf + on_i);
-  vpt(-11, " --- We received n_schemas = %ld. \n", n_schemas);
+  vpt(1, " --- We received n_schemas = %ld. \n", n_schemas);
   if (n_schemas <= 0) {
     printf("get_config_file: ERROR no schema, no config file. \n"); return(NULL);
   }
@@ -933,7 +1180,7 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
     (long int) iSchema, (long int) nmax, (long int) n_schemas, (long int) oniS, oniS, oniS + (nmax-oniS < 15 ? nmax-oniS: 15),
     (nmax-oniS < 15 ? nmax-oniS: 15), sf + oniS);
   for (int i_s = 0; i_s < n_schemas; i_s++) {
-    vpt(-2, " i_s=%ld/%ld starting read of a schema. \n", (long int) i_s, dfc->n_schemas);
+    vpt(3, " i_s=%ld/%ld starting read of a schema. \n", (long int) i_s, dfc->n_schemas);
     st0 = oniS;  end0 = get_end_quote("get_config_file", sf, st0, sch_end);
     if ((st0 < 0) || (end0 < st0)) {
       vpt(0, " ERROR we have i_s=%ld/%ld oniS=%ld,  for name search but st0/end0 = [%ld,%ld] \n", (long int) i_s, (long int) n_schemas,
@@ -980,8 +1227,10 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
     SchemaSeeker_INT("ltrunc",6, (dfc->schemas[i_s].ltrunc), st_V, (end_V+1), i_loc, st0, end0, 0);
     if (dfc->schemas[i_s].ltrunc < 0) { dfc->schemas[i_s].ltrunc = 0; }
     if (dfc->schemas[i_s].rtrunc < 0) { dfc->schemas[i_s].rtrunc = 0; }
-    printf("--- Looking for Priority now we have i_s=%ld line sf[%ld:%ld] = |%.*s| \n",
-      (long int) i_s, oniS, end_V, end_V-oniS, sf + oniS);
+    if (verbose >= 3) {
+      printf("%s --- Looking for Priority now we have i_s=%ld line sf[%ld:%ld] = |%.*s| \n", stt,
+        (long int) i_s, oniS, end_V, end_V-oniS, sf + oniS);
+    }
     SchemaSeeker_INT("priority",8, (dfc->schemas[i_s].priority), st_V, (end_V+1), i_loc, st0, end0, 0);
     if (sf[st0] == '.') {
       vpt(0, "ERROR i_s=%ld/%ld, we have i_loc=%ld for \"priority\" but sf[%ld:%ld] = |%.*s| \n",
@@ -1019,20 +1268,22 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
            dfc->schemas[i_s].fmttyp  = MATCHTSTYPE(sf, (st0), (end0) );
         }
     }
-    vpt(-10, "i_s=%ld/%ld:nm=%s: %s, %s oniS=%ld getting next key with sch_end=%ld. \n",
+    vpt(2, "i_s=%ld/%ld:nm=%s: %s, %s oniS=%ld getting next key with sch_end=%ld. \n",
       (long int) i_s, (long int) dfc->n_schemas, 
       (dfc->schemas[i_s].nm != NULL ? dfc->schemas[i_s].nm : "NONAME"),
       What_DF_DataType(dfc->schemas[i_s].typ),
       ((dfc->schemas[i_s].typ != tus) && (dfc->schemas[i_s].typ != tms) && (dfc->schemas[i_s].typ != tns)) ?
       "" : What_DF_TSType(dfc->schemas[i_s].fmttyp),
       (long int) oniS, (long int) sch_end);
-    oniS = get_next_key("get_config_file", sf, oniS,sch_end, verbose-2);
+    if (i_s < dfc->n_schemas -1) {
+      oniS = get_next_key("get_config_file", sf, oniS,sch_end, verbose-2);
+    }
   }
   vpt(1, " Done reading in Schemas, can now return dfc\n");
   vpt(1, " Now populating fix_fields. \n");
   int success_fix_fields = populate_fix_fields(&dfc, sf, 0, nmax, verbose-1);
   if (success_fix_fields <= 0) {
-    vpt(0, " WARNING, success_fix_fields = %ld. \n", (long int) success_fix_fields);
+    vpt(-10, " WARNING, success_fix_fields = %ld. \n", (long int) success_fix_fields);
     printf("ERROR after populate_fix_fields --- dfc is not worth generating. \n");
     delete_config_file(&dfc, 2); dfc = NULL; return(NULL);
   } else {
@@ -1343,7 +1594,7 @@ int populate_fixfield(iStr i_fst, iStr nmax, char *sf, int verbose,
   sprintf(stt, "populate_fixfield(i_onfxs=%ld,st=%ld): ", (long int) i_onfxs, (long int) i_fvals_start);
   iStr endq = get_end_quote(stt, sf, i_fvals_start, nmax);  char sfend_v0;
   if ((endq < 0) || (sf[endq] != '\"')) {
-    vpt(0, "ERROR: populate fix field could not find endq in i_onfx=%ld, i_fvals_start=%ld/%ld.  sf[%ld:%ld...] =\"%.*s\"",
+    vpt(-10, "ERROR: populate fix field could not find endq in i_onfx=%ld, i_fvals_start=%ld/%ld.  sf[%ld:%ld...] =\"%.*s\"",
       (long int) i_onfxs, (long int) i_fvals_start, (long int) nmax, 
       (long int) i_fvals_start,  (long int) i_fvals_start + 30 > nmax ? nmax : i_fvals_start + 30,
       (i_fvals_start + 30 < nmax ? ( nmax-i_fvals_start) : 30), sf + i_fvals_start); return(-1);
@@ -1434,7 +1685,7 @@ int populate_fixfield(iStr i_fst, iStr nmax, char *sf, int verbose,
       printf("%.*s\n    \"\"\"\n", (int) (end_v-st_v+1), (char*) (sf + st_v));
     }
   }
-  vpt(-10, "Loaded i_onfxs=%ld. %ld:nm=%s of typ=\"%s\" %s. n_field_codes=%ld, priority=%ld\n",
+  vpt(1, "Loaded i_onfxs=%ld. %ld:nm=%s of typ=\"%s\" %s. n_field_codes=%ld, priority=%ld\n",
     (long int) i_onfxs,  (long int) dfs[i_onfxs].field_code, dfs[i_onfxs].nm,
     What_DF_DataType(dfs[i_onfxs].typ), 
     ((dfs[i_onfxs].typ != tms) && (dfs[i_onfxs].typ!=tus) && (dfs[i_onfxs].typ!=tus)) ?
@@ -1653,7 +1904,7 @@ int populate_fix_fields(DF_config_file **p_dfc, char*sf, iStr on_i, iStr nmax, i
   if (dfc->fxs != NULL) {
     vpt(0, " ERROR we need to clear fxs in dfc. \n");  free(dfc->fxs); dfc->fxs = NULL; 
   }
-  dfc->fxs = create_blank_fix_fields(n_fix_fields, verbose - 1);
+  dfc->fxs = create_blank_fix_fields((int) n_fix_fields, verbose - 1);
   if (dfc->fxs == NULL) {
     vpt(0, " ERROR we got fxs is null on create. \n"); return(-1);
   }

@@ -57,11 +57,20 @@
 DUCKDB_EXTENSION_EXTERN
 
 void destroy_df_init_data( void *v_df_id) {
-  char stt[] = "df_init.c->destroy_df_init_data(): ";
-  printf("%s --- We are deleting df_id, why was this triggered? \n", stt);
+  if (v_df_id == NULL) { return; }
   df_init_data *df_id = (df_init_data*) v_df_id;
+  int verbose = df_id->verbose;
+  if (verbose >= 1) {
+    printf("destroy_df_init_data:: Activated. \n");
+  }
+  char stt[] = "df_init.c->destroy_df_init_data(): ";
+  if (verbose >= 1) {
+    printf("%s --- We are deleting df_id, why was this triggered? \n", stt);
+  }
+  if (df_id == NULL) {
+    printf("%s -- NULL df_id so we end \n", stt); return;
+  }
   //duckdb_destroy_result(ta_id->p_result);
-  int verbose = df_id->verbose-1;
   if (verbose >= 2) { printf("%s: INITIATE. \n", stt); }
   if (verbose >= 2) {
     printf("INIT -Data we are apparently quitting on_line %ld/%ld (local %ld for chunk %ld). \n", 
@@ -75,7 +84,7 @@ void destroy_df_init_data( void *v_df_id) {
       (long int) df_id->last_fix_num);
   }
   //duckdb_free(ta_id->p_result);
-  df_id->dfc = NULL; df_id->dfl = NULL;
+  df_id->dfc = NULL; df_id->dfl = NULL;  df_id->DONE=0; 
   if (df_id->fpo != NULL) { vpt(3, " Closing and clearing fpo\n"); fclose(df_id->fpo); df_id->fpo = NULL; };
   if (df_id->file_name != NULL) { vpt(3, "freeing filename \n"); free(df_id->file_name); df_id->file_name = NULL; }
   if (df_id->buffer != NULL) { vpt(3, "freeing df_id->buffer. \n"); free(df_id->buffer); df_id->buffer = NULL; }
@@ -125,9 +134,9 @@ void duckfix_init(duckdb_init_info i_info) {
     destroy_df_init_data((void*) df_id);
     return; 
   }
-  df_id->st_buffer_loc = 0; df_id->end_buffer_loc=0;  df_id->verbose = verbose+1; 
+  df_id->st_buffer_loc = 0; df_id->end_buffer_loc=0;  df_id->verbose = verbose; 
   df_id->actual_rows_read = 0; df_id->on_overall_line = 0; df_id->on_chunk_line = 0;
-  df_id->dfl=NULL; df_id->dfc = NULL;
+  df_id->dfl=NULL; df_id->dfc = NULL; df_id->DONE=0;
   df_id->dfl = df_bd->dfl; df_id->dfc = df_bd->dfc;
   // Note df_id->buffer is fixed length and created at size MAXREAD on malloc.
   df_id->tbytesread = 0; df_id->bytesread = 0; df_id->remainder = 0;  df_id->buffreads = 0;
@@ -193,7 +202,7 @@ void duckfix_init(duckdb_init_info i_info) {
     vpt(-100, " ERROR bad file read for some reason, try to adjust and fix. \n");
     duckdb_init_set_error(i_info, "Failed to get lines in first buffer from the file.\n");
     vpt(-1, " What do we do with these errors? manually destroying data we created (but didn't attach yet!)\n ");
-    destroy_df_init_data((void*) df_id);
+    destroy_df_init_data((void*) df_id);  fclose(df_id->fpo);  df_id->fpo = NULL;
     return;
   }
   vpt(1, " We are ready to start with bytesread=%ld/%ld (MAXREAD=%ld), on_overall_line=%ld/%ld. \n",
@@ -201,7 +210,17 @@ void duckfix_init(duckdb_init_info i_info) {
    (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines);
   vpt(1, "Setting init data. \n");
   //dfl->line_locs[0] = onstr;  
-  duckdb_init_set_init_data(i_info, df_id, destroy_df_init_data);
   vpt(1, " -- Init Data is set. I'm guessing we shouldn't touch after setting.\n");
   vpt(1, " I think we reached the end of init data activities.  On to reading the buffer (or updating it) and processing the data chunks!\n");
+  //printf("Note at end of df_init, df_id->verbose=%d. \n", (int) df_id->verbose);
+  //duckdb_init_set_error(i_info, "Setting an error to try and check end verbose. \n");   
+  //int destroy_verbose = df_id->verbose;  df_id->verbose = 5;
+  //fclose(df_id->fpo); df_id->fpo=NULL;
+  //destroy_df_init_data((void*) df_id);  df_id=NULL;
+  //df_id->verbose = destroy_verbose; 
+  //printf("Note at end of df_init, df_id->verbose=%d. \n", (int) df_id->verbose);
+  //duckdb_init_set_init_data(i_info, NULL, destroy_df_init_data);
+
+  duckdb_init_set_init_data(i_info, df_id, destroy_df_init_data);
+  return;
 }
