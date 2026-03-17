@@ -1607,7 +1607,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
           printf("---- Test DFC: \n");
           printf("---- First thing we do is give you dfc->name = %s, length %d. \n",
             df_id->dfc->name == NULL ? "IS NULL" : df_id->dfc->name, 
-            df_id->dfc->name == NULL ? 0 : strlen(df_id->dfc->name));
+            (int) (df_id->dfc->name == NULL ? 0 : strlen(df_id->dfc->name)));
           int ttc = test_replace_config_file(&df_id->dfc, 2);  
           printf("---- DFC test returned %ld. \n", ttc);
           df_bd->dfc = df_id->dfc;
@@ -1633,7 +1633,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
 
           printf("---- Last thing we do is give you dfc->name = %s, length %d. \n",
             df_id->dfc->name == NULL ? "IS NULL" : df_id->dfc->name, 
-            df_id->dfc->name == NULL ? 0 : strlen(df_id->dfc->name));
+            (int) (df_id->dfc->name == NULL ? 0 : strlen(df_id->dfc->name)));
           vpt(2,"MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM\n");
           vpt(2, "MMM      ENDDOC -- All done returning from main. Ideally we survive! -- overall lines are %ld\n", (long int) df_id->on_overall_line); 
           PRINT_dfc(df_id->dfc);

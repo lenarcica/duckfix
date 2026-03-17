@@ -107,7 +107,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
   } else {
     vpt(2, "-- we have non null value df_char_sep, trying to get varchar from it. \n");
     char *v_char_sep = duckdb_get_varchar( (duckdb_value) df_char_sep);
-    vpt(2, "-- we got a pointer and strlen(v_char_sep) = %ld. \n", strlen(v_char_sep));
+    vpt(2, "-- we got a pointer and strlen(v_char_sep) = %ld. \n", (int) strlen(v_char_sep));
     if (strlen(v_char_sep) >= 1) { 
       char_sep = v_char_sep[0]; 
     } 
@@ -146,7 +146,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
     duckdb_bind_set_error(b_info, "ERROR in LOAD JSON File run of load_file_to_str(...)\n");
     return;
   }
-  vpt(2, " -- We loaded json_sf, length=%ld -- Begining get_config_file. \n", strlen(json_sf));
+  vpt(2, " -- We loaded json_sf, length=%ld -- Begining get_config_file. \n", (int) strlen(json_sf));
   DF_config_file *dfc = get_config_file(json_sf, 0, nmax, verbose-3);
   free(json_sf); json_sf = NULL;
   if (dfc == NULL) {
@@ -323,13 +323,13 @@ void duckfix_bind(duckdb_bind_info b_info) {
         on_type = duckdb_create_logical_type(WHAT_DDB_TYPE(ontyp));
       }
       if (on_multiplicity > 1) {
-        sprintf(ptitle_mult, "%.*s_%02d\0", strlen(ptitle) < 40 ? strlen(ptitle) : 40, ptitle, i_multiplicity);
+        sprintf(ptitle_mult, "%.*s_%02d\0", (int) (strlen(ptitle) < 40 ? strlen(ptitle) : 40), ptitle, (int) i_multiplicity);
       }
       vpt(2, " -- Assigning on_cols=%ld: title=%s, on_typ=%s, on_type=%s \n", on_cols, (on_multiplicity > 1) ? ptitle_mult : ptitle,
          What_DF_DataType(ontyp), WHAT_DDB_TYPE_STR(WHAT_DDB_TYPE(ontyp))); 
       if (on_multiplicity > 1) {
         // Limiting column name length less than 40 characters seems reasonable.
-        sprintf(ptitle_mult, "%.*s_%02d\0", strlen(ptitle) < 40 ? strlen(ptitle) : 40, ptitle, i_multiplicity);
+        sprintf(ptitle_mult, "%.*s_%02d\0", (int) (strlen(ptitle) < 40 ? strlen(ptitle) : 40), ptitle, (int) i_multiplicity);
         duckdb_bind_add_result_column(b_info, ptitle_mult, on_type);
       } else {
         duckdb_bind_add_result_column(b_info, ptitle, on_type);

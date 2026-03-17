@@ -1004,7 +1004,7 @@ int delete_config_file(DF_config_file **pdfc, int verbose) {
   }
   if (dfc->name != NULL) { 
      vpt(3, " delete name because non null. \n"); 
-     vpt(3, " note that name is %s and length is %ld. \n", dfc->name, strlen(dfc->name)); 
+     vpt(3, " note that name is %s and length is %ld. \n", dfc->name, (int) strlen(dfc->name)); 
      free(dfc->name); dfc->name = NULL; 
      vpt(3, " Successfully cleared name, onto next step. \n");
   }
