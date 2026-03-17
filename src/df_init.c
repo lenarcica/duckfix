@@ -186,13 +186,14 @@ void duckfix_init(duckdb_init_info i_info) {
     destroy_df_init_data((void*) df_id);
     return;
   }
+  #ifdef DEBUG_MODE
   vpt(2, " Note that ferror(df_id->fpo) is %d \n", (int) ferror(df_id->fpo));
   vpt(2, " Buffer starts: buffer[0:3] = \'%c%c%c\'\n \"\"\"\n%.*s\n...\"\"\"\n",
      df_id->bytesread >= 1 ? (char) df_id->buffer[0] : 'X',
      df_id->bytesread >= 2 ? (char) df_id->buffer[1] : 'X',
      df_id->bytesread >= 3 ? (char) df_id->buffer[2] : 'X',
      df_id->bytesread < 100 ? df_id->bytesread : 100, (char*) df_id->buffer + 0);
-
+  #endif
   //vpt(3, " Another Print of it all: \"\n");
   //if (df_id->verbose >= 3) {
   //  printf("%s\n\"\n", df_id->buffer);
@@ -205,6 +206,7 @@ void duckfix_init(duckdb_init_info i_info) {
     destroy_df_init_data((void*) df_id);  fclose(df_id->fpo);  df_id->fpo = NULL;
     return;
   }
+  #ifdef DEBUG_MODE
   vpt(1, " We are ready to start with bytesread=%ld/%ld (MAXREAD=%ld), on_overall_line=%ld/%ld. \n",
    (long int) df_id->bytesread, (long int) df_id->dfl->file_total_bytes, (long int) MAXREAD,
    (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines);
@@ -212,6 +214,7 @@ void duckfix_init(duckdb_init_info i_info) {
   //dfl->line_locs[0] = onstr;  
   vpt(1, " -- Init Data is set. I'm guessing we shouldn't touch after setting.\n");
   vpt(1, " I think we reached the end of init data activities.  On to reading the buffer (or updating it) and processing the data chunks!\n");
+  #endif
   //printf("Note at end of df_init, df_id->verbose=%d. \n", (int) df_id->verbose);
   //duckdb_init_set_error(i_info, "Setting an error to try and check end verbose. \n");   
   //int destroy_verbose = df_id->verbose;  df_id->verbose = 5;
