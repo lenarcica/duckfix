@@ -8,7 +8,7 @@
     "time1": { "desc":"some timestamp","typ":"tus", "fmt":"%H:%M:%S.%f", "priority": 0},
     "bsentry1": { "desc":"vague string", "typ":"str", "priority":-1, "rtrunc":1, "ltrunc":1, "keep":1},
     "bsentry2": { "desc":"uselesscolon", "typ":"str", "priority":-10, "rtrunc":1, "ltrunc":0, "keep":0}, 
-    "AorB": { "desc":"A or a B", "typ":"str", "priority":2, "rtrunc":1},
+    "AorB": { "desc":"A or a B", "typ":"str", "priority":2, "rtrunc":2, "ltrunc":1},
     "fixfields": {"desc":"RestAreFixEntries, non json","typ":"fix2end","priority":3, "fixequal":"=" }
   },
   "general_sep":" ",
@@ -33,7 +33,7 @@
           "desc":"Fix message chcksum"
          },
     "12":{"nm":"commission","keep":1,"priority":40,
-           "fixtitle":"Commission","typ":"Decimal", "scale":"3", "width":"15",
+           "fixtitle":"Commission","typ":"Decimal", "scale":"5", "width":"18",
            "desc":"A commission charged" },
     "18":{"nm":"execinst","keep":1,"priority":50,
             "fixtitle":"ExecInst","typ":"str", "maxmultiplicity":5,
@@ -46,14 +46,14 @@
             }
         },
     "31":{"nm":"execprice","keep":1,"priority":4,
-          "fixtitle":"LastPx", "typ":"Decimal(15,4)",
+          "fixtitle":"LastPx", "typ":"Decimal", "scale":4,"width":18,
           "desc":"Price of this (last) fill."
          },
     "32":{"nm":"execqty","keep":1,"priority":5,
-          "fixtitle":"LastShares", "typ":"Decimal(15,3)",
+          "fixtitle":"LastShares", "typ":"Decimal", "scale":6,"width":18,
           "desc":"Quantity of shares bought/sold on this (last) fill.  Field not required for ExecTrasnType<20>"
          },
-    "35":{"nm":"fmtype","keep":1,"priority":2,
+    "35":{"nm":"fixmtype","keep":1,"priority":2,
           "fixtitle":"MsgType","typ":"str",
           "desc":"Fix Message type",
           "encode": {
@@ -72,7 +72,7 @@
        "k":"bidreq","l":"bidresponse","m":"liststrikeprice"}
          },
     "38":{"nm":"ordqty","keep":1,"priority":20,
-           "fixtitle":"OrderQty","typ":"Decimal(15,4)",
+           "fixtitle":"OrderQty","typ":"Decimal", "scale":4,"width":18,
            "desc":"Quantity Initially ordered"
          },
     "40":{"nm":"ordtype","keep":1,"priority":11,
@@ -96,7 +96,7 @@
          },
     "52":{"nm":"sendtime", "keep":1,"priority":10,"fixtitle":"SendingTime<52>",
             "desc":"Time of message transmission, always expresed in UTC", 
-            "typ":"tns","fmt":"%Y-%m-%d %H:%M:%S.%f"},
+            "typ":"tns","fmt":"%Y-%m-%dT%H:%M:%S.%f"},
     "59":{"nm":"tif","keep":1,"priority":15,"fixtitle":"TimeInForce<59>",
            "desc":"time in force", "typ":"str",
            "encode": { "0":"Day", "1":"GoodTillCancel","2":"AtTheOpen",
@@ -124,7 +124,7 @@
             "D":"Restated","E":"pendreplace" }
            },
      "151":{"nm":"lvsqty","keep":1,"priority":30,
-            "fixtitle":"LeavesQty","typ":"Decimal(15,4)",
+            "fixtitle":"LeavesQty","typ":"Decimal", "width":18,"scale":4,
             "desc":"quantity remaining after a trade"
            }
 
