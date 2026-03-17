@@ -146,7 +146,7 @@ void register_duckfix_development_test_reader_function(duckdb_connection ddb_con
   PRINT_dfc(dfc);
   idx_t standard_vector_size = duckdb_vector_size();
   printf("--- About to generate file list\n");  // char_sep =','
-  DF_field_list *dfl = generate_field_list("./example/ex1.csv", dfc, ',',1, (int) standard_vector_size);
+  DF_field_list *dfl = generate_field_list("./example/ex1.csv", dfc, ',',1, (int) standard_vector_size, 0, -1, NULL, NULL);
   printf("--- Got File list now printing\n");
   PRINT_dfl(dfl);
   printf("--- Now configuring column order: \n");
@@ -181,6 +181,14 @@ void register_duckfix_production_table_function(duckdb_connection ddb_con) {
   duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
     (const char*) "verbose", (duckdb_logical_type) int_type);
   duckdb_destroy_logical_type(&int_type);
+ 
+  duckdb_logical_type big_int_type = duckdb_create_logical_type(DUCKDB_TYPE_BIGINT);
+  //void duckdb_table_function_add_named_parameter(duckdb_table_function table_function, const char *name, duckdb_logical_type type); 
+  duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
+    (const char*) "start_byte", (duckdb_logical_type) big_int_type);
+  duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
+    (const char*) "end_byte", (duckdb_logical_type) big_int_type);
+  duckdb_destroy_logical_type(&big_int_type);
 
   //printf("%s -- creating filename/json_filename parameters. \n", stt);
   duckdb_logical_type str_type = duckdb_create_logical_type(DUCKDB_TYPE_VARCHAR);
@@ -191,6 +199,10 @@ void register_duckfix_production_table_function(duckdb_connection ddb_con) {
     (const char*) "json_file_name", (duckdb_logical_type) str_type);
   duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
     (const char*) "char_sep", (duckdb_logical_type) str_type);
+  duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
+    (const char*) "ignore_line_txt", (duckdb_logical_type) str_type);
+  duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
+    (const char*) "keep_line_txt", (duckdb_logical_type) str_type);
   duckdb_destroy_logical_type(&str_type);
 
   //printf("%s -- Attaching the bind, init, main functions. \n", stt);

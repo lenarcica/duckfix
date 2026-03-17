@@ -74,6 +74,8 @@ void destroy_df_bind_data(void *v_df_bd) {
   if (df_bd->file_name != NULL) { free(df_bd->file_name); df_bd->file_name=NULL; }
   if (df_bd->dfc != NULL) { delete_config_file(&df_bd->dfc, df_bd->verbose-1); df_bd->dfc = NULL; }
   if (df_bd->dfl != NULL) { delete_field_list(&df_bd->dfl, df_bd->verbose-1); df_bd->dfl = NULL; }
+  if (df_bd->ignore_line_text != NULL) { free(df_bd->ignore_line_text); df_bd->ignore_line_text = NULL; }
+  if (df_bd->keep_line_text != NULL) { free(df_bd->keep_line_text); df_bd->keep_line_text = NULL; }
   if (df_bd->verbose > 0) {
     printf("destroy_df_bind_data has been called I hope you didn't need that data. \n");
   }
@@ -91,12 +93,48 @@ void duckfix_bind(duckdb_bind_info b_info) {
   df_extra_info *x_info = duckdb_bind_get_extra_info((duckdb_bind_info) b_info);
   //duckdb_connection ddb_con = x_info->ddb_con;
   duckdb_value db_verbose = duckdb_bind_get_named_parameter(b_info, "verbose");
-  int32_t verbose = duckdb_get_int32(db_verbose);
+  int32_t verbose = 0;
+  if (db_verbose == NULL) {
+  } else if (!duckdb_is_null_value(db_verbose)) {
+    verbose = duckdb_get_int32(db_verbose);
+  } else {
+    #ifdef DEBUG_MODE
+      printf("df_bind.c->duckfix_bind(): note that verbose is not supplied. \n");
+    #endif
+  }
+  printf("--df_bind.c -- Note you probably have to destroy(db_verbose) at some point.!\n");
+  if (db_verbose != NULL) { duckdb_destroy_value(&db_verbose); db_verbose=NULL; }
+
+  duckdb_value db_start_byte = duckdb_bind_get_named_parameter(b_info, "start_byte");
+  int64_t start_byte = 0;
+  if (verbose >= 1) {
+    printf("df_bind.c->duckfix_bind(): looking for start_byte input. \n");
+    if (db_start_byte == NULL) {
+      printf("df_bind.c->duckfix_bind() -- db_start_byte is null. \n");
+    } else if (duckdb_is_null_value(db_start_byte)) {
+      printf("df_bind.c->duckfix_bind() -- start_byte is null. \n");
+    } else {
+      printf("df_bind.c->duckfix_bind() -- start_byte is non null. \n");
+    }
+  }
+  if ((db_start_byte != NULL) && (!duckdb_is_null_value(db_start_byte))) {
+    start_byte = duckdb_get_int64(db_start_byte);
+    if (verbose >= 1) {
+      printf("df_bind.c->duckfix_bind(): we read that start_byte =%lld. \n", (long long int) start_byte);
+    }
+  }
+  
+  
+  duckdb_value db_end_byte = duckdb_bind_get_named_parameter(b_info, "end_byte");
+  int64_t end_byte = -1;
+  if ((db_end_byte != NULL) && (!duckdb_is_null_value(db_end_byte))) {
+    end_byte = duckdb_get_int64(db_end_byte);
+  }
 
   idx_t standard_vector_size = duckdb_vector_size();
   #ifdef DEBUG_MODE
   if (verbose >= 1) {
-    sprintf(stt, "df_bind.c->duckfix_bind(v=%ld): ", (long int) verbose);
+    sprintf(stt, "df_bind.c->duckfix_bind(v=%ld,sb=%lld,eb=%lld): ", (long int) verbose, (long long int) start_byte, (long long int) end_byte);
   }
   if (verbose >= 2) {
     printf("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\n");
@@ -125,7 +163,10 @@ void duckfix_bind(duckdb_bind_info b_info) {
   }
   vpt(2, " We are looking to try and extract json_file_name. \n");
   duckdb_value df_json_file_name = duckdb_bind_get_named_parameter(b_info, "json_file_name");
-  char *json_file_name = duckdb_get_varchar((duckdb_value) df_json_file_name);
+  char *json_file_name = NULL;
+  if (!duckdb_is_null_value(df_json_file_name)) { 
+    json_file_name = duckdb_get_varchar((duckdb_value) df_json_file_name); 
+  }
   if ((json_file_name == NULL) || (strlen(json_file_name) <= 0)) {
     printf("%s -- ERROR  json_filename given is blank.\n", stt);
     duckdb_bind_set_error(b_info, "ERROR in BIND: json_file_name is NULL\n");
@@ -134,13 +175,60 @@ void duckfix_bind(duckdb_bind_info b_info) {
   vpt(2, "  -- After retrieving, we have json_file_name = %s. \n", json_file_name);
 
   duckdb_value df_file_name = duckdb_bind_get_named_parameter(b_info, "file_name");
-  char *file_name = duckdb_get_varchar(df_file_name);
+  char *file_name = NULL;
+  if (!duckdb_is_null_value(df_file_name)) { file_name = duckdb_get_varchar(df_file_name); }
   if ((file_name == NULL) || (strlen(file_name) <= 0)) {
     printf("duckfix_bind, error, file_name given is blank. json_file_name was %s\n",
      json_file_name); duckdb_free(json_file_name);
     duckdb_bind_set_error(b_info, "ERROR in BIND: file_name is NULL\n");
     return;
   }
+
+  if (verbose >= 1) {
+    printf("df_bind.c->duckfix_bind() -- We are looking for ignore_line_text. \n");
+  }
+  duckdb_value df_ignore_line_text = duckdb_bind_get_named_parameter(b_info, "ignore_line_text");
+  char *ignore_line_text = NULL;
+  if (verbose >= 1) {
+    if (df_ignore_line_text == NULL) {
+      printf(" ---   We have df_ignore_line_text appears to be null parameter. \n");
+    } else if (duckdb_is_null_value(df_ignore_line_text)) {
+      printf(" ---   We have ignore_line_text appears to be null parameter. \n");
+    } else {
+      printf(" ---   We have ignore_line_text appears to be non null. \n");
+    }
+  }
+  if ((df_ignore_line_text != NULL) && (!duckdb_is_null_value(df_ignore_line_text))) { ignore_line_text = duckdb_get_varchar(df_ignore_line_text); }
+
+  duckdb_value df_keep_line_text = duckdb_bind_get_named_parameter(b_info, "keep_line_text");
+  char *keep_line_text = NULL;
+  if (verbose >= 1) {
+    if (df_keep_line_text == NULL) {
+      printf(" ---   We have df_keep_line_text appears to be null parameter. \n");
+    } else if (duckdb_is_null_value(df_keep_line_text)) {
+      printf(" ---   We have keep_line_text appears to be null parameter. \n");
+    } else {
+      printf(" ---   We have keep_line_text appears to be non null. \n");
+    }
+  }
+  if ((df_keep_line_text != NULL) && (!duckdb_is_null_value(df_keep_line_text))) { keep_line_text = duckdb_get_varchar(df_keep_line_text); }
+
+  if ((ignore_line_text != NULL) && (strlen(ignore_line_text) >= 100)) {
+    vpt(-100, "ERROR, ignore_line_text is %s, length=%d.  we will ignore. \n",
+      ignore_line_text, (int) strlen(ignore_line_text));
+    duckdb_free(ignore_line_text); ignore_line_text=NULL;
+  }
+  if ((keep_line_text != NULL) && (strlen(keep_line_text) >= 100)) {
+    vpt(-100, "ERROR, keep_line_text is %s, length=%d.  we will ignore. \n",
+      keep_line_text, (int) strlen(keep_line_text));
+    duckdb_free(keep_line_text); keep_line_text=NULL;
+  }
+
+  vpt(2, "--- Note we have start_byte=%lld, end_byte=%lld, ignore_line_text=%s, keep_line_text=%s. \n", 
+     (long long int) start_byte, (long long int) end_byte,
+     (ignore_line_text != NULL) ? ignore_line_text : "NULL",
+     (keep_line_text != NULL) ? keep_line_text : "NULL");
+
   vpt(2, "-----------------------------------------------------------------------------------\n");
   vpt(2, " -- Step 2: Reading json_file_name=\"%s\" and generating configuration.\n", json_file_name);
   vpt(2, " -- We are ready to load file to string with json_file_name=\"%s\", file_name=\"%s\". \n",
@@ -169,7 +257,8 @@ void duckfix_bind(duckdb_bind_info b_info) {
   if (verbose >= 2) {
     PRINT_dfc(dfc);
   }
-  DF_field_list *dfl = generate_field_list(file_name, dfc, char_sep, verbose-2, standard_vector_size);
+  DF_field_list *dfl = generate_field_list(file_name, dfc, char_sep, verbose-2, standard_vector_size,
+    start_byte, end_byte, ignore_line_text, keep_line_text);
   dfl->standard_vector_size = (int) duckdb_vector_size(); 
   if (dfl == NULL) {
     vpt(0, "ERROR trying to intially pass file for types.  We did not receive field_list for file \"%s\" and json file \"%s\"\n",
@@ -228,6 +317,22 @@ void duckfix_bind(duckdb_bind_info b_info) {
   df_bind_data *df_bd = duckdb_malloc(sizeof(df_bind_data));
   df_bd->verbose = verbose;  x_info->verbose = verbose; df_bd->dfl = NULL; df_bd->dfc = NULL;
   df_bd->verbose = verbose; df_bd->dfl = dfl; df_bd->dfc = dfc;
+  df_bd->ignore_line_text = NULL; df_bd->keep_line_text = NULL;
+  df_bd->start_byte = 0;  df_bd->end_byte = -1;
+  df_bd->start_byte = start_byte; df_bd->end_byte = end_byte;
+  if ((ignore_line_text != NULL) && (strlen(ignore_line_text) > 0) && (strlen(ignore_line_text) < 100)) {
+    df_bd->ignore_line_text = malloc(sizeof(char) *((int) (strlen(ignore_line_text)+1)));
+    memcpy(df_bd->ignore_line_text, ignore_line_text, strlen(ignore_line_text));
+    df_bd->ignore_line_text[strlen(ignore_line_text)] = '\0';  
+    duckdb_free(ignore_line_text); ignore_line_text=NULL;
+  } 
+  if ((keep_line_text != NULL) && (strlen(keep_line_text) > 0) && (strlen(keep_line_text) < 100)) {
+    df_bd->keep_line_text = malloc(sizeof(char) *((int) (strlen(keep_line_text)+1)));
+    memcpy(df_bd->keep_line_text, keep_line_text, strlen(keep_line_text));
+    df_bd->keep_line_text[strlen(keep_line_text)] = '\0';  
+    duckdb_free(keep_line_text); keep_line_text=NULL;
+  } 
+
   int fn_len = strlen(file_name) +1;
   vpt(1, "Copying %s filename of length %d to df_bd->file_name pointer. \n", file_name, (long int) fn_len);
   df_bd->file_name = malloc(sizeof(char) * fn_len);

@@ -51,6 +51,7 @@ DF_field_list *create_nulled_field_list(DF_config_file *dfc, int verbose) {
   dfl->line_unknown = NULL;
   dfl->final_known_print_loc = NULL; dfl->final_known_multiplicity_loc = NULL;
   dfl->line_locs = NULL;  dfl->n_loc_lines = 0;  dfl->alloc_line_loc = 0;
+  dfl->n_total_lines = 0; dfl->n_total_all_lines = 0;
   dfl->finish = 0; // Send to 1 if success
   return(dfl);
 }
@@ -74,6 +75,7 @@ DF_field_list *create_blank_field_list(DF_config_file *dfc, int verbose) {
   dfl->line_unknown = NULL;
   dfl->final_known_print_loc = NULL; dfl->final_known_multiplicity_loc = NULL;
   dfl->line_locs = NULL;  dfl->n_loc_lines = 0;  dfl->alloc_line_loc = 0;
+  dfl->n_total_lines = 0; dfl->n_total_all_lines = 0;
   dfl->finish = 0; // Send to 1 if success
   ALLOC_INT_ME_SIZE( (dfl->ordered_known_fields) , nfields, "ordered_known_fields");
   ALLOC_INT_ME_SIZE( (dfl->known_usage_count) , nfields, "ordered_unknown_fields");
@@ -638,7 +640,20 @@ iStr get_next_newln(char *sf, iStr st, iStr nmax, int verbose) {
   }
   return(nmax);
 }
-DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char char_sep, int verbose, int standard_vector_size) {
+// Basic flip through file beginning character by beginning character, hoping to see if target string exists in a line
+int confirm_txt_exists(int lntxt, const char*seektxt, const char*sf, iStr st, iStr end) {
+  iStr st_i;
+  for (st_i = st; st_i < end-lntxt; st_i++) {
+    int hit = 1;
+    for (iStr onj = 0; onj < lntxt; onj++) {
+      if (sf[st_i + onj] != seektxt[onj]) { hit = 0; break; }
+    }
+    if (hit == 1) { return(1); }
+  }
+  return(0);
+}
+DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char char_sep, int verbose, int standard_vector_size,
+  long long int start_byte, long long int end_byte, char *ignore_line_text, char *keep_line_text) {
   char stt[500];
   sprintf(stt, "generate_file_list(\"%.*s\",v=%ld,nf=%ld): ", 40, tgt_filename, (long int) verbose, (long int) dfc->nfields); 
   vpt(1, "  -- Welcome I hope DFC is populated. \n");
@@ -656,6 +671,10 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
     vpt(0, "ERROR, trying to read length of file. \n"); 
     delete_field_list(&dfl, 2); return(NULL); 
   }
+ 
+  int len_keep_line_text = 0;  int len_ignore_line_text = 0;
+  if (keep_line_text != NULL) { len_keep_line_text = strlen(keep_line_text); }
+  if (ignore_line_text != NULL) { len_ignore_line_text = strlen(ignore_line_text); }
 
   char buffer[MAXREAD];  int remainder= 0;
   long int bytesread; long int tbytesread = 0;
@@ -667,6 +686,8 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
   dfl->n_total_lines = 0;
   dfl->char_sep = char_sep;
   dfl->line_locs[0] = onstr;  dfl->line_locs[1] = bytesread; 
+
+  int do_line = 0;
   while ((tbytesread < dfl->file_total_bytes) && (bytesread > 0)) {
     if (verbose >= 3) { printf("\n----------------------------------------------------\n"); }
     vpt(1, " on ibuffreads=%ld  bytesread=%ld, remainder=%ld, tbytesread=%ld. \n",
@@ -691,17 +712,32 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
          dfl->alloc_line_loc *= 2;
       }
       dfl->line_locs[dfl->n_loc_lines+1] = tbytesread + iLineEnd+1;
-      if ((dfl->n_total_lines+1) % standard_vector_size == 0)  {
-        dfl->n_loc_lines++;  dfl->line_locs[dfl->n_loc_lines+1] = tbytesread + bytesread;
+      if ((len_keep_line_text > 0) && (len_ignore_line_text == 0)) {
+        do_line = confirm_txt_exists(len_keep_line_text, keep_line_text, buffer, onstr, iLineEnd);
+      } else if ((len_keep_line_text == 0) && (len_ignore_line_text > 0)) {
+        do_line = 1- confirm_txt_exists(len_ignore_line_text, ignore_line_text, buffer, onstr, iLineEnd);
+      } else if ((len_keep_line_text > 0) && (len_ignore_line_text > 0)) {
+        do_line = confirm_txt_exists(len_keep_line_text, keep_line_text, buffer, onstr, iLineEnd);
+        if (do_line) {
+          do_line = 1- confirm_txt_exists(len_ignore_line_text, ignore_line_text, buffer, onstr, iLineEnd);
+        }
+      } else {
+        do_line = 1;
       }
-      update_error = update_field_list_on_line(dfl->n_total_lines, buffer, onstr, iLineEnd, dfc, dfl, verbose-2);
-      if (update_error < 0) {
-        printf("Error on update with [onstr,iLineEnd]=[%ld,%ld] for \n%.*s\nWhat went wrong?\n",
-         (long int) onstr, (long int) iLineEnd, iLineEnd-onstr +1, buffer+onstr);
-        dfl->finish = 0; rewind(fpo);
-        fclose(fpo);  return(dfl);
+      if (do_line > 0) {
+        if ((dfl->n_total_lines+1) % standard_vector_size == 0)  {
+          dfl->n_loc_lines++;  dfl->line_locs[dfl->n_loc_lines+1] = tbytesread + bytesread;
+        }
+        update_error = update_field_list_on_line(dfl->n_total_lines, buffer, onstr, iLineEnd, dfc, dfl, verbose-2);
+        if (update_error < 0) {
+          printf("Error on update with [onstr,iLineEnd]=[%ld,%ld] for \n%.*s\nWhat went wrong?\n",
+           (long int) onstr, (long int) iLineEnd, iLineEnd-onstr +1, buffer+onstr);
+          dfl->finish = 0; rewind(fpo);
+          fclose(fpo);  return(dfl);
+        }
+        dfl->n_total_lines++;
       }
-      onstr = iLineEnd+1;  dfl->n_total_lines++;
+      onstr = iLineEnd+1;  dfl->n_total_all_lines++;
     }
     if (onstr < bytesread) {
        remainder = (bytesread-onstr);
@@ -1089,7 +1125,7 @@ int test_replace_field_list(DF_config_file *dfc, DF_field_list **p_dfl, int verb
 
   ndfl->file_total_bytes = dfl->file_total_bytes; ndfl->finish = dfl->finish;
   ndfl->standard_vector_size = dfl->standard_vector_size;
-  ndfl->n_total_lines = dfl->n_total_lines;
+  ndfl->n_total_lines = dfl->n_total_lines;  ndfl->n_total_all_lines = dfl->n_total_all_lines;
   ndfl->alloc_line_loc = dfl->alloc_line_loc; ndfl->n_loc_lines = dfl->n_loc_lines;
   itest( ndfl->line_locs, dfl->line_locs, dfl->alloc_line_loc, "line_locs");
   vpt(1, "test_replace_field_list --- We are done with line_locs deleted. \n");
