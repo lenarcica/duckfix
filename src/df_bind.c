@@ -92,6 +92,9 @@ void duckfix_bind(duckdb_bind_info b_info) {
   //duckdb_connection ddb_con = x_info->ddb_con;
   duckdb_value db_verbose = duckdb_bind_get_named_parameter(b_info, "verbose");
   int32_t verbose = duckdb_get_int32(db_verbose);
+
+  idx_t standard_vector_size = duckdb_vector_size();
+  #ifdef DEBUG_MODE
   if (verbose >= 1) {
     sprintf(stt, "df_bind.c->duckfix_bind(v=%ld): ", (long int) verbose);
   }
@@ -100,9 +103,9 @@ void duckfix_bind(duckdb_bind_info b_info) {
     sprintf(stt, "BBB duckfix_bind(v=%ld): ", (long int) verbose);
     vpt(2, " -- Init. \n");
   }
-
-  idx_t standard_vector_size = duckdb_vector_size();
   vpt(2, " We have received standard_vector_size=%ld. looking for char_sep.\n", (long int) standard_vector_size);
+  #endif
+
   duckdb_value df_char_sep = duckdb_bind_get_named_parameter(b_info, "char_sep");
   char char_sep = ',';
   vpt(2, " We are looking to charge char_sep. \n");

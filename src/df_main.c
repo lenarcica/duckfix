@@ -181,17 +181,22 @@ int add_schema_entry_to_chunk(df_init_data *df_id, char*buffer, iStr st,
   DF_config_file *dfc = df_id->dfc;  
   DF_field_list *dfl = df_id->dfl;
   DF_DataType on_typ = dfc->schemas[df_id->ion_schema].typ;
-  #ifdef DDBUG
-    char stt[500];
-    sprintf(stt, "  df_main.c->add_schema_entry_to_chunk(v=%d,ckln=%ld,oln=%ld/%ld,i_s=%d/%d,%s,\"%.*s\"): ",
-      (int) verbose, (long int) df_id->on_chunk_line, (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines,
-      (int) df_id->ion_schema, (int) dfc->n_schemas, (char*) (What_DF_DataType( (on_typ) )), end-st, buffer+st);
+  #ifdef DEBUG_MODE
+    #ifdef DDBUG
+      char stt[500];
+      sprintf(stt, "  df_main.c->add_schema_entry_to_chunk(v=%d,ckln=%ld,oln=%ld/%ld,i_s=%d/%d,%s,\"%.*s\"): ",
+        (int) verbose, (long int) df_id->on_chunk_line, (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines,
+        (int) df_id->ion_schema, (int) dfc->n_schemas, (char*) (What_DF_DataType( (on_typ) )), end-st, buffer+st);
+    #endif
+    #ifndef DDBUG
+      char stt[] = "  df_main.c->add_schema_entry_to_chunk(): ";
+    #endif
+    vpt(2, " Initialize(i_s=%d/%d,%s,\"%.*s\").\n",
+      (int) df_id->ion_schema, (int) dfc->n_schemas, (char*) (What_DF_DataType( (on_typ) ) ), end-st, buffer+st);
   #endif
-  #ifndef DDBUG
+  #ifndef DEBUG_MODE
     char stt[] = "  df_main.c->add_schema_entry_to_chunk(): ";
   #endif
-  vpt(2, " Initialize(i_s=%d/%d,%s,\"%.*s\").\n",
-    (int) df_id->ion_schema, (int) dfc->n_schemas, (char*) (What_DF_DataType( (on_typ) ) ), end-st, buffer+st);
   int ii = st;
   // Note, due to potential multiplicity of columns (like 18) we pick column "final_m_loc", versus final_o_loc
   duckdb_vector ddbv = duckdb_data_chunk_get_vector(out_chunk, dfc->schemas[df_id->ion_schema].final_m_loc);
@@ -220,15 +225,20 @@ int add_schema_entry_to_chunk(df_init_data *df_id, char*buffer, iStr st,
 
 int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iStr fixfieldsStart, iStr fixfieldsEnd, 
   duckdb_data_chunk out_chunk, int verbose) {
-  #ifdef DDBUG 
-    char stt[500];
-    sprintf(stt, "  df_main.add_fix2end_entries_to_chunk(v=%d,ckln=%ld,oln=%ld/%ld,%ld:%ld,\"%.*s...\"): ",
-      (int) verbose, 
-      (long int) df_id->on_chunk_line, (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines,
-      (long int) fixfieldsStart,  fixfieldsEnd, (fixfieldsEnd-fixfieldsStart < 15) ? fixfieldsEnd-fixfieldsStart : 15,
-      sf + fixfieldsStart); 
+  #ifdef DEBUG_MODE
+    #ifdef DDBUG 
+      char stt[500];
+      sprintf(stt, "  df_main.add_fix2end_entries_to_chunk(v=%d,ckln=%ld,oln=%ld/%ld,%ld:%ld,\"%.*s...\"): ",
+        (int) verbose, 
+        (long int) df_id->on_chunk_line, (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines,
+        (long int) fixfieldsStart,  fixfieldsEnd, (fixfieldsEnd-fixfieldsStart < 15) ? fixfieldsEnd-fixfieldsStart : 15,
+        sf + fixfieldsStart); 
+    #endif
+    #ifndef DDBUG
+      char stt[] = "  df_main.add_fix2end_entries_to_chunk(): ";
+    #endif
   #endif
-  #ifndef DDBUG
+  #ifndef DEBUG_MODE
     char stt[] = "  df_main.add_fix2end_entries_to_chunk(): ";
   #endif
   if (fixfieldsEnd < fixfieldsStart) {
@@ -260,8 +270,10 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
     printf("ERROR --- We started with sf[fixfieldsStart=%ld:%ld] = \"%.*s\" \n", 
       (long int) fixfieldsStart, (long int) fixfieldsEnd, fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
   }
-  vpt(2, " --- start, fixfieldsStart=%ld, fixfieldsEnd=%ld, %s. \n",
-    (long int) fixfieldsStart, (long int) fixfieldsEnd, sf[fixfieldsEnd] == '\n' ? "FixfieldsEnd is NEWLINE" : "Error fixfields end not new!");
+  #ifdef DEBUG_MODE
+    vpt(2, " --- start, fixfieldsStart=%ld, fixfieldsEnd=%ld, %s. \n",
+      (long int) fixfieldsStart, (long int) fixfieldsEnd, sf[fixfieldsEnd] == '\n' ? "FixfieldsEnd is NEWLINE" : "Error fixfields end not new!");
+  #endif
   fixfieldsStart = ii;
   int cntFields = 0;  int aFixNum = 0;  iStr keyStart, keyEnd; 
   int an_error;  iStr stVal, endVal; char old_end = '.';
@@ -269,12 +281,16 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
   char on_char_sep = (char) df_id->dfl->char_sep;
   int nmultiplicity = 0;
   for (; ii < fixfieldsEnd;ii++) {
-    vpt(2, " - ii=%ld, fS,fE=[%ld,%ld], cntFields=%ld, starting with sf[%ld:%ld]=\"%.*s\", on_char_sep=\'%c\', on_char_eq=\'%c\'.\n",
-      (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd, (long int) cntFields,
-      (long int) ii, (long int) fixfieldsEnd, fixfieldsEnd-ii, sf + ii, on_char_sep, on_char_eq);
+    #ifdef DEBUG_MODE
+      vpt(2, " - ii=%ld, fS,fE=[%ld,%ld], cntFields=%ld, starting with sf[%ld:%ld]=\"%.*s\", on_char_sep=\'%c\', on_char_eq=\'%c\'.\n",
+        (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd, (long int) cntFields,
+        (long int) ii, (long int) fixfieldsEnd, fixfieldsEnd-ii, sf + ii, on_char_sep, on_char_eq);
+    #endif
     if ((sf[ii] == '\n') || (sf[ii] == '}')) { 
-      vpt(1, " -ii=%ld, fs,fE=[%ld,%ld], cntFields=%ld, we have an end point \'}\' \n",
-        (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd, (long int) cntFields);
+      #ifdef DEBUG_MODE
+        vpt(1, " -ii=%ld, fs,fE=[%ld,%ld], cntFields=%ld, we have an end point \'}\' \n",
+          (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd, (long int) cntFields);
+      #endif
       break; 
     } else {
       //vpt(2, "  ---- Pushing out WHITE. \n", (long int) ii);
@@ -330,9 +346,11 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
         }
         nmultiplicity=1;
       }
-      vpt(2, " -- Note fix2end::: on ii=%ld/%ld, aFixNum=%ld, [keyStart,keyEnd]=[%ld,%ld] for field = \"%ld\", val = sf[%ld:%ld] =\"%.*s\" for nmultiplicity=%ld. \n",
-         (long int) ii, (long int) fixfieldsEnd, (long int) aFixNum, (long int) keyStart, (long int) keyEnd, (long int) aFixNum,
-         (long int) stVal, (long int) endVal, endVal-stVal, sf + stVal, nmultiplicity);
+      #ifdef DEBUG_MODE
+        vpt(2, " -- Note fix2end::: on ii=%ld/%ld, aFixNum=%ld, [keyStart,keyEnd]=[%ld,%ld] for field = \"%ld\", val = sf[%ld:%ld] =\"%.*s\" for nmultiplicity=%ld. \n",
+           (long int) ii, (long int) fixfieldsEnd, (long int) aFixNum, (long int) keyStart, (long int) keyEnd, (long int) aFixNum,
+           (long int) stVal, (long int) endVal, endVal-stVal, sf + stVal, nmultiplicity);
+      #endif
       df_id->last_fix_num = aFixNum;
       if (nmultiplicity  == 1) {
         if (endVal >= fixfieldsEnd) {
@@ -380,6 +398,7 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
            (long int) stVal, (long int) endVal, endVal-stVal, sf + stVal, nmultiplicity);
         return(-5034032);
       }
+      #ifdef DEBUG_MODE
       if (verbose >= 4) {
         int error_lt = test_logical_types(df_id, "add_fix2end_entries", 2, out_chunk);
         if (error_lt < 0) {
@@ -391,8 +410,10 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
           return(error_lt);
         }
       }
+      #endif
       cntFields++;
     }
+    #ifdef DEBUG_MODE
     if (ii >= fixfieldsEnd-1) {
       vpt(2, " -- Reaching the end of the loop. \n");
     } else {
@@ -401,12 +422,16 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
         fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart,
         (long int) stVal, (long int) endVal, endVal-stVal, sf + stVal, (long int) ii, sf[ii]);
     }
+    #endif
   }
-  vpt(2, "Success we found %ld total fields from [%ld:%ld]. End of add_fix2end_entries\n", (long int) cntFields, fixfieldsStart, (long int) fixfieldsEnd);
+  #ifdef DEBUG_MODE
+    vpt(2, "Success we found %ld total fields from [%ld:%ld]. End of add_fix2end_entries\n", (long int) cntFields, fixfieldsStart, (long int) fixfieldsEnd);
+  #endif
   return(cntFields);
 }
 int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfieldsStart, iStr fixfieldsEnd, 
   duckdb_data_chunk out_chunk, int verbose) {
+  #ifdef DEBUG_MODE
   #ifdef DDBUG 
     char stt[500];
     sprintf(stt, "  df_main.add_fixfields_entries_to_chunk(v=%d,ckln=%ld,oln=%ld/%ld,%ld:%ld,\"%.*s...\"): ",
@@ -417,6 +442,10 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
   #endif
   #ifndef DDBUG
     char stt[] = "  df_main.add_fixfields_entries_to_chunk(): ";
+  #endif
+  #endif
+  #ifndef DEBUG_MODE
+    char stt[] = "  def_main.add_fixfields_entries_to_chunk(): ";
   #endif
   if (fixfieldsEnd < fixfieldsStart) {
     vpt(-3, "ERROR addfixfields_entries_to_chunk, fixfieldsStart=%ld, fixfieldsEnd=%ld.  Obvious error. \n",
@@ -444,9 +473,11 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
   int cntFields = 0;  int aFixNum = 0;  iStr keyStart, keyEnd; 
   int an_error;  iStr stVal, endVal; char old_end = '.';
   for (ii = fixfieldsStart+1; ii < fixfieldsEnd;ii++) {
+    #ifdef DEBUG_MODE
     vpt(2, " - ii=%ld, fS,fE=[%ld,%ld], cntFields=%ld, starting with sf[%ld:%ld]=\"%.*s\"\n",
       (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd, (long int) cntFields,
       (long int) ii, (long int) fixfieldsEnd, fixfieldsEnd-ii, sf + ii);
+    #endif
     if (sf[ii] == '}') { 
       vpt(1, " -ii=%ld, fs,fE=[%ld,%ld], cntFields=%ld, we have an end point \'}\' \n",
         (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd, (long int) cntFields);
@@ -465,8 +496,10 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
             ((ii+5) < fixfieldsEnd ? (ii+5) : fixfieldsEnd) - (ii-5 >= 0 ? ii-5 : 0),  sf + (ii-5 >= 0 ? ii-5 : 0));
         return(-1040323);
       } else {
+        #ifdef DEBUG_MODE
         vpt(2, " ---- on ii=%ld, we have a keyStart at ii+1=%ld, sf[%ld]=\'%c\'. \n", (long int) ii, (long int) ii+1,
           (long int)ii+1, sf[ii+1]);
+        #endif
         keyStart = ii+1;
         if (sf[ii] != '\"') { vpt(-3,"ERROR: No right before get_end_quote we have bad data. \n"); return(-1043043); }
         keyEnd = get_end_quote("add_fixfields", sf, ii, fixfieldsEnd);
@@ -477,8 +510,10 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
              (long int) fixfieldsStart, (long int) fixfieldsEnd, fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
           return(-493023); 
         }
+        #ifdef DEBUG_MODE
         vpt(2, " ---- on ii=%ld, we think the key is sf[%ld:%ld]=\"%.*s\". \n",
           (long int) ii, (long int) keyStart, (long int) keyEnd, keyEnd-keyStart, sf + keyStart);
+        #endif
         ii = keyEnd+1;
         PUSH_OUT_WHITE();
         if (sf[ii] == ':') {  ii++; } else {
@@ -495,10 +530,12 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
             return(-2034032); 
           }
           endVal = get_end_quote("add_fixfields_entries_to_chunk", sf, ii, fixfieldsEnd);
+          #ifdef DEBUG_MODE
           vpt(2, " ---- on ii=%ld, key is sf[%ld:%ld]=\"%.*s\", we got get_end_quote val is sf[%ld:%ld]=\"%.*s\". \n",
             (long int) ii, (long int) keyStart, (long int) keyEnd, keyEnd-keyStart, sf + keyStart,
             (long int) stVal, (long int) endVal, endVal > stVal ? endVal-stVal : 3,
             endVal > stVal ? sf + stVal : "BAD");
+          #endif
           if (endVal < stVal) {
             vpt(0, "ERROR, we are on cntFields=%ld, but sf[%ld]=\'%c\' we got endVal=%ld however for sf[%d:%d]=\"%.*s\". \n",
               (long int) cntFields, (long int) ii, sf[ii], (long int) endVal, stVal-1, 
@@ -514,10 +551,12 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
           stVal = ii;  while( (ii < fixfieldsEnd) && (sf[ii] != ' ') && (sf[ii] != ',') && (sf[ii] != '}')) { ii++; }
           endVal = ii;
         } 
+        #ifdef DEBUG_MODE
         vpt(2, " ---- on ii=%ld, key is sf[%ld:%ld]=\"%.*s\", we got val of field is sf[%ld:%ld]=\"%.*s\". \n",
             (long int) ii, (long int) keyStart, (long int) keyEnd, keyEnd-keyStart, sf + keyStart,
             (long int) stVal, (long int) endVal, endVal > stVal ? endVal-stVal : 3,
             endVal > stVal ? sf + stVal : "BAD");
+        #endif
         //stVal = get_value_bounds("add_fix_fields", sf, ii, fixFieldsEnd, verbose-1, &stVal, &endVal);
         //if (sf[stVal] == '\"') { stVal++; }
         //if ((sf[endVal] == '\"') || (sf[endVal] == '}') || (sf[endVal] == ' ')) {
@@ -582,11 +621,15 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
         }
 	 }
     }
+    #ifdef DEBUG_MODE
     vpt(2, " --  -- continue the loop after fixField=%ld, sf[ii=%ld]=\'%c\', for fS,fE=[%ld,%ld]:\"%.*s\".  \n",
       (long int) aFixNum, (long int) ii, sf[ii], (long int) fixfieldsStart, (long int) fixfieldsEnd,
       fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
+    #endif
   }
+  #ifdef DEBUG_MODE
   vpt(2, "Success we found %ld total fields from [%ld:%ld]. \n", (long int) cntFields, fixfieldsStart, (long int) fixfieldsEnd);
+  #endif
   return(cntFields);
 }
 int add_multi_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField, 
