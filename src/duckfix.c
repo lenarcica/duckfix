@@ -1,4 +1,36 @@
-
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+///  duckfix.c
+///
+///  - Alan Lenarcic
+///  - 2026-03-16
+///
+///  This is the .c file that registers functions into duckdb.
+///
+///  Note that We are creating a "table function" in duckdb that can be run as a package inside duckdb.
+///
+///  The prospective Table functions:
+///  1. void register_duckfix_tf_01(duckdb_connection ddb_con) 
+///    A test function, does basic tests of creation of duckfix objects
+///  2. void register_duckfix_development_test_reader_function(duckdb_connection ddb_con)
+///     A test function, only registered to test accuracy of df_load.c/read_file.c configuration file reading
+///  3. void register_duckfix_production_table_function(duckdb_connection ddb_con)
+///    The real production test function
+///
+///  Note, for test purposes, other components of "test_add.c" are here to debug how duckdb compiled table functions
+///    run and install processes.
+///
+///
+///  Order of operations
+///    I. Registration of duckfix configuration functions.
+///       These are in df_load.c and read_file.c
+///    II. duckfix table function loop, which is as follows
+///       a. df_bind.c  -- Initial bind of configuration data to ddb chunk definitions
+///       b. df_init.c  -- Prepare chunk reader by openeing target csv and creating df_id information
+///       c. df_main.c  -- Main loop, which, chunk by chunk reads the target csv into a duckdb Table
+///
+///  Please see files above for their components.
+///    Note that it is in df_bind.c you see results of calling "read_fixlog(...)" which is main function
+///    registered by "register_duckfix_production_table_function()" function.
 #ifndef DUCKFIXLOADH
 #include "include/df_load.h"
 #define DUCKFIXLOADH 0
@@ -50,6 +82,11 @@ void destroy_null(void *p_to_null) {
   // Do not destroy a null
   return;
 }
+
+// Note you do not need to register_duckfix_tf_01 other than for testing
+// Registering this test function performs a test of portions of duckfix doing df_load.c/read_file.c initial setup
+//
+// This tests quality of configuration file reading before intitiating the df_main.c,df_init.c,df_bind.c loop process
 void register_duckfix_tf_01(duckdb_connection ddb_con) {
   char stt[] = "-- register_duckfix_tf_01(): ";
   printf("----------------------------------------------------------------------------\n");
