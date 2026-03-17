@@ -1275,6 +1275,7 @@ int add_null_line_to_chunk(duckdb_data_chunk out_chunk, duckdb_function_info df_
       case f64 :
         *(((double *) vddbv) + df_id->on_chunk_line) = 0; break;
       case str :
+        #ifdef DEBUG_MODE
         if (verbose >= 20) {
          duckdb_logical_type ltype = duckdb_vector_get_column_type(ddbv); 
          duckdb_type dtype = duckdb_get_type_id(ltype);
@@ -1297,6 +1298,7 @@ int add_null_line_to_chunk(duckdb_data_chunk out_chunk, duckdb_function_info df_
            duckdb_destroy_logical_type(&ltype2);
          }
         }
+        #endif
         //printf(" --- Assigning a NONE string=\"%.*s\"!\n", 4, MYNONE);
         duckdb_vector_assign_string_element_len(ddbv, df_id->on_chunk_line, MYNONE, 4);
         //printf(" --- How did assigment to line work? \n");
@@ -1318,6 +1320,7 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
 
   //printf("Bad line stuff here we go before seeing data, we thing total print columns is %ld \n", df_id->dfc->n_total_print_columns);
   //return(0);
+  #ifdef DEBUG_MODE
   #ifdef DDBUG
   char stt[500];
   sprintf(stt, " df_main.c->add_line_to_chunk(v=%d,chunk_ln=%d/%d,on_ln=%ld/%ld): ", 
@@ -1332,6 +1335,10 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
     printf(" ---- \"%.*s\"\n",
       df_id->iLineEnd - df_id->onstr, df_id->buffer + df_id->onstr);
   }
+  #endif
+  #ifndef DEBUG_MODE
+    char stt[] = " df_main.c->add_line_to_chunk(): ";
+  #endif
   int ii = df_id->onstr;
   int attempt;
   iStr fieldStart; iStr fieldEnd;  int n_total_added_fields = 0;
@@ -1412,8 +1419,10 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
          fieldStart++; fieldEnd--;
        }
        if ((dfc->schemas[df_id->ion_schema].final_o_loc < 0) || (dfc->schemas[df_id->ion_schema].final_m_loc < 0)) {
+         #ifdef DEBUG_MODE
          vpt(2, "We are on ion_schema = %ld, however final_o_loc=%ld, final_m_loc=%ld so no print. \n", (long int) df_id->ion_schema,
            (long int) dfc->schemas[df_id->ion_schema].final_o_loc, (long int) dfc->schemas[df_id->ion_schema].final_m_loc);
+         #endif
        } else {
          attempt = add_schema_entry_to_chunk(df_id, df_id->buffer, fieldStart, fieldEnd, out_chunk, verbose-1);
          if (attempt < 0) {
@@ -1427,7 +1436,9 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
     }
   }
   int on_mt;
+  #ifdef DEBUG_MODE
   vpt(2, "Ok it is time to test for nulls in the visited graph.\n");
+  #endif
   int cnt_null = 0;
   for (on_mt = 0; on_mt < df_id->dfc->n_total_multiplicity_columns; on_mt++) {
     if (df_id->dfc->mark_m_visited[on_mt] <= 0) {
@@ -1438,6 +1449,7 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
        } else {
          cnt_null++;
          int ifld = (int)  ( (long int) (-1*df_id->dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_mt] -1 ));
+         #ifdef DEBUG_MODE
          vpt(1, " on_mt=%ld/%ld.  NULLING out mvisited[%ld:%s]=%ld for ifld=%ld or %ld:%s of type::%s. Num Enum=%ld \n",
            (long int) on_mt, (long int) df_id->dfc->n_total_multiplicity_columns,
            (long int) dfc->n_total_multiplicity_columns + on_mt,
@@ -1447,6 +1459,7 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
            What_DF_DataType(df_id->dfc->fxs[ifld].typ),
            df_id->dfc->fxs[ifld].n_field_codes
          );
+         #endif
          duckdb_vector ddbv = duckdb_data_chunk_get_vector(out_chunk, on_mt);
          void * vddbv =  (void*) ((dfc->fxs[ifld].typ == str) ? NULL : duckdb_vector_get_data(ddbv)); 
          switch (dfc->fxs[ifld].typ) {
@@ -1495,14 +1508,17 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
        //duckdb_validity_set_row_invalid(v_ddbv_validity, df_id->on_chunk_line);
     }
   }
+  #ifdef DEBUG_MODE
   vpt(3, " We nulled out %ld values. \n", (long int) cnt_null);
   vpt(3, " Completed the whole line added %ld fields.\n", (long int) n_total_added_fields);
+  #endif
   return(1);
 }
 void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk out_chunk) {
   df_init_data *df_id = (df_init_data *)duckdb_function_get_init_data((duckdb_function_info) df_info);
   df_bind_data *df_bd = (df_bind_data *)duckdb_function_get_bind_data((duckdb_function_info) df_info);
   int32_t verbose = df_id->verbose;
+  #ifdef DEBUG_MODE
   #ifdef DDBUG
   char stt[500];
   sprintf(stt, "M df_main.c->duckfix_main_table_function(v=%d,onc=%d,st_ln=%d/%d,tbytes=%ld/%ld): \n",
@@ -1517,12 +1533,18 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
     printf("%s -- Initiate with df_id->on_chunk=%ld/%ld for total lines %ld.\n", (char*) stt, 
        (long int) df_id->on_chunk,  (long int) df_id->dfl->n_loc_lines, (long int) df_id->dfl->n_total_lines); 
   }
+  #endif
+  #ifndef DEBUG_MODE
+   char stt[] = "df_main.c->duckfix_main_table_function(): ";
+  #endif
   DF_field_list *dfl = df_id->dfl;
+  #ifdef DEBUG_MODE
   if (dfl == NULL) { 
     vpt(-100, "MMM Error, dfl element of df_id is null we can't go forward. \n");
     duckdb_function_set_error(df_info, "No dfl at this stage in buffer"); return;
     return;
   }
+  #endif
   iStr iLineEnd;
   df_id->on_chunk_line = 0;
   //printf("At beginning of duckfix_main_table_function: verbose = %d. \n", (int) verbose);
@@ -1539,6 +1561,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
   return;
   */
 
+  #ifdef DEBUG_MODE
   if (duckdb_data_chunk_get_column_count(out_chunk) != df_id->dfc->n_total_multiplicity_columns) {
     printf("ERROR we believe that multiplicity of Duckdb Data chunk does not match multiplicity of columns.  We might have to check load!. \n");
     printf("out_chunk has %ld columns, but multiplicity should be %ld. \n", (long int) duckdb_data_chunk_get_column_count(out_chunk),
@@ -1560,6 +1583,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
   if (verbose >= 3) {
     printf("Quitting without doing any line add. \n");
   }
+  #endif
   //int add_line_error2 = add_null_line_to_chunk(out_chunk, df_info, df_id, verbose+2);
   //duckdb_data_chunk_set_size(out_chunk, 1);  df_id->DONE=1;
   //return;
@@ -1567,19 +1591,24 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
   int add_line_error;
   char error_text[500];
   while ((df_id->tbytesread < dfl->file_total_bytes) && (df_id->bytesread > 0)) {
+    #ifdef DEBUG_MODE
     if (verbose >= 3) { printf("\nMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM\n"); }
     vpt(1, " on ibuffreads=%ld  bytesread=%ld, remainder=%ld, tbytesread=%ld. \n",
       (long int) df_id->buffreads, (long int) df_id->bytesread, (long int) df_id->remainder, (long int) df_id->tbytesread);
     vpt(3, " here is the complete buffer so far: \n%.*s\nLet's begin...\n", (long int) df_id->bytesread, df_id->buffer);
+    #endif
     while (df_id->onstr < df_id->bytesread) {
+      #ifdef DEBUG_MODE
       vpt(3, " on reading_line=%ld, onstr=%ld/%ld, tbytesread=%ld.  \n", 
         (long int) df_id->on_overall_line, (long int) df_id->onstr, (long int) df_id->bytesread,  (long int) df_id->tbytesread);
-
+      #endif
       while ((df_id->onstr < df_id->bytesread) && (df_id->buffer[df_id->onstr] == '\n')) {df_id->onstr++; }
       df_id->iLineEnd = get_next_newln(df_id->buffer, df_id->onstr, df_id->bytesread, verbose-2); 
+      #ifdef DEBUG_MODE
       vpt(3, " on reading_line=%ld, onstr=%ld/%ld, tbytesread=%ld, \"%.*s...\"\n",
         (long int) df_id->on_overall_line, (long int) df_id->onstr, (long int) df_id->bytesread,  (long int) df_id->tbytesread, 
         df_id->iLineEnd - df_id->onstr < 80 ? df_id->iLineEnd - df_id->onstr : 80, df_id->buffer + df_id->onstr);
+      #endif
       if ((df_id->iLineEnd < 0) || (df_id->iLineEnd >= df_id->bytesread)) {
         vpt(-1, " ISSUE -- we received a newline at %ld, when we started from sf[%ld:%ld] = \"%.*s\", tbytesread=%ld/%ld, overall line at %ld/%ld\n",
           (long int) df_id->iLineEnd, df_id->onstr, 
@@ -1639,6 +1668,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
         duckdb_data_chunk_set_size(out_chunk,df_id->on_chunk+1);
         return;
       }
+      #ifdef DEBUG_MODE
       vpt(2, " -- completed line %ld/%ld, or %ld/%ld, onstr=%ld, iLineEnd=%ld. \n",
         (long int) df_id->on_chunk_line, (long int) dfl->standard_vector_size,
         (long int) df_id->on_overall_line, (long int) dfl->n_total_lines, (long int) df_id->onstr,
@@ -1649,9 +1679,11 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
           (long int) df_id->on_chunk_line, (long int) dfl->standard_vector_size,
           (long int) df_id->on_overall_line, (long int) dfl->n_total_lines);
       }
-      df_id->onstr = df_id->iLineEnd+1;  df_id->on_overall_line++;  df_id->on_chunk_line++;
       vpt(3, "  After END OF LINE we updated chunks and info. \n");
+      #endif
+      df_id->onstr = df_id->iLineEnd+1;  df_id->on_overall_line++;  df_id->on_chunk_line++;
       if (df_id->on_chunk_line >= dfl->standard_vector_size) {
+        #ifdef DEBUG_MODE
         vpt(2, "On Chunk %d/%d,  on_chunk_line=%ld/%ld, Reached vector max read position with bytesread=%ld, tbytesread=%ld",
           (int) df_id->on_chunk, (int) dfl->n_loc_lines, 
           (long int) df_id->on_chunk_line, (long int) dfl->standard_vector_size, 
@@ -1661,17 +1693,21 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
           printf(", remainder=%ld, onstr=%ld. df_id->on_overall_line=%ld/%ld. \n", (long int) df_id->remainder, 
             (long int) df_id->onstr, (long int) df_id->on_overall_line, (long int) dfl->n_total_lines);
         }
+        #endif
         duckdb_data_chunk_set_size(out_chunk, dfl->standard_vector_size);
         df_id->on_chunk++;
         return;
       } else if ((df_id->on_overall_line >= dfl->n_total_lines) ) { //|| (df_id->on_overall_line >= 24)) {
+        #ifdef DEBUG_MODE
         vpt(2, "MMM      ENDDOC(onstr=%ld, iLineEnd=%ld)::: Overall Line now exceeds total lines %ld/%ld, we are likely having a conclusion and setting size to %ld \n",
           (long int) df_id->onstr, (long int) df_id->iLineEnd,
           (long int) df_id->on_overall_line, (long int) dfl->n_total_lines,
           (long int) df_id->on_chunk_line);
+        #endif
         duckdb_data_chunk_set_size(out_chunk, df_id->on_chunk_line);
         df_id->on_chunk++;
-       
+      
+        #ifdef DEBUG_MODE 
         if (verbose >= 3) {
           printf("--------------------------------------------------------. \n");
           printf("%s: Post Run integrity test.\n", stt);
@@ -1709,19 +1745,24 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
           vpt(2, "MMM      ENDDOC -- All done returning from main. Ideally we survive! -- overall lines are %ld\n", (long int) df_id->on_overall_line); 
           PRINT_dfc(df_id->dfc);
         }
+        #endif
         df_id->DONE = 1; return;
       }
     }
+    #ifdef DEBUG_MODE
     vpt(2, "Buffer break, iLineEnd = %ld versus onstr=%ld. tbytesread=%ld/%ld for online=%ld/%ld. \n",
       (long int) df_id->iLineEnd, (long int) df_id->onstr, 
       (long int) df_id->tbytesread, (long int) df_id->dfl->file_total_bytes, 
       (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines);
+    #endif
     if (df_id->onstr < df_id->bytesread) {
        df_id->remainder = (df_id->bytesread-df_id->onstr);
        memcpy(df_id->buffer, df_id->buffer + df_id->onstr, sizeof(char)*df_id->remainder);
     }
     df_id->tbytesread += df_id->bytesread-df_id->remainder;
+    #ifdef DEBUG_MODE
     vpt(1, "Buffer break, now trying to read %ld bytes. \n", MAXREAD-df_id->remainder);
+    #endif
     int new_bytes = fread(df_id->buffer+df_id->remainder,sizeof(char),MAXREAD-df_id->remainder,df_id->fpo);  df_id->onstr = 0;
     if ((new_bytes <= 0) || (ferror(df_id->fpo))) {
       printf("-------------------------------------------------------------------------------------\n");
@@ -1742,6 +1783,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
     }
     df_id->bytesread = new_bytes + df_id->remainder;
   }
+  #ifdef DEBUG_MODE
   vpt(2, "On Chunk=%d/%d:  Reached entire end of duckfix_main_table loop with bytesread=%ld, tbytesread=%ld, ",
     (int) df_id->on_chunk, (int) dfl->n_loc_lines, (long int) df_id->bytesread, (long int) df_id->tbytesread);
   if (verbose >= 2) {
@@ -1749,16 +1791,23 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
     (long int) df_id->remainder, (long int) df_id->tbytesread, df_id->dfl->file_total_bytes,
     (long int) df_id->onstr, (long int) df_id->on_overall_line, (long int) dfl->n_total_lines);
   }
+  #endif
   // If we exit loop, we have read the whole file and likely no more lines to read
   if (df_id->on_chunk_line >= dfl->standard_vector_size) {
-    vpt(1, "Typical Loop end, more to go: on_chunk_line=%ld/%ld, triggers likely end of loop. \n", (long int) df_id->on_chunk_line, 
+    #ifdef DEBUG_MODE
+      vpt(1, "Typical Loop end, more to go: on_chunk_line=%ld/%ld, triggers likely end of loop. \n", (long int) df_id->on_chunk_line, 
         (long int) dfl->standard_vector_size);
+    #endif
     duckdb_data_chunk_set_size(out_chunk, dfl->standard_vector_size);
   } else {
-    vpt(1, "Likely conclusion At end of loop we have on_chunk_line=%ld/%ld and bytesread=%ld. \n",  (long int) df_id->on_chunk_line, 
-      (long int) dfl->standard_vector_size, (long int) df_id->bytesread);
+    #ifdef DEBUG_MODE
+      vpt(1, "Likely conclusion At end of loop we have on_chunk_line=%ld/%ld and bytesread=%ld. \n",  (long int) df_id->on_chunk_line, 
+        (long int) dfl->standard_vector_size, (long int) df_id->bytesread);
+    #endif
     duckdb_data_chunk_set_size(out_chunk, df_id->on_chunk_line);
   }
-  vpt(1, " End and increment chunk. \n");
+  #ifdef DEBUG_MODE
+    vpt(1, " End and increment chunk. \n");
+  #endif
   df_id->on_chunk++;
 }
