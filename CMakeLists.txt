@@ -29,8 +29,9 @@ endif()
 project(${EXTENSION_NAME} LANGUAGES C)
 
 # Create Extension library
+# Note you might want to partially compile and only check a few at a time when modifying code
+# to develop a new package.  You can comment out a file with "#" sign.
 set(EXTENSION_SOURCES
-   #src/bs.c
         src/df_load.c
         src/read_file.c
         src/capi_quack.c
