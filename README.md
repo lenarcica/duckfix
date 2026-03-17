@@ -42,7 +42,40 @@ SET extension_directory = 'c:/users/alanj/ddb';
 INSTALL './build/debug/duckfix.duckdb_extension';
 LOAD duckfix;
 -- Now to run the function you declared:
-from read_fixlog(verbose := 0, char_sep := ',', file_name := './example/ex1.csv', json_file_name:= 'config_jsons/fix42.json');
+create or replace table ex1 as select * from read_fixlog(verbose := 0, char_sep := ',', file_name := './example/ex1.csv', json_file_name:= 'config_jsons/fix42.json');
+
+
+--del c:\users\alanj\ddb\v1.4.3\windows_amd64\duckfix* & duckdb --unsigned
+SET extension_directory = 'c:/users/alanj/ddb'; 
+INSTALL './build/debug/duckfix.duckdb_extension';
+LOAD duckfix;
+-- Now to run the function you declared:
+create or replace table exfmt2 as select * from read_fixlog(verbose := 4, char_sep := ' ', file_name := './example/ex_fmt2.csv', json_file_name:= 'config_jsons/fix42_t2.json');
+
+
+--del c:\users\alanj\ddb\v1.4.3\windows_amd64\duckfix* & duckdb --unsigned
+SET extension_directory = 'c:/users/alanj/ddb'; 
+INSTALL './build/debug/duckfix.duckdb_extension';
+LOAD duckfix;
+-- Now to run the function you declared:
+create or replace table ex2 as select * from read_fixlog(verbose := 0, char_sep := ' ', file_name := './example/ex_random2.csv', json_file_name:= 'config_jsons/fix42_t2.json'); from ex2;
+
+
+--del c:\users\alanj\ddb\v1.4.3\windows_amd64\duckfix* & duckdb --unsigned
+SET extension_directory = 'c:/users/alanj/ddb'; 
+INSTALL './build/debug/duckfix.duckdb_extension';
+LOAD duckfix;
+-- Now to run the function you declared:
+create or replace table ex2s as select * from read_fixlog(verbose := 0, char_sep := ' ', file_name := './example/ex_random2testshort.csv', json_file_name:= 'config_jsons/fix42_t2.json'); from ex2s;
+
+
+--del c:\users\alanj\ddb\v1.4.3\windows_amd64\duckfix* & duckdb --unsigned
+SET extension_directory = 'c:/users/alanj/ddb'; 
+INSTALL './build/debug/duckfix.duckdb_extension';
+LOAD duckfix;
+-- Now to run the function you declared:
+create or replace table ex2 as select * from read_fixlog(verbose := 4, char_sep := ' ', file_name := './example/ex_random2.csv', json_file_name:= 'config_jsons/fix42_t2.json'); from ex2;
+```
 ```
 As we wee above, the "del" run in shell simply deletes existing duckdb installed packages.  Then we install our target.
 
