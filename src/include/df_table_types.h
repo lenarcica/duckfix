@@ -105,6 +105,9 @@ typedef struct _df_init_data {
   DF_field_list *dfl;
   duckdb_date_struct dds;
   char int_scratch[MAXINTREAD]; // Maximum number of digits to read i64 integer
+
+  char *ignore_line_text;  char *keep_line_text; 
+  int64_t start_byte;  int64_t end_byte;
   int DONE;
 
 } df_init_data; 
@@ -116,6 +119,9 @@ typedef struct _df_bind_data {
   //duckdb_result *p_result;
   char *file_name;
 
+  char *ignore_line_text;  char *keep_line_text; 
+  int64_t start_byte;  int64_t end_byte;
+  int DONE;
   DF_config_file *dfc;
   DF_field_list *dfl;
 } df_bind_data;

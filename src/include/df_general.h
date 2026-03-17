@@ -381,6 +381,7 @@ typedef struct _DF_field_list {
   int finish;
   int standard_vector_size;
   int n_total_lines;
+  int n_total_all_lines;
   int alloc_line_loc;
   int n_loc_lines;
   int *line_locs;
