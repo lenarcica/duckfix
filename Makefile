@@ -21,7 +21,13 @@ include extension-ci-tools/makefiles/c_api_extensions/c_cpp.Makefile
 
 configure: venv platform extension_version
 
+debug: override CFLAGS += -DDEBUG_MODE
+debug: override EXT_CFLAGS += -DDEBUG_MODE
+debug: override EXT_CXXFLAGS += -DDEBUG_MODE
+debug: override EXTRA_FLAGS += -DDEBUG_MODE
+debug: override CMAKE_VARS += -DDEBUG_MODE
 debug: build_extension_library_debug build_extension_with_metadata_debug
+
 release: build_extension_library_release build_extension_with_metadata_release
 
 test: duckfix_debug
