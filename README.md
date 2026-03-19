@@ -58,7 +58,31 @@ SET extension_directory = 'c:/users/alanj/ddb';
 INSTALL './build/debug/duckfix.duckdb_extension';
 LOAD duckfix;
 -- Now to run the function you declared:
+create or replace table ex2 as select * from read_fixlog(verbose := 2, char_sep := ' ', file_name := './example/ex_random2.csv', json_file_name:= 'config_jsons/fix42_t2.json'); from ex2;
+
+
+--del c:\users\alanj\ddb\v1.4.3\windows_amd64\duckfix* & duckdb --unsigned
+SET extension_directory = 'c:/users/alanj/ddb'; 
+INSTALL './build/release/duckfix.duckdb_extension';
+LOAD duckfix;
+-- Now to run the function you declared:
 create or replace table ex2 as select * from read_fixlog(verbose := 0, char_sep := ' ', file_name := './example/ex_random2.csv', json_file_name:= 'config_jsons/fix42_t2.json'); from ex2;
+
+
+--del c:\users\alanj\ddb\v1.4.3\windows_amd64\duckfix* & duckdb --unsigned
+SET extension_directory = 'c:/users/alanj/ddb'; 
+INSTALL './build/debug/duckfix.duckdb_extension';
+LOAD duckfix;
+-- Now to run the function you declared:
+create or replace table ex2A as select * from read_fixlog(verbose := 2, char_sep := ' ', file_name := './example/ex_random2.csv', json_file_name:= 'config_jsons/fix42_t2.json', keep_line_text:='{A:}' ); from ex2A;
+
+
+--del c:\users\alanj\ddb\v1.4.3\windows_amd64\duckfix* & duckdb --unsigned
+SET extension_directory = 'c:/users/alanj/ddb'; 
+INSTALL './build/debug/duckfix.duckdb_extension';
+LOAD duckfix;
+-- Now to run the function you declared:
+create or replace table ex2A as select * from read_fixlog(verbose := 2, char_sep := ' ', file_name := './example/ex_random2.csv', json_file_name:= 'config_jsons/fix42_t2.json', ignore_line_text:='{A:}' ); from ex2A;
 
 
 --del c:\users\alanj\ddb\v1.4.3\windows_amd64\duckfix* & duckdb --unsigned
