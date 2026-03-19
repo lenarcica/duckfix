@@ -1724,6 +1724,9 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
           return;
         } else if ((df_id->on_overall_line >= dfl->n_total_lines) ) { //|| (df_id->on_overall_line >= 24)) {
           #ifdef DEBUG_MODE
+          vpt(2, "MMM   Note df_id->keep_line_txt=|%s| and df_id->ignore_line_text=|%s|\n",
+             df_id->keep_line_text == NULL ? "NULL" : df_id->keep_line_text,
+             df_id->ignore_line_text == NULL ? "NULL" : df_id->ignore_line_text);
           vpt(2, "MMM      ENDDOC(onstr=%ld, iLineEnd=%ld)::: Overall Line now exceeds total lines %ld/%ld, we are likely having a conclusion and setting size to %ld \n",
             (long int) df_id->onstr, (long int) df_id->iLineEnd,
             (long int) df_id->on_overall_line, (long int) dfl->n_total_lines,

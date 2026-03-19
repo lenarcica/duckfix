@@ -200,9 +200,9 @@ void register_duckfix_production_table_function(duckdb_connection ddb_con) {
   duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
     (const char*) "char_sep", (duckdb_logical_type) str_type);
   duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
-    (const char*) "ignore_line_txt", (duckdb_logical_type) str_type);
+    (const char*) "ignore_line_text", (duckdb_logical_type) str_type);
   duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
-    (const char*) "keep_line_txt", (duckdb_logical_type) str_type);
+    (const char*) "keep_line_text", (duckdb_logical_type) str_type);
   duckdb_destroy_logical_type(&str_type);
 
   //printf("%s -- Attaching the bind, init, main functions. \n", stt);
