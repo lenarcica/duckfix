@@ -59,6 +59,7 @@ DUCKDB_EXTENSION_EXTERN
 void destroy_df_init_data( void *v_df_id) {
   if (v_df_id == NULL) { return; }
   df_init_data *df_id = (df_init_data*) v_df_id;
+  printf("df_init.c->destroy_df_init_data->called");
   int verbose = df_id->verbose;
   if (verbose >= 1) {
     printf("destroy_df_init_data:: Activated. \n");
@@ -90,12 +91,14 @@ void destroy_df_init_data( void *v_df_id) {
   if (df_id->file_name != NULL) { vpt(3, "freeing filename \n"); free(df_id->file_name); df_id->file_name = NULL; }
   if (df_id->buffer != NULL) { vpt(3, "freeing df_id->buffer. \n"); free(df_id->buffer); df_id->buffer = NULL; }
   //duckdb_free(df_id);
-  free(df_id);
+  free(df_id); df_id = NULL;
   if (verbose >= 2) { printf("%s -- we are done. \n", stt); }
   return;
 }
 
 void duckfix_init(duckdb_init_info i_info) {
+
+  printf("df_init.c->duckfix_init called.\n");
   char stt[500]; 
   sprintf(stt, "df_init.c->duckfix_init(): ");
   void * v_df_bd = (void *) duckdb_init_get_bind_data(i_info);
@@ -230,5 +233,6 @@ void duckfix_init(duckdb_init_info i_info) {
   //duckdb_init_set_init_data(i_info, NULL, destroy_df_init_data);
 
   duckdb_init_set_init_data(i_info, df_id, destroy_df_init_data);
+  printf("df_inic.c-> End init. \n");
   return;
 }

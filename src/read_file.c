@@ -583,21 +583,25 @@ int update_field_list_on_line(long int iline, char*sf, iStr st_ln, iStr end_ln, 
       //NEXTCOMMA();  We will have dfl has assigned character separation  I suppose ",|; \t" all reasonable separators
       NEXTCHARSEP();
     } else if (dfc->schemas[ion_schema].typ == fix2end) {
-      iStr fieldStart = ii;
-      NEXTENDL();
-      iStr fieldEnd = ii; ii++;
+      iStr fieldStart = ii;  iStr fieldEnd = end_ln; ii = end_ln;
+      ii++;
       vpt(1, "on is=%ld/%ld, we get fix2end to end line from [%ld:%ld]: \"%.*s...\" \n",
         (long int) ion_schema, (long int) dfc->n_schemas, (long int) fieldStart, (long int) fieldEnd,
         fieldEnd-fieldStart < 20 ? fieldEnd-fieldStart : 20, (char*) sf + fieldStart);
       attempt = update_field_list_on_fix2end(iline, ion_schema, sf, fieldStart, sf[fieldEnd] == '\n' ? fieldEnd : fieldEnd, dfc, dfl, verbose);
       if (attempt < 0) {
-        vpt(0, " ERROR fix2end attempt = %ld for schema=%ld/%ld on iline=%ld. [st,end]=[%ld,%ld] with fieldst/end=[%ld,%ld] for:\n",
+        printf("update_field_list_on_line(iline=%ld) ERROR, attempt=%d after update_field_list_on_fix2end,ion_schema=%ld/%ld \n",
+          (long int) iline, (int) attempt, (long int) ion_schema, (long int) dfc->n_schemas);
+        vpt(-1020, " ERROR fix2end attempt = %ld for schema=%ld/%ld on iline=%ld. [st,end]=[%ld,%ld] with fieldst/end=[%ld,%ld] for:\n",
           (long int) attempt, (long int) ion_schema, (long int) dfc->n_schemas, 
           (long int) iline, (long int) st_ln, (long int) end_ln, (long int) fieldStart, (long int) fieldEnd);
-        printf("---: %.*s\n", fieldEnd-fieldStart+1, sf+fieldStart);
-        printf("  What went wrong? \n");  return(-1);
+        printf("uflf2e ---: sf[fieldStart=%ld:fieldEnd=%ld] = |%.*s|\n", (long int) fieldStart, (long int) fieldEnd, 
+          fieldEnd-fieldStart+1, sf+fieldStart);
+        printf("uflf2e ---: sf[st_ln=%ld:end_ln=%ld] = |%.*s|\n", (long int)st_ln, (long int)end_ln, end_ln-st_ln, sf + st_ln);
+        printf("uflf2e ---:  What went wrong? \n");  return(-1);
       }
       vpt(2, " --- Finished fix2end for i_s=%ld/%ld.  Attempt generated was %ld. \n", (long int) ion_schema, (long int) dfc->n_schemas, (long int) attempt);
+      return(1);
     } else {
       iStr fieldStart = ii;
       //NEXTCOMMA();  
@@ -620,7 +624,27 @@ int update_field_list_on_line(long int iline, char*sf, iStr st_ln, iStr end_ln, 
   }
   return(1);
 }
+
+
 iStr get_next_newln(char *sf, iStr st, iStr nmax, int verbose) {
+  char stt[] = "read_file.c->get_next_newln()";
+  iStr ii;
+  for (ii=st; ii < nmax; ii++) {
+    if (sf[ii] == '\n') {  return(ii); }
+    if (sf[ii] == '\"') {
+      ii = get_end_quote((char*) stt, sf, ii, nmax);
+      if (ii < 0) { printf("get_next_newln(sf[st=%ld:%ld] = \"%.*s\" no exit from quote. ii=%ld. \n",
+        st, nmax-st < 20 ? nmax : st + 20, nmax-st < 20 ? nmax-st : 20 , sf + st, ii);  return(nmax+1); }
+    } else if (sf[ii] == '{') {
+      // get_next_newln(...) we don't care about not getting a fill.
+    } else if (sf[ii] == '[') { ii = get_end_bracket( (char*) stt,sf, ii, nmax); 
+      // get_next_newln(...) we don't care about not getting a fill.
+    }
+  }
+  return(nmax);
+}
+// Two types of next newln
+iStr get_next_newln_force_end(char *sf, iStr st, iStr nmax, int verbose) {
   char stt[] = "read_file.c->get_next_newln()";
   iStr ii;
   for (ii=st; ii < nmax; ii++) {
@@ -677,17 +701,20 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
   if (ignore_line_text != NULL) { len_ignore_line_text = strlen(ignore_line_text); }
 
   char buffer[MAXREAD];  int remainder= 0;
-  long int bytesread; long int tbytesread = 0;
-  bytesread = fread(buffer,sizeof(char),MAXREAD,fpo);  
+  long int bytesread; long int tbytesread = 0; int new_bytes;
+
+  int num_reads = 0;
+  bytesread = fread(buffer,sizeof(char),MAXREAD,fpo);   num_reads++;
   int onstr = 0; long int iline_prints=0;
   int ibuffreads = 1;
   int update_error;
   dfl->file_total_bytes = (long int) file_len;
-  dfl->n_total_lines = 0;
+  dfl->n_total_lines = 0;  dfl->n_total_all_lines = 0;
   dfl->char_sep = char_sep;
   dfl->line_locs[0] = onstr;  dfl->line_locs[1] = bytesread; 
 
   int do_line = 0;
+  int num_since_new = 0;
   while ((tbytesread < dfl->file_total_bytes) && (bytesread > 0)) {
     if (verbose >= 3) { printf("\n----------------------------------------------------\n"); }
     vpt(1, " on ibuffreads=%ld  bytesread=%ld, remainder=%ld, tbytesread=%ld. \n",
@@ -698,7 +725,7 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
         (long int) dfl->n_total_lines, (long int) onstr, (long int) bytesread,  (long int) tbytesread, 30, buffer + onstr);
       while ((onstr < bytesread) && (buffer[onstr] == '\n')) {onstr++; }
       iStr iLineEnd = get_next_newln(buffer, onstr, bytesread, verbose-2); 
-      if (iLineEnd >= bytesread) { break; }
+      if ((iLineEnd < onstr) || (iLineEnd >= bytesread))  { break; }
       if (buffer[iLineEnd] != '\n') { printf("generate_file_list, iLineEnd=%ld, but buffer[%ld]=\'%c\' ? \n",
                                       (long int) iLineEnd, (long int) iLineEnd, buffer[iLineEnd]);  }
       if (dfl->n_loc_lines >= dfl->alloc_line_loc - 3) {
@@ -730,22 +757,59 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
         }
         update_error = update_field_list_on_line(dfl->n_total_lines, buffer, onstr, iLineEnd, dfc, dfl, verbose-2);
         if (update_error < 0) {
-          printf("Error on update with [onstr,iLineEnd]=[%ld,%ld] for \n%.*s\nWhat went wrong?\n",
+          printf("ERROR: generate_field_list(onstr=%ld, iLineEnd=%ld, n_total_lines=%ld, update_error=%ld. \n", (long int) onstr,
+            (long int) iLineEnd, (long int) dfl->n_total_lines, (long int) update_error);
+          printf(" -- gfl -- ERROR: on update with [onstr,iLineEnd]=[%ld,%ld] for |%.*s|\n",
            (long int) onstr, (long int) iLineEnd, iLineEnd-onstr +1, buffer+onstr);
+          printf(" -- gfl -- ERROR  Note: num_reads=%d. num_since_new=%d last remainder was %d\n", (int) num_reads, (int) num_since_new, (int) remainder);
+          printf(" -- gfl -- ERROR buffer[onstr=%ld:iLineEnd=%ld]= |%.*s| \n", 
+            (long int) onstr, (long int) iLineEnd, iLineEnd-onstr, buffer+onstr);
+          printf(" -- gfl -- ERROR Last remainder was %ld, bytesread = %ld, new_bytes=%ld. \n",
+            (long int) remainder, (long int) bytesread, (long int) new_bytes);
+          printf(" -- gfl -- ERROR Note that tbytesread = %ld. \n", (long int) tbytesread);
+          printf(" -- gfl -- ERROR current readable line n_total_lines=%ld, whereas n_total_all_lines=%ld. \n", dfl->n_total_lines,
+            (long int) dfl->n_total_all_lines);
+          printf(" -- gf -- Note keep_line_text[%ld]=\"%s\", ignore_line_text[%ld]=\"%s\" \n",
+            (long int) len_keep_line_text, keep_line_text==NULL ? "NULL" : keep_line_text,
+            (long int) len_ignore_line_text, ignore_line_text==NULL ? "NULL" : ignore_line_text);
           dfl->finish = 0; rewind(fpo);
           fclose(fpo);  return(dfl);
         }
-        dfl->n_total_lines++;
+        dfl->n_total_lines++;  dfl->n_total_all_lines++;
+      } else {
+        dfl->n_total_all_lines++;
       }
-      onstr = iLineEnd+1;  dfl->n_total_all_lines++;
+      onstr = iLineEnd+1;  num_since_new++;
     }
     if (onstr < bytesread) {
        remainder = (bytesread-onstr);
        memcpy(buffer, buffer + onstr, sizeof(char)*remainder);
+    } else {
+       remainder = 0;
     }
+    
+    #ifdef DEBUG_MODE 
+    if (verbose >= 2) {
+      printf("\n");
+      printf(" -- gfl --  num_reads=%ld: num_since_new=%d, onstr=%d, remainder=%ld, remaining string = |%.*s| \n", (long int) num_reads, 
+         (int) num_since_new, (long int) onstr, (long int) remainder,
+         remainder, buffer + onstr);
+    }
+    #endif
     tbytesread += bytesread-remainder;
-    int new_bytes = fread(buffer+remainder,1,MAXREAD-remainder,fpo);  onstr = 0;
-    bytesread = new_bytes + remainder;
+    new_bytes = fread(buffer+remainder,sizeof(char),MAXREAD-remainder,fpo);  onstr = 0;  num_reads++;
+    int find_first_endl = 0;  while((find_first_endl < new_bytes + remainder) && (buffer[find_first_endl] != '\n')) { find_first_endl++; }
+    #ifdef DEBUG_MODE
+    if (verbose >= 2) {
+      printf(" -- gfl -- after next fread, buffer[0:%d]=|%.*s| \n",
+        200 > find_first_endl ? find_first_endl : 200,
+        200 > find_first_endl ? find_first_endl : 200, buffer);
+      printf(" -- gfl -- after this fread, buffer[remainder=%d:%d] = |%.*s| \n",
+        remainder, remainder+40 > find_first_endl ? find_first_endl : remainder+40,
+        remainder+40 > find_first_endl ? find_first_endl - remainder : 40, buffer+remainder);
+    }
+    #endif
+    bytesread = new_bytes + remainder; num_since_new = 0;
   }
   dfl->finish = 1;
   rewind(fpo);

@@ -1000,7 +1000,8 @@ int delete_config_file(DF_config_file **pdfc, int verbose) {
   DF_config_file *dfc = pdfc[0];
   if (verbose >= 1) {
     printf("---------------------------------------------------------------------------------------------\n");
-    printf("-- Initiation of the config file deletion schedule. \n");
+    printf("-- df_load.c->delete_config_file(): Initiation of the config file deletion schedule. \n");
+    //verbose = 4;
   }
   if (dfc->name != NULL) { 
      vpt(3, " delete name because non null. \n"); 

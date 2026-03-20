@@ -1475,10 +1475,10 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
            case f64 :
              *(((float *) vddbv) + df_id->on_chunk_line) = 0.0; break;
            case str : 
-             vpt(1, " assigning a null string. on_mt=%ld/%ld, chunk line %ld.\n", (long int) on_mt, (long int) df_id->dfc->n_total_multiplicity_columns, 
+             vpt(2, " assigning a null string. on_mt=%ld/%ld, chunk line %ld.\n", (long int) on_mt, (long int) df_id->dfc->n_total_multiplicity_columns, 
                 df_id->on_chunk_line);
              duckdb_vector_assign_string_element_len(ddbv, df_id->on_chunk_line, "NONE", 4);  
-             vpt(1, "   Nulling out %ld/%ld successful. \n", (long int) on_mt, (long int) df_id->dfc->n_total_multiplicity_columns);
+             vpt(2, "   Nulling out %ld/%ld successful. \n", (long int) on_mt, (long int) df_id->dfc->n_total_multiplicity_columns);
              break;
            default :
              break;
@@ -1619,12 +1619,15 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
           df_id->iLineEnd - df_id->onstr < 80 ? df_id->iLineEnd - df_id->onstr : 80, df_id->buffer + df_id->onstr);
       #endif
       if ((df_id->iLineEnd < 0) || (df_id->iLineEnd >= df_id->bytesread)) {
-        vpt(-1, " ISSUE -- we received a newline at %ld, when we started from sf[%ld:%ld] = \"%.*s\", tbytesread=%ld/%ld, overall line at %ld/%ld\n",
+        #ifdef DEBUG_MODE
+        vpt(2, " ISSUE -- we received a newline at %ld, when we started from sf[%ld:%ld] = \"%.*s\", tbytesread=%ld/%ld, overall line at %ld/%ld\n",
           (long int) df_id->iLineEnd, df_id->onstr, 
           df_id->bytesread - df_id->onstr < 200 ? df_id->bytesread : 200 + df_id->onstr,
           df_id->bytesread - df_id->onstr < 200 ? df_id->bytesread-df_id->onstr : 200,
           df_id->buffer + df_id->onstr, df_id->tbytesread, df_id->dfl->file_total_bytes,
           (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines);
+        #endif
+        break;
       }
       if (df_id->iLineEnd >= df_id->bytesread) { break; }
       if (df_id->buffer[df_id->iLineEnd] != '\n') { 
@@ -1652,6 +1655,11 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
         //  add_line_error = add_null_line_to_chunk(out_chunk, df_info, df_id, verbose+2);
         // }
         //
+        if ((verbose >= 2) || ((verbose >= 1) && (df_id->on_overall_line % 10000) == 0)) {
+           printf("     dfmtf -- Aobut to add line %ld/%ld, totalall=%ld. \n",
+             (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines, 
+             (long int) df_id->dfl->n_total_all_lines);
+        }
         add_line_error = 0;
         //add_line_error = add_null_line_to_chunk(out_chunk, df_info, df_id, verbose+2);
         add_line_error = add_line_to_chunk(out_chunk, df_info, df_id, verbose-1);
@@ -1789,6 +1797,8 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
     if (df_id->onstr < df_id->bytesread) {
        df_id->remainder = (df_id->bytesread-df_id->onstr);
        memcpy(df_id->buffer, df_id->buffer + df_id->onstr, sizeof(char)*df_id->remainder);
+    } else {
+      df_id->remainder = 0;
     }
     df_id->tbytesread += df_id->bytesread-df_id->remainder;
     #ifdef DEBUG_MODE
