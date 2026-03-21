@@ -91,7 +91,7 @@ void destroy_df_init_data( void *v_df_id) {
   if (df_id->file_name != NULL) { vpt(3, "freeing filename \n"); free(df_id->file_name); df_id->file_name = NULL; }
   if (df_id->buffer != NULL) { vpt(3, "freeing df_id->buffer. \n"); free(df_id->buffer); df_id->buffer = NULL; }
   //duckdb_free(df_id);
-  free(df_id); df_id = NULL;
+  duckdb_free(df_id); df_id = NULL;
   if (verbose >= 2) { printf("%s -- we are done. \n", stt); }
   return;
 }
@@ -123,7 +123,7 @@ void duckfix_init(duckdb_init_info i_info) {
     vpt(-1, "Error: dfc not set in df_bd. \n");
     duckdb_init_set_error(i_info, "df_bd does not contain dfc. \n"); return;
   }
-  df_init_data *df_id = (df_init_data*) malloc(sizeof(df_init_data));
+  df_init_data *df_id = (df_init_data*) duckdb_malloc(sizeof(df_init_data));
   if (df_id == NULL) { vpt(-1, "ERROR, df_id was not allocated of size (%ld) . \n", (long int) sizeof(df_init_data));
                        duckdb_init_set_error(i_info, "ERROR in INIT: Failed to allocate init data.\n");  
                        vpt(-1, " What do we do with these errors? manually destroying data we created (but didn't attach yet!)\n ");
@@ -233,6 +233,6 @@ void duckfix_init(duckdb_init_info i_info) {
   //duckdb_init_set_init_data(i_info, NULL, destroy_df_init_data);
 
   duckdb_init_set_init_data(i_info, df_id, destroy_df_init_data);
-  printf("df_inic.c-> End init. \n");
+  vpt(1, "df_inic.c-> End init. \n");
   return;
 }

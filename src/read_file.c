@@ -20,8 +20,13 @@
 
 
 #ifndef DFFREE 
-#define DFFREE( x, cx ) \
-  if ( (x) != NULL) { vpt(1, "Delete %s.\n", (cx)); free((x));  x = NULL; }
+#define DFFREE( x, lnx, cx ) \
+  if (( (x) != NULL) && (lnx > 0)) {                  \
+    vpt(1, "Delete %s.\n", (cx));                     \
+    x[lnx-1] = x[0];                                  \
+    free((x));  x = NULL;                             \
+  }                                                   \
+  x = NULL
 
 #define ALLOC_INT_ME_SIZE( mykey, sz, cs ) \
   vpt(2, " allocate %s. \n", cs);  \
@@ -33,6 +38,12 @@
 
 DF_field_list *create_nulled_field_list(DF_config_file *dfc, int verbose) {
   char stt[]="create_nulled_field_list(): ";
+  if (verbose >= 1) {
+    printf("create_nulled_field_list, start, verbose=%d. \n", (int)verbose);
+  }
+  if (dfc == NULL) {
+    printf("create_nulled_field_list, error, dfc supplied is NULL. \n");
+  }
   int nfields = dfc->nfields;
   if (nfields <= 0) {
     printf("create_nulled_field_list: wont work becasue dfc->nfields=%ld. \n", (long int) dfc->nfields);
@@ -89,7 +100,7 @@ DF_field_list *create_blank_field_list(DF_config_file *dfc, int verbose) {
   ALLOC_INT_ME_SIZE( (dfl->unknown_usage_count) , nfields, "ordered_unknown_fields");
   ALLOC_INT_ME_SIZE( (dfl->unknown_multiplicity) , nfields, "ordered_unknown_fields");
 
-  dfl->alloc_line_loc = nfields < 50 ? 50 : nfields;
+  dfl->alloc_line_loc = 4 + (nfields < 50 ? 50 : nfields);
   char mst[400];
   sprintf(mst, "line_locs size alloc_line_loc=%ld.\n", (long int) dfl->alloc_line_loc);
   ALLOC_INT_ME_SIZE( (dfl->line_locs), dfl->alloc_line_loc, mst); 
@@ -119,16 +130,16 @@ int delete_field_list(DF_field_list **p_dfl, int verbose) {
   sprintf(stt, "delete_field_list(v=%d,k=%ld,u=%ld/%ld): ",
     (int) verbose, (long int) dfl->n_known_fields, (long int) dfl->num_unknown, (long int) dfl->alloc_unknown);
    
-  DFFREE(dfl->final_known_print_loc, "final_known_print_loc"); 
-  DFFREE(dfl->final_known_multiplicity_loc, "final_known_multiplicity_loc"); 
-  DFFREE(dfl->ordered_known_fields, "ordered_known_fields");
-  DFFREE(dfl->ordered_unknown_fields, "ordered_unknown_fields");
-  DFFREE(dfl->known_usage_count, "known_usage_count");
-  DFFREE(dfl->unknown_usage_count, "unknown_usage_count");
-  DFFREE(dfl->line_unknown, "line_unknown");
-  DFFREE(dfl->line_locs, "line_locs");
-  DFFREE(dfl->known_multiplicity, "known multiplicty"); 
-  DFFREE(dfl->unknown_multiplicity, "unknown multiplicty");
+  DFFREE(dfl->final_known_print_loc, dfl->n_known_fields, "final_known_print_loc"); 
+  DFFREE(dfl->final_known_multiplicity_loc, dfl->n_known_fields, "final_known_multiplicity_loc"); 
+  DFFREE(dfl->ordered_known_fields, dfl->n_known_fields, "ordered_known_fields");
+  DFFREE(dfl->ordered_unknown_fields, dfl->alloc_unknown, "ordered_unknown_fields");
+  DFFREE(dfl->known_usage_count, dfl->n_known_fields, "known_usage_count");
+  DFFREE(dfl->unknown_usage_count, dfl->alloc_unknown, "unknown_usage_count");
+  DFFREE(dfl->line_unknown, dfl->alloc_unknown, "line_unknown");
+  DFFREE(dfl->line_locs, dfl->alloc_line_loc, "line_locs");
+  DFFREE(dfl->known_multiplicity, dfl->n_known_fields, "known multiplicty"); 
+  DFFREE(dfl->unknown_multiplicity, dfl->alloc_unknown, "unknown multiplicty");
   return(1);
 }
 int PRINT_dfl(DF_field_list *dfl) {
@@ -683,6 +694,10 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
   vpt(1, "  -- Welcome I hope DFC is populated. \n");
   DF_field_list *dfl = create_blank_field_list(dfc, verbose-1);
   if (dfl == NULL) { vpt(0, " -- failed to allocate dfl at beginning. \n");  return(NULL); }
+
+  //printf("--- generate_field_list --- No files!. \n");
+  //return(dfl);
+
   vpt(1,  " -- Opening File pointer for first time. \n");
   FILE *fpo = NULL; fpo = fopen(tgt_filename, "rt");
   if (fpo == NULL) {
@@ -700,7 +715,7 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
   if (keep_line_text != NULL) { len_keep_line_text = strlen(keep_line_text); }
   if (ignore_line_text != NULL) { len_ignore_line_text = strlen(ignore_line_text); }
 
-  char buffer[MAXREAD];  int remainder= 0;
+  char buffer[MAXREAD+5];  int remainder= 0;
   long int bytesread; long int tbytesread = 0; int new_bytes;
 
   int num_reads = 0;
@@ -781,6 +796,10 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
       }
       onstr = iLineEnd+1;  num_since_new++;
     }
+    if (onstr < 0) {
+      printf("ERROR: onstr = %ld on num_reads=%ld. \n", (long int) onstr, (long int) num_reads);
+      rewind(fpo); fclose(fpo); delete_field_list(&dfl, verbose); return(NULL);
+    }
     if (onstr < bytesread) {
        remainder = (bytesread-onstr);
        memcpy(buffer, buffer + onstr, sizeof(char)*remainder);
@@ -798,12 +817,24 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
     #endif
     tbytesread += bytesread-remainder;
     new_bytes = fread(buffer+remainder,sizeof(char),MAXREAD-remainder,fpo);  onstr = 0;  num_reads++;
-    int find_first_endl = 0;  while((find_first_endl < new_bytes + remainder) && (buffer[find_first_endl] != '\n')) { find_first_endl++; }
+    if (new_bytes+remainder > MAXREAD) {
+      printf("ERROR: onstr=%ld, num_reads=%ld, we read MAXREAD[%ld]-remainder[%ld] bytes but got %ld bytes. \n",
+        (long int) onstr, (long int) num_reads, (long int) MAXREAD, (long int) remainder, (long int) new_bytes);
+      rewind(fpo); fclose(fpo); delete_field_list(&dfl, verbose); return(NULL);
+    }
     #ifdef DEBUG_MODE
+    int find_first_endl = 0;  while((find_first_endl < new_bytes + remainder) && (buffer[find_first_endl] != '\n')) { find_first_endl++; }
+    if (find_first_endl >= new_bytes + remainder) {
+        vpt(-100, " ERROR: find_first_endl didn't find anything on %ld bytes read. \n", new_bytes);
+    } 
     if (verbose >= 2) {
-      printf(" -- gfl -- after next fread, buffer[0:%d]=|%.*s| \n",
-        200 > find_first_endl ? find_first_endl : 200,
-        200 > find_first_endl ? find_first_endl : 200, buffer);
+      if (find_first_endl < new_bytes+remainder) {
+        printf(" -- gfl -- after next fread, buffer[0:%d]=|%.*s| \n",
+          200 > find_first_endl ? find_first_endl : 200,
+          200 > find_first_endl ? find_first_endl : 200, buffer);
+      } else {
+        printf(" -- glf -- no first endl found. \n");
+      }
       printf(" -- gfl -- after this fread, buffer[remainder=%d:%d] = |%.*s| \n",
         remainder, remainder+40 > find_first_endl ? find_first_endl : remainder+40,
         remainder+40 > find_first_endl ? find_first_endl - remainder : 40, buffer+remainder);
@@ -1170,16 +1201,24 @@ int test_replace_field_list(DF_config_file *dfc, DF_field_list **p_dfl, int verb
   if (p_dfl[0] == NULL) {
     vpt(1, " ERROR, pdfl[0] is already NULL!\n");
   }
+  vpt(1, " Creating a nulled field list. \n");
   DF_field_list *ndfl = create_nulled_field_list(dfc, verbose);
+  vpt(1, " ndfl created. \n");
   ndfl->char_sep = dfl->char_sep;  ndfl->n_known_fields = dfl->n_known_fields;
   int iokf;
+  vpt(1, " beginning replacement and testing of all of the integer vectors. \n");
   itest(ndfl->ordered_known_fields, dfl->ordered_known_fields, dfl->n_known_fields, "ordered_known_fields");
   itest(ndfl->known_usage_count, dfl->known_usage_count, dfl->n_known_fields, "known_usage_count");
-  itest(ndfl->known_multiplicity, dfl->known_multiplicity, dfl->n_known_fields, "known_multiplicity");
-  itest(ndfl->final_known_print_loc, dfl->final_known_print_loc, dfl->n_known_fields, "final_known_print_loc");
-  itest(ndfl->final_known_multiplicity_loc, dfl->final_known_multiplicity_loc, 
-    dfl->n_known_fields, "final_known_multiplicity_loc");
-
+  if (dfl->known_multiplicity != NULL) {
+    itest(ndfl->known_multiplicity, dfl->known_multiplicity, dfl->n_known_fields, "known_multiplicity");
+  }
+  if (dfl->final_known_print_loc != NULL) {
+    itest(ndfl->final_known_print_loc, dfl->final_known_print_loc, dfl->n_known_fields, "final_known_print_loc");
+  }
+  if (dfl->final_known_multiplicity_loc != NULL) {
+    itest(ndfl->final_known_multiplicity_loc, dfl->final_known_multiplicity_loc, 
+      dfl->n_known_fields, "final_known_multiplicity_loc");
+  }
   ndfl->alloc_unknown = dfl->alloc_unknown;  ndfl->num_unknown = dfl->num_unknown;
   itest(ndfl->ordered_unknown_fields, dfl->ordered_unknown_fields, dfl->alloc_unknown, "ordered_unknown_fields");
   itest(ndfl->unknown_usage_count, dfl->unknown_usage_count, dfl->alloc_unknown, "unknown_usage_count");
@@ -1191,7 +1230,9 @@ int test_replace_field_list(DF_config_file *dfc, DF_field_list **p_dfl, int verb
   ndfl->standard_vector_size = dfl->standard_vector_size;
   ndfl->n_total_lines = dfl->n_total_lines;  ndfl->n_total_all_lines = dfl->n_total_all_lines;
   ndfl->alloc_line_loc = dfl->alloc_line_loc; ndfl->n_loc_lines = dfl->n_loc_lines;
-  itest( ndfl->line_locs, dfl->line_locs, dfl->alloc_line_loc, "line_locs");
+  if (ndfl->line_locs != NULL) {
+    itest( ndfl->line_locs, dfl->line_locs, dfl->alloc_line_loc, "line_locs");
+  }
   vpt(1, "test_replace_field_list --- We are done with line_locs deleted. \n");
   delete_field_list(p_dfl, verbose);
   if (ndfl->ordered_known_fields == NULL) {

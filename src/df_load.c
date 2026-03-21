@@ -731,6 +731,7 @@ int test_replace_string(char **p_ostr, int lstr, char *nmstr, int verbose) {
   vpt(1, "  START \n");
   if (p_ostr[0] == NULL) {
     vpt(1, " ERROR, test string %s is already NULL!\n", nmstr);
+    return(-2);
   }
   char *nstr = malloc(sizeof(char)*(lstr+1));
   if (nstr == NULL) {
@@ -744,6 +745,7 @@ int test_replace_string(char **p_ostr, int lstr, char *nmstr, int verbose) {
     nstr[ii] = ostr[ii];  ostr[ii] = '\0'; ostr[ii] = nstr[ii];
   }
   nstr[lstr] = '\0';
+  vpt(1, " Old String[%s] NewString[%s] \n",  ostr, nstr);
   free(ostr); p_ostr[0] = NULL;
   p_ostr[0] = nstr;
   vpt(1, " test_replace_string: new string is %s of length %ld. \n", nstr, (long int) lstr);
@@ -756,6 +758,7 @@ int test_replace_istrv(iStr **p_istrv, int ln_istrv, char *nm_istrv, int verbose
   vpt(1, "  START \n");
   if (p_istrv[0] == NULL) {
     vpt(1, " ERROR, test string %s is already NULL!\n", nm_istrv);
+    return(-2);
   }
   iStr *n_istrv = malloc(sizeof(iStr)*ln_istrv);
 
@@ -776,10 +779,11 @@ int test_replace_istrv(iStr **p_istrv, int ln_istrv, char *nm_istrv, int verbose
 
 int test_replace_intv(int **p_intv, int ln_intv, char *nm_intv, int verbose) {
   char stt[300];
-  sprintf(stt, "copy_replace_istrv(%s,len=%ld): ", nm_intv, ln_intv);
+  sprintf(stt, "copy_replace_intv(%s,len=%ld): ", nm_intv, ln_intv);
   vpt(1, "  START \n");
   if (p_intv[0] == NULL) {
     vpt(1, " ERROR, test string %s is already NULL!\n", nm_intv);
+    return(-2);
   }
   int *n_intv = malloc(sizeof(int)*ln_intv);
 
@@ -805,7 +809,7 @@ int test_replace_config_file(DF_config_file **p_odfc, int verbose) {
   vpt(1, " We are starting creating odfc. \n");
   DF_config_file *ndfc = new_config_file();
 
-  int itt = 0;
+  int itt = 0; 
 
   if (odfc->name != NULL) {
     itt = test_replace_string(&odfc->name, strlen(odfc->name), "dfc->name",verbose);
@@ -847,11 +851,19 @@ int test_replace_config_file(DF_config_file **p_odfc, int verbose) {
   int srep = copy_replace_schemas(odfc, ndfc, verbose);
   int frep = copy_replace_fields(odfc, ndfc, verbose);
   vpt(1, "test_replace_config_file: We had srep=%ld, frep=%ld. \n", (long int) srep, (long int) frep);
-
-
+  if (ndfc->nfields > 0) {
+    printf("copy_replace_fields_done. \n");
+    printf("  -- Field nfields-1=%d has nm=%s:%d \n", (ndfc->nfields-1), ndfc->fxs[ndfc->nfields-1].nm, ndfc->fxs[ndfc->nfields-1].field_code);
+  }
+  if (odfc->ordered_fields != NULL) {
   test_replace_intv( &odfc->ordered_fields, (odfc->nfields), "ordered_fields", verbose);
+  }
+  if (odfc->mark_visited != NULL) {
   test_replace_intv( &odfc->mark_visited, (odfc->n_total_print_columns*2), "mark_visited", verbose);
+  }
+  if (odfc->mark_m_visited != NULL) {
   test_replace_intv( &odfc->mark_m_visited, odfc->n_total_multiplicity_columns *2, "mark_m_visited", verbose);
+  }
 
 
   ndfc->ordered_fields = odfc->ordered_fields; odfc->ordered_fields = NULL;
@@ -938,7 +950,7 @@ int copy_replace_fields(DF_config_file *odfc, DF_config_file *ndfc, int verbose)
     }
     ndfc->fxs[ii].field_codes_loc = odfc->fxs[ii].field_codes_loc; odfc->fxs[ii].field_codes_loc = NULL;
     vpt(1, " -- ii=[%ld/%ld] strings and arrays replaced. \n", (long int) ii, (long int) odfc->nfields);
-    ndfc->fxs[ii].field_code = odfc->fxs[ii].field_code;
+    ndfc->fxs[ii].field_code = odfc->fxs[ii].field_code;  ndfc->fxs[ii].maxmultiplicity = odfc->fxs[ii].maxmultiplicity;
     ndfc->fxs[ii].typ = odfc->fxs[ii].typ;  ndfc->fxs[ii].width = odfc->fxs[ii].width;
     ndfc->fxs[ii].scale = odfc->fxs[ii].scale;  ndfc->fxs[ii].priority = odfc->fxs[ii].priority;
     ndfc->fxs[ii].ltrunc = odfc->fxs[ii].ltrunc;  ndfc->fxs[ii].rtrunc = odfc->fxs[ii].rtrunc;
