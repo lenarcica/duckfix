@@ -75,6 +75,11 @@
           "usedin":["Execution Report <8>","New Order - Single <D>","New Order - List <E>",
                     "Order Cancel/Replace Request <G>","Allocation <J>","Bid Response <l>"]
     },
+    "14":{"fixtitle":"CumQty<14>","keep":1,"priority":10,"maxmultiplicity":1,
+          "nm":"cumqty", "typ":"decimal_gen","scale":5,"width":18,
+          "desc":"Total number of shares filled.",
+          "usedin":["Execution Report <8>","List Status <N>"]
+    },
     "18":{"nm":"execinst","keep":1,"priority":50,
             "fixtitle":"ExecInst","typ":"str", "maxmultiplicity":5,
             "desc":"Instructions for order handling on exchange trading floor, or for more than one instruction, separate instructions with an additional space.",
