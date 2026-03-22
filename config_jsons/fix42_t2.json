@@ -1,9 +1,8 @@
 {
   "name": "Fix42example",
   "description": "Json part example for test of duckfix infrastructure",
-  "info" : "\nWe assume we receive log files which are in a csv or other separated format\nSome of the elements will be JSON elements of a FIX message that need to be \nparsed into a table.  These could be different messages with different fields activated. \n As we see in the example, only the json elements are actually JSON FIX.  \nWe need to parse these into table columns but there are other columns to worry aobut.",
-  "example_line": 
-  "10:23:43.503323 {Z} : A: 8=FIX4.2 9=101 49=JOYB 18=M",
+  "info" : "\nWe assume we receive log files which are in a csv or other separated format\nSome of the elements will be JSON elements of a FIX message that need to be \nparsed into a table.  These could be different messages with different fields activated. \n As we see in the example, only the json elements are actually JSON FIX.  \nWe need to parse these into table columns but there are other columns to worry about.",
+  "example_line": "10:23:43.503323 {Z} : A: 8=FIX4.2 9=101 49=JOYB 18=M",
   "schema":{
     "time1": { "desc":"some timestamp","typ":"tus", "fmt":"%H:%M:%S.%f", "priority": 0},
     "bsentry1": { "desc":"vague string", "typ":"str", "priority":-1, "rtrunc":1, "ltrunc":1, "keep":1},
@@ -14,12 +13,38 @@
   "general_sep":" ",
   "fix_type":"4.20",
   "fix_fields":{
+    "1":{"fixtitle":"Account<1>","keep":1,"priority":20,
+         "nm":"account", "typ":"str", "desc":"Account mneumonic aggreed to by broker and institution",
+         "usedin":["Execution Report<8>","Order Cancel Reject<9>","New Order - Single <D>"]
+    },
+    "2":{"fixtitle":"AdvId", "keep":0,"priority":-20,
+         "nm":"advid", "typ":"str", "desc":" Advertisement message Id Type",
+         "usedin":["Advertisement<7>"]
+    },
+    "3":{"fixtitle":"AdvRefId","keep":0,"priority":-20,
+         "nm":"advrefid", "typ":"str","desc":"Reference Id for Adv",
+         "usedin":["Advertisement<7>"]
+    },
+    "4":{"fixtitle":"AdvSide","keep":0,"priority":-20,
+          "nm":"advside","typ":"str","desc":"Advertised Side",
+         "encode":{ "B":"buy","S":"sell","X":"cross","T":"trade"},
+         "usedin":["Advertisement<7>"]
+    },
     "5":{"fixtitle":"AdvTransType", "keep":0,"priority":2,
          "nm":"advertisement_trantype", "typ":"str", "desc":"Identifies Advertisement <7> message transaction type",
          "encode": {
           "N":"New","C":"Cancel","R":"Replace"
         }
     }, 
+    "6":{"fixtitle":"AvgPx","keep":1,"priority":400,
+          "nm":"avgpr", "typ":"str", "desc":"Average Price of all fills on this order",
+          "usedin":["Execution Report<8>", "Allocation<J>", "List Status <N>" ]
+    }, 
+    "7":{"fixtitle":"BegSeqNo","keep":0,"priority":-30,
+         "nm":"begseqnum","typ":"str",
+         "desc":"Message number of resent Message",
+         "usedin":"Resend Request <2>"
+    },
     "8":{"nm":"begstring","keep":1,"priority":10,
         "fixtitle":"BeginString","typ":"str",
         "desc":"Identifies beginning of new message, always first field never encrypted"
@@ -32,6 +57,12 @@
           "fixtitle":"CheckSum","typ":"str", "maxmultiplicity":1,
           "desc":"Fix message chcksum"
          },
+    "11":{"fixtitle":"ClordId<11>", "keep":"1", "priority":3,
+           "nm":"clordid","typ":"str", "desc":"Unique identifier for Order as assigned by institution",
+           "usedin":["Execution Report <8>","Order Cancel Reject <9>","Email <C>",
+                     "New Order - Single <D>","New Order - List <E>","Order Cancel Request <F>",
+                     "Order Cancel/Replace Request <G>","Order Status Request <H>"]
+    },
     "12":{"nm":"commission","keep":1,"priority":40,
            "fixtitle":"Commission","typ":"Decimal", "scale":"5", "width":"18",
            "desc":"A commission charged" },
@@ -100,7 +131,7 @@
     "59":{"nm":"tif","keep":1,"priority":15,"fixtitle":"TimeInForce<59>",
            "desc":"time in force", "typ":"str",
            "encode": { "0":"Day", "1":"GoodTillCancel","2":"AtTheOpen",
-                       "3":"IOC","4":"FillOrKill","5":"GoodTillCrosss","6":"GoodTillDate"
+                       "3":"IOC","4":"FillOrKill","5":"GoodTillCross","6":"GoodTillDate"
            }
        },
     "104":{"nm":"ioiqual", "keep":0,"priority":-400,"fixtitle":"IOIQualifier",
