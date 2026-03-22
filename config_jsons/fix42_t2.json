@@ -65,7 +65,16 @@
     },
     "12":{"nm":"commission","keep":1,"priority":40,
            "fixtitle":"Commission","typ":"Decimal", "scale":"5", "width":"18",
-           "desc":"A commission charged" },
+           "desc":"A commission charged",
+          "usedin":["Execution Report <8>","New Order - Single <D>","New Order - List <E>",
+                    "Order Cancel/Replace Request <G>","Allocation <J>","Bid Response <l>"]
+    },
+    "13":{"fixtitle":"CommType<13>","keep":1,"priority":41, "maxmultiplicity":1,
+          "nm":"commtype","typ":"str","desc":"commission type as used in <12>",
+          "encode":{"1":"pershare","2":"percentage","3":"absolute"},
+          "usedin":["Execution Report <8>","New Order - Single <D>","New Order - List <E>",
+                    "Order Cancel/Replace Request <G>","Allocation <J>","Bid Response <l>"]
+    },
     "18":{"nm":"execinst","keep":1,"priority":50,
             "fixtitle":"ExecInst","typ":"str", "maxmultiplicity":5,
             "desc":"Instructions for order handling on exchange trading floor, or for more than one instruction, separate instructions with an additional space.",
