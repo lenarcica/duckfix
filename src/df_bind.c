@@ -360,7 +360,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
   //json_sf = NULL; // Text of complete JSON instructions. \n");
   iStr nmax =  load_file_to_str(&json_sf, ll_json_file_name, verbose-2);
   if ((nmax <= 0) || (json_sf == NULL)) {
-    vpt(0, "ERROR, tried to load json file \"%s\", but received only %ld as a result. \n",
+    vpt(-100, "ERROR, tried to load json file \"%s\", but received only %ld as a result. \n",
       json_file_name, (long int) nmax);  
     duckdb_bind_set_error(b_info, "ERROR in LOAD JSON File run of load_file_to_str(...)\n");
     my_clear();

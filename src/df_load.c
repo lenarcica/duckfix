@@ -5,6 +5,14 @@
 
 #include <stdlib.h>
 
+int get_nlines(char *sf, int onst, int nmax) {
+   int nlines = 0;
+   if (onst > nmax) { printf("get_nlines: no, onst=%ld, nmax=%ld we won't find anything. \n", (long int) onst, (long int) nmax); return(-5); }
+   for (int ii = 0; ii < onst; ii++) {
+     if (sf[ii] == '\n') { nlines++; }
+   }
+   return(nlines);
+}
 int delete_DF_Schema(DF_Schema *dfs, int verbose) {
   vprintf(2, "Deleting schema %s. \n", dfs->nm != NULL ? dfs->nm : "UNKNOWN");
   if (dfs->nm != NULL) {
@@ -36,9 +44,16 @@ iStr get_end_bracket(char *name_str, char *ast, iStr on_i, iStr nmax) {
     if (ast[ii] == '[') { jj = get_end_bracket(name_str, ast, ii,nmax) ;  
     } else if (ast[ii] == '{') { jj = get_end_brace(name_str,ast,ii,nmax);
     } else if (ast[ii] == '\"') { jj = get_end_quote(name_str,ast,ii,nmax);
+      if (jj < 0) {
+        printf("get_end_bracket(%s): Error after get_end_quote[on_i=%ld] starting at ii=%ld/%ld. Started with on_i on line = %ld, ii on line=%ld \n",
+          name_str, (long int) on_i, (long int) ii, (long int) nmax, get_nlines(ast, on_i, nmax), get_nlines(ast, ii, nmax));
+        return(jj);
+      } 
     }
     if (jj < ii) { 
-      printf("get_end_bracket: must have ended on an error, ast[ii=%ld]=\'%c\', jj = %ld.\n", ii, ast[ii], ast[ii]); return(jj);
+      printf("get_end_bracket(%s): must have ended on an error, ast[on_i=%ld:%ld] = |%.*s|\n   -- get_end_bracket error: ast[ii=%ld]=\'%c\', jj = %ld.\n", name_str, 
+        on_i, on_i + 40 > nmax ? nmax : on_i + 40, on_i+40 > nmax ? nmax-on_i : 40, ast, ii, ast[ii], ast[ii]); 
+      return(-1);
     } else { ii = jj; }
   }
   printf("ERROR: get_end_bracket(%s) no next bracket at nmax=%ld. \n", name_str, nmax);
@@ -52,6 +67,11 @@ iStr get_end_bracket(char *name_str, char *ast, iStr on_i, iStr nmax) {
 iStr get_end_brace(char *name_str, char *ast, iStr on_i, iStr nmax) {
   if (ast[on_i] != '{') {
     printf("get_end_brace(%s), on_i=%ld, but it is not brace. \n", name_str, (long int) on_i);
+  }
+  if (nmax < on_i) {
+    printf("get_end_brace(%s): ERROR we cannot propagate because nmax=%ld, on_i=%ld. Returning -3043\n",
+      name_str, (long int) nmax, (long int) on_i);
+    return(-3043);
   }
   iStr ii; iStr jj;
   int max_jumps = 0;
@@ -75,14 +95,30 @@ iStr get_end_brace(char *name_str, char *ast, iStr on_i, iStr nmax) {
     } else if (ast[ii] == '\"') {
       jj = get_end_quote(name_str, ast, ii, nmax); 
       if (jj < ii) {
+        int error_jj = jj;
+        printf("ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR\n");
+        printf("ERROR get_end_brace(%s) received an error from get_end_quote(ii=%ld,nmax=%ld) of %ld. \n",
+          name_str, (long int) ii, (long int) nmax, (long int) error_jj);
+        printf("ERROR, at this point ii=%ld, on_i=%ld, line for ii is %ld. \n",
+          (long int) ii, (long int) on_i, ii);
+        printf("ERROR get_end_brace(%s): If we back up. \n", name_str); jj = ii; while((jj >= 1) && (ast[jj-1] != '\n')) { jj--; } 
+        int next_ln = jj;  while((next_ln < nmax) && (ast[next_ln] != '\n')) { next_ln++; }
+        printf("ERROR: get_end_brace(%s): We identify the bad line to be line %ld, ast[%ld:%ld]=\n|%.*s|\nERROR: get_end_brace(%s) -- end of line \n", name_str,
+          (long int) get_nlines(ast, jj, nmax),  (long int) jj, (long int) next_ln, next_ln - jj, ast + jj, name_str);
+        printf("ERROR: get_end_brace(%s) we started with on_i=%ld/%ld on line=%ld, sf[%ld:%ld] = |%.*s|\n",
+          name_str, (long int) on_i, (long int) nmax, get_nlines(ast, on_i, nmax), (long int) on_i,
+          on_i + 40 < nmax ? on_i + 40 : nmax, on_i + 40 < nmax ? 40 : nmax-on_i, ast + on_i);
+        if (error_jj == -555333) { printf("ERROR: get_end_brace on \'\\n\' in sequence. \n"); return(-555333); }
+
+        printf("ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR\n");
         printf("get_end_brace: must have ended on an error ast[ii=%ld]=\'%c\', jj=%ld.\n", (long int) ii, (char) ast[ii], (long int) jj);
         return(-101); 
       }
       ii = jj;
     }
   }
-  printf("ERROR: get_end_brace(%s), started at on_i=%ld, no next brace at ii=%ld =nmax=%ld. n_braces=%ld, n_brackets=%ld\n", 
-    name_str, (long int) on_i, (long int) ii, (long int) nmax, (long int) n_braces, (long int) n_brackets);
+  printf("ERROR: get_end_brace(%s), started at on_i=%ld/%ld, no next brace at ii=%ld =nmax=%ld. n_braces=%ld, n_brackets=%ld\n", 
+    name_str, (long int) on_i, (long int) nmax, (long int) ii, (long int) nmax, (long int) n_braces, (long int) n_brackets);
   printf(" We had looked for \"%.*s...\".\n",  (nmax-on_i) < 40 ? (nmax-on_i) : 40, ast + on_i);
   printf(" End of string is \"...%.*s\".\n",  (nmax-on_i) < 40 ? (nmax-on_i) : 40, ast + nmax - ((nmax-on_i) < 40 ? (nmax-on_i) : 40));
   return(-1);
@@ -105,6 +141,10 @@ iStr get_end_quote(char* vstr, char *in_str, iStr on_i, iStr nmax) {
   if (in_str[0] == '\0') {
     printf("get_end_quote(%s): Error, only length 0.\n", (char*) vstr); return(0);
   }
+  if (nmax < on_i) {
+    printf("ERROR get_end_quote(%s) can't move forward becasue nmax=%ld, on_i=%ld. \n",
+      vstr, (long int) nmax, (long int) on_i);  return(-304032);
+  }
   iStr ii,jj;
   if (in_str[on_i] != '\"') {
     printf("get_end_quote(%s): ERROR this does not start with quote. \'%c\' at %ld/%ld -- we started with sf[%ld:%ld]::|%.*s|\n",
@@ -117,6 +157,20 @@ iStr get_end_quote(char* vstr, char *in_str, iStr on_i, iStr nmax) {
     if (in_str[ii] == '\0') {
       printf("get_end_quote(%s) error reached end at ii=%ld though nlen = %ld. \n",
         vstr, (long int) ii, (long int) nmax);
+    } else if (in_str[ii] == '\n') {
+      int nline = get_nlines(in_str, on_i, nmax);
+      printf("ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR\n");
+      printf("ERROR ERROR ERROR get_end_quote on json read. nline=%ld\n", (long int) nline);
+      printf("ERROR get_end_quote(%s) technically \'\\n\' should not occur but we found at ii=%ld/%ld. \n",
+        vstr, (long int) ii, (long int) nmax);
+      printf("ERROR get_end_quote(%s) on_i=%ld, sf[%d:%d] = |%.*s| \n",  vstr, (long int) on_i, (int) on_i, (int) ii, ii-on_i, in_str + on_i);
+      iStr begin_line = on_i; while((begin_line >= 1) && (in_str[begin_line-1] != '\n')) { begin_line--; }
+      iStr end_line = on_i;  while((end_line < nmax) && (in_str[end_line] != '\n')) { end_line++; }
+      printf("ERROR get_end_quote(%s), though on_i=%ld, sf[%ld:%ld] = |%.*s| for line %d. \n",
+        vstr, (long int) on_i, (long int) begin_line, (long int) end_line, end_line -begin_line, in_str + begin_line,
+        get_nlines(in_str, begin_line, nmax));
+      printf("ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR\n");
+      return(-555333);
     } else if (in_str[ii] == '\"') {
       //printf(" -- get_end_quote on ii=%ld/%ld, we find quote mark, with in_str[%d] = \'%c\'\n", ii, nmax, ii-1, in_str[ii-1]);
       if (in_str[ii-1] != '\\') { return(ii); 
@@ -547,7 +601,10 @@ int correct_brace(char *sf, iStr *p_st, iStr *p_end, iStr nmax) {
   }
   if ( (sf[p_st[0]] =='{') || (sf[p_st[0]] == '\"')) {
   } else {
-    printf("correct_brace error, sf[p_st[0]=%ld] = \'%c\', sf[o_st=%ld,end=%ld] = (\'%c\',\'%c%c\') \n",
+    printf("correct_brace() -- ERROR called with o_st=%ld/%ld, when sf[o_st=%ld:%ld]=|%.*s|.\n",
+      (long int) o_st, (long int) nmax, (long int) o_st, o_st+40 < nmax ? nmax : o_st+40, 
+      o_st+40 < nmax ? nmax-o_st : 40, sf + o_st);
+    printf("correct_brace() -- ERROR, sf[p_st[0]=%ld] = \'%c\', sf[o_st=%ld,end=%ld] = (\'%c\',\'%c%c\') \n",
       (long int) p_st[0], sf[p_st[0]], (long int) o_st, (long int) o_end, sf[o_st], sf[o_end-1], o_end < nmax ? sf[o_end] : 'X');
     return(-1);
   }
@@ -568,7 +625,12 @@ int correct_brace(char *sf, iStr *p_st, iStr *p_end, iStr nmax) {
   }
   p_end[0] = get_end_brace("correct_brace", sf, on_st, nmax);
   if (p_end[0] < 0) {
-    printf("correct_brace error, sf[p_st[0]=%ld] = \'%c\', sf[o_st=%ld,end=%ld] = (\'%c\',\'%c%c\') algthough sf[on_st=%ld]=%c we got p_end[0] = \'%ld\' \n",
+    if (p_end[0] == -55533) {
+      printf("ERROR -- now in correct_brace[o_st=%ld,nmax=%ld] we receive p_end[0]=%ld. This is a \'\n\' inside quotes error\n",
+        (long int) o_st, (long int) nmax, (long int) p_end[0]);
+      printf("ERROR -- correct_brace started on line %ld. \n", get_nlines(sf, o_st, nmax));
+    }
+    printf("correct_brace error, sf[p_st[0]=%ld] = \'%c\', sf[o_st=%ld,end=%ld] = (\'%c\',\'%c%c\') although sf[on_st=%ld]=%c we got p_end[0] = \'%ld\' \n",
       (long int) p_st[0], sf[p_st[0]], (long int) o_st, (long int) o_end, sf[o_st], sf[o_end-1], o_end < nmax ? sf[o_end] : 'X', (long int) on_st,
       sf[on_st], p_end[0]);
     return(-3);
@@ -586,13 +648,21 @@ iStr find_key(const char *seek_key, iStr len_key, char*sf, iStr st, iStr nmax, i
   if (verbose >= 3) {
     printf("find_key -- printing to stt. \n");
   }
+  if (nmax < st) {
+    printf("ERROR find_key(%.*s) we have that nmax=%ld versus st=%ld, immediate fail. \n",
+      len_key, seek_key, (long int) nmax, (long int) st);
+  }
   sprintf(stt,"find_key[%.*s,st=%ld,%ld,\'%c:%c\']::", (len_key<200?len_key:200), seek_key, (long int) st, (long int) nmax, sf[st], sf[nmax-1]);
   vpt(2, "find_key -- printed length key %ld/%ld to stt sf[st=%ld, nmax-1=%ld]=[%c,%c] \n",
       (len_key<200?len_key:200), len_key, (long int) st, (long int) nmax-1, sf[st], sf[nmax-1]);
   if (sf == NULL) { printf("%s, null string provided. \n",stt); return(-1); }
+  int old_st = st;  int old_nmax = nmax;
   int bc = correct_brace(sf, &st, &nmax, (iStr) nmax+0);
   if (bc <= 0) {
-    vpt(0, "ERROR: find key, because bc=%ld, we don't have a chance. [%ld,%ld]\n", (long int) bc, (long int) st, (long int) nmax);
+    printf("ERROR: find_key(seek_key=%.*s) propagation: error after correct_brace: old_st=%ld/%ld, sf[%ld]=\'%c\', sf[%ld:%ld]=|%.*s| \n",
+      len_key, seek_key, (long int) old_st, (long int) old_nmax, (long int) old_st, sf[old_st], (long int) old_st,
+      old_st + 40 > old_nmax ? old_nmax : old_st + 40, (old_st+40 > old_nmax ? old_nmax-old_st : 40), sf + old_st);
+    vpt(-10, "ERROR: find key, because bc=%ld, we don't have a chance. [%ld,%ld]\n", (long int) bc, (long int) st, (long int) nmax);
     return(-1);
   } 
   if (sf[nmax-1] != '}') {
@@ -617,8 +687,8 @@ iStr find_key(const char *seek_key, iStr len_key, char*sf, iStr st, iStr nmax, i
     } 
     jj = get_end_quote("find_key", sf, ii, nmax);
     if (jj < ii) { 
-        printf("find_key, on ii=%ld/%ld, sf[%ld] = '%c' we did not find end quote. \n", (long int) ii, (long int) nmax, 
-          (long int) ii, sf[ii]);  return(-1);
+        printf("find_key, on ii=%ld/%ld, sf[%ld] = '%c' we did not find end quote. Return -40303.\n", (long int) ii, (long int) nmax, 
+          (long int) ii, sf[ii]);  return(-40303);
     }
     vpt(2, "find_key: (ii=%ld/%ld) Current key goes from sf[%ld:%ld]=\"%.*s\" \n",  (long int) ii, (long int) nmax, 
          (long int) ii+1, (long int) jj, jj - ii - 1, sf + ii+1);
@@ -636,10 +706,15 @@ iStr find_key(const char *seek_key, iStr len_key, char*sf, iStr st, iStr nmax, i
     }
     next_key = get_next_key(stt, sf, ii, nmax, verbose-1);
     if ((next_key < ii) || (next_key >= nmax)) {
-       vpt(0, "ERROR:: trying to find key after ii=%ld. sf[ii=%ld:%ld] = %.*s\n",
-             (long int) ii, (long int) ii, (long int) nmax, nmax-ii, sf + ii); 
-       printf(" Note we were asked to find key \"%.*s\" inside: \n\"\"\"\n%.*s\n   \"\"\"\n",
-             len_key, seek_key, nmax-st, sf + st);
+       printf("ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR \n");
+       printf("ERROR %s trying to find key after ii=%ld. sf[ii=%ld:%ld] = %.*s\n",
+         stt, (long int) ii, (long int) ii, (long int) nmax, nmax-ii, sf + ii); 
+       iStr bgln = ii; iStr endln = ii;
+       while((bgln >= 1) && (sf[bgln-1] != '\n')) { bgln--; }
+       while((endln<nmax) && (sf[endln] != '\n')) { endln++; }
+       printf("ERROR %s, note that for ii=%ld, on line %ld, from sf[%ld:%ld] = \n|%.*s|\nERROR %s ---- \n",
+         stt, (long int) ii, get_nlines(sf, ii, nmax), (long int) bgln, (long int) endln, 
+         endln-bgln, sf + bgln, stt);
        return(-34032);
     } else if ((next_key < nmax) && (sf[next_key] == '}')) {
            vpt(1, ", At End point having run get_next_key, returned no more keys after ii=%ld. sf[%ld:%ld]=%.*s\n",
@@ -681,7 +756,7 @@ iStr get_value_bounds(char* assignment, char*sf, iStr key_loc, iStr nmax, int ve
   }
   ii = get_end_quote(assignment, sf, key_loc, nmax);
   if ((ii < 0) || (ii >= nmax)) {
-    printf("ERROR: %s, we have at get_end_quote, ii=%ld. \n", stt, (long int) ii);  return(-1);
+    printf("ERROR: %s, we have at get_end_quote returned an ii error: %ld. \n", stt, (long int) ii);  return(-403203);
   }
   if (sf[ii] != '\"') {
     printf("ERROR: get_value_bounds, after get_end_quote key_loc=%ld, sf[%ld:%ld] = |%.*s|\n",
@@ -1044,10 +1119,21 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
   if (verbose >= 1) { printf("------------------------------------------------------------------------------------\n"); }
   vpt(1, " --- Initiate. \n");
   //printf(" --- HERE is sf: \n%.*s\n\n\n", nmax-on_i, sf + on_i);
+  //
+  if (nmax < 0) {
+    printf("get_config_file() ERROR ERROR ERROR, nmax=%ld, on_i=%ld, no end to read sf, mush be broken! \n",
+      (long int) nmax, (long int) on_i);
+    return(NULL);
+  }
   int n_schemas = get_n_schema("get_config_file", sf, 0, nmax, 0);
   //printf(" --- HERE after get_n_Schema sf: \n%.*s\n\n\n", nmax-on_i, sf + on_i);
   vpt(1, " --- We received n_schemas = %ld. \n", n_schemas);
   if (n_schemas <= 0) {
+    printf("ERROR ERROR: get_config_file(on_i=%ld/%ld):  Initial read, get n_schemas=%ld. \n",
+      (long int) on_i, (long int) nmax, (long int) n_schemas);
+    printf("ERROR: on_i=%ld, sf[%ld:%ld] = |%.*s| ERROR get_config_file.\n",
+      (long int) on_i, (long int) on_i, (long int) on_i + 40 ? nmax : on_i+40,
+      (on_i + 40 ? nmax - on_i : 40), sf + on_i);
     printf("get_config_file: ERROR no schema, no config file. \n"); return(NULL);
   }
   if ((sf[on_i] == ' ') ||  (sf[on_i] == '\n') || (sf[on_i] == '\t')) {
@@ -1438,12 +1524,15 @@ int copy_in_val_str( char* assignment, char* sf, iStr ikey, iStr nmax, int verbo
   return(-6);
 }
 int get_n_schema(char *assignment, char *sf, iStr on_i, iStr nmax, int verbose) {
-  const char stt[] = "get_n_schemas";
+  const char stt[] = "get_n_schema()";
   if (sf == NULL) { 
-    printf("ERROR get_n_schemas, null string provided\n"); return(-1);
+    printf("ERROR get_n_schema(), null string provided\n"); return(-1);
   }
   iStr ii = on_i;
-
+  if (nmax < on_i) {
+    printf("get_n_schema(assignment=%s) immediate error, nmax=%ld versus on_i=%ld. \n",
+      assignment, (long int) nmax, (long int) on_i);
+  }
   int end_str = 0;
   iStr loc_schemas = -1;
   iStr start_schemas = -1;
@@ -1458,6 +1547,7 @@ int get_n_schema(char *assignment, char *sf, iStr on_i, iStr nmax, int verbose) 
   }
   ii = find_key("schema", 6, sf, ii, nmax, verbose-1);  loc_schemas = ii;  iStr st = loc_schemas;
   if ((ii < 0) || (ii >= nmax) || (sf[ii] == '}')) {
+    printf(" ERROR get_n_schema(), assignment = %s, We were looking for key \"schema\" but failed. \n", assignment);
     vpt(0, " ERROR - failed to find key \"schema\". ii=%ld/%ld. \n", (long int) ii, (long int) nmax);
     return(0);
   }
