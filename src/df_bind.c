@@ -432,15 +432,22 @@ void duckfix_bind(duckdb_bind_info b_info) {
     duckdb_bind_set_error(b_info, "ERROR in BIND: dfl->finish generated error.\n");  
     return;
   }
+  df_bind_data *df_bd = NULL;
   if (dfl->num_unknown > 0) {
+    printf("%s: We have dfl->num_unknown=%ld.  We will report what you need to populate for error case . \n", stt, dfl->num_unknown);
     vpt(0, "ERROR Reading file received %ld unknown fix fields please address.  File \"%s\" and json file \"%s\"\n",
       (long int) dfl->num_unknown, file_name, json_file_name);  
     PRINT_dfl(dfl);
-    vpt(0, " ERROR received %ld unknown fields now freeing all data and quitting. \n", (long int) dfl->num_unknown);
-    my_clear();
-    //duckdb_free(file_name); duckdb_free(json_file_name);
-    //delete_config_file(&dfc, verbose);   delete_field_list(&dfl, verbose);
-    duckdb_bind_set_error(b_info, "ERROR in BIND: I believe we found an invalid field list.\n");  
+    vpt(0, " ALTERNATIVE TO ERROR: We are initiating the df_bind_error_case for %ld unknown. \n", (long int) dfl->num_unknown);
+    df_bd = df_bind_error_case(b_info, verbose, ll_file_name, len_file_name, 
+      ll_json_file_name, len_json_file_name,dfc, dfl);
+    if (df_bd == NULL) {
+      my_clear();
+      duckdb_bind_set_error(b_info, "ERROR in BIND cerating error set, will still fail.\n");  
+    }
+    duckdb_bind_set_bind_data(b_info, df_bd, destroy_df_bind_data);
+    my_dbv_clear();
+    vpt(0, "ERROR: WE HAVE INITIATED and are returning ready to try alternative case. \n");
     return;
   }
   if (verbose >= 2) {
@@ -488,7 +495,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
   return;
   */
   vpt(1, " Constructing df_bind_data object: df_bd\n");
-  df_bind_data *df_bd = NULL;
+  df_bd = NULL;
   df_bd = create_null_bind_data();
   if (df_bd == NULL) {
     vpt(-100, " Error, df_bind_data was allocated but returned NULL. \n");
@@ -688,3 +695,36 @@ void duckfix_bind(duckdb_bind_info b_info) {
   return;
 }  
 
+df_bind_data *df_bind_error_case(duckdb_bind_info b_info, int verbose, char* ll_file_name, int len_file_name, 
+  char* ll_json_file_name, int len_json_file_name,
+  DF_config_file *dfc, DF_field_list *dfl) {
+  char stt[600];
+  sprintf(stt, "df_bind_error_case(v=%d,fn=%.*s,jfn=%.*s,nu=%ld):",
+    (int) verbose, len_file_name < 20 ? len_file_name : 20,
+    ll_file_name + (len_file_name < 20 ? 0 : len_file_name-20),
+    len_json_file_name < 20 ? len_json_file_name : 20,
+    ll_json_file_name + (len_json_file_name < 20 ? 0 : len_json_file_name-20),
+    dfl->num_unknown); 
+  vpt(1, " Constructing df_bind_data object: df_bd\n");
+  df_bind_data *df_bd = NULL;
+  df_bd = create_null_bind_data();
+  if (df_bd == NULL) {
+    vpt(-100, " Error, df_bind_data was allocated but returned NULL. \n");
+    duckdb_bind_set_error(b_info, " ERROR df_bd not allocated. \n"); return(NULL);
+  }
+  df_bd->verbose = verbose;
+  df_bd->dfl = dfl; df_bd->dfc = dfc;
+  df_bd->start_byte = 0; df_bd->end_byte = -1;
+  df_bd->keep_line_text=NULL; df_bd->ignore_line_text=NULL;
+  vpt(1, "%s: duckdb_bind_set_cardinality to b_info. Columns=%d \n", stt, (int) dfc->n_total_multiplicity_columns);
+  duckdb_bind_set_cardinality(b_info, (idx_t) 4, 1);
+  duckdb_logical_type on_type;
+  on_type = duckdb_create_logical_type(WHAT_DDB_TYPE(i64));
+
+  duckdb_bind_add_result_column(b_info, "unknown_field_num", on_type);
+  duckdb_bind_add_result_column(b_info, "usage_count", on_type);
+  duckdb_bind_add_result_column(b_info, "multiplicity", on_type);
+  duckdb_bind_add_result_column(b_info, "first_line_num", on_type);
+  duckdb_destroy_logical_type(&on_type);
+  return(df_bd);
+}

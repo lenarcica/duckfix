@@ -1514,6 +1514,56 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
   #endif
   return(1);
 }
+
+void duckfix_main_table_function_error_case(df_init_data *df_id, duckdb_data_chunk out_chunk) {
+  char stt[500];
+  sprintf(stt, "df_mt_ec(%ld,on_chunk %ld): ",  df_id->dfl->num_unknown, df_id->on_chunk);
+  int verbose = df_id->verbose;
+  vpt(1, " Init error print. \n");
+
+  if ((df_id->on_overall_line >= df_id->dfl->n_total_lines) || (df_id->DONE > 0)) {
+    duckdb_data_chunk_set_size(out_chunk,0);
+    df_id->DONE = 1;
+    return;
+  }
+  df_id->on_chunk_line = 0;
+  DF_field_list *dfl = df_id->dfl;
+  //int *ordered_unknown_fields;
+  //int *unknown_usage_count;
+  //int *unknown_multiplicity;
+  //int *line_unknown;  
+  void *vddbv;
+  for (df_id->on_chunk_line = 0; df_id->on_chunk_line < dfl->standard_vector_size; df_id->on_chunk_line++) {
+    duckdb_vector ddbv0 = duckdb_data_chunk_get_vector(out_chunk, 0);
+    vddbv = (void *)duckdb_vector_get_data(ddbv0);  
+    *(((int64_t *) vddbv) + df_id->on_chunk_line) = (int64_t) dfl->ordered_unknown_fields[df_id->on_overall_line];
+
+    duckdb_vector ddbv1 = duckdb_data_chunk_get_vector(out_chunk, 1);
+    vddbv = (void *)duckdb_vector_get_data(ddbv1);  
+    *(((int64_t *) vddbv) + df_id->on_chunk_line) = (int64_t) dfl->unknown_usage_count[df_id->on_overall_line];
+
+
+    duckdb_vector ddbv2 = duckdb_data_chunk_get_vector(out_chunk, 2);
+    vddbv = (void *)duckdb_vector_get_data(ddbv2);  
+    *(((int64_t *) vddbv) + df_id->on_chunk_line) = (int64_t) dfl->unknown_multiplicity[df_id->on_overall_line];
+
+    duckdb_vector ddbv3 = duckdb_data_chunk_get_vector(out_chunk, 3);
+    vddbv = (void *)duckdb_vector_get_data(ddbv3);  
+    *(((int64_t *) vddbv) + df_id->on_chunk_line) = (int64_t) dfl->line_unknown[df_id->on_overall_line];
+
+    df_id->on_overall_line++;
+    if (df_id->on_overall_line >= dfl->num_unknown) {
+      vpt(1, " --- Done printing.\n");
+      df_id->on_chunk_line++;
+      df_id->DONE=1;
+      duckdb_data_chunk_set_size(out_chunk, df_id->on_chunk_line); return;
+    } 
+  }
+  vpt(1, " --- We have done loop, will still need to go from %ld to %ld. \n",
+    df_id->on_overall_line,  dfl->num_unknown);
+  duckdb_data_chunk_set_size(out_chunk, df_id->on_chunk_line);
+  return;
+}
 void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk out_chunk) {
   df_init_data *df_id = (df_init_data *)duckdb_function_get_init_data((duckdb_function_info) df_info);
   df_bind_data *df_bd = (df_bind_data *)duckdb_function_get_bind_data((duckdb_function_info) df_info);
@@ -1547,6 +1597,15 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
   #endif
   iStr iLineEnd;
   df_id->on_chunk_line = 0;
+
+  // PRINTING ERROR case
+  if (dfl->num_unknown > 0) {
+    if (df_id->DONE == 0) {
+      duckfix_main_table_function_error_case(df_id,out_chunk); return;
+    } else {
+      duckdb_data_chunk_set_size(out_chunk, 0); return;
+    }
+  }
   //printf("At beginning of duckfix_main_table_function: verbose = %d. \n", (int) verbose);
   //duckdb_function_set_error(df_info, "Quit Early from function. \n");
   //return;

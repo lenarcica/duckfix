@@ -150,12 +150,23 @@ void duckfix_init(duckdb_init_info i_info) {
   df_id->ignore_line_text = df_bd->ignore_line_text;
   df_id->keep_line_text = df_id->keep_line_text;
   int len_fn = (df_bd->file_name == NULL) ? 0 : (strlen(df_bd->file_name) <= 0 ? 0 : strlen(df_bd->file_name) +1);
+
+
+  if (df_bd->dfl->num_unknown > 0) {
+    vpt(0, "ERROR Case, we are inside init, we will populate a table designed for %ld unknown entries.\n",
+      (long int) df_bd->dfl->num_unknown);
+    df_id->on_overall_line = 0;  df_id->file_name = NULL;
+    duckdb_init_set_init_data(i_info, df_id, destroy_df_init_data);
+    return; 
+  }
   if (len_fn <= 0) {
     vpt(-1, "ERROR, df_bd did not have non-null filename. \n");  duckdb_init_set_error(i_info, " No file_name supplied from bind to init");
     vpt(-1, " What do we do with these errors? manually destroying data we created (but didn't attach yet!)\n ");
     destroy_df_init_data((void*) df_id);
     return;
   } 
+
+  
   vpt(2, " We have len_fn = %ld, for filename = \"%s\"\n", (long int) len_fn, df_bd->file_name);
   df_id->file_name = (char*) malloc(sizeof(char)*(len_fn+1));
   if (df_id->file_name == NULL) { duckdb_init_set_error(i_info, " FAILED to allocate space for file_name. \n");

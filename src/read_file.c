@@ -297,9 +297,11 @@ int add_to_field_list(DF_field_list *dfl, int num, int iline, int verbose, int m
     printf("NEW VALUE and we have more value! [%ld] - (num unknown =%ld) ---------------------------------------------------\n", (long int) num,
       (long int) dfl->num_unknown);
    }
-
-   printf(" --- About to insert into ordered_unknown_fields length num_unknown=%ld, alloc_unknown=%ld. \n",
-     (long int) dfl->num_unknown, (long int) dfl->alloc_unknown);
+  
+   if (verbose >= 2) {
+     printf(" --- About to insert into ordered_unknown_fields length num_unknown=%ld, alloc_unknown=%ld. \n",
+       (long int) dfl->num_unknown, (long int) dfl->alloc_unknown);
+   }
    /***************
    int sort_errors = 0;
    for (int ii = 0; ii < dfl->num_unknown -1; ii++) {
@@ -825,7 +827,9 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
     #ifdef DEBUG_MODE
     int find_first_endl = 0;  while((find_first_endl < new_bytes + remainder) && (buffer[find_first_endl] != '\n')) { find_first_endl++; }
     if (find_first_endl >= new_bytes + remainder) {
-        vpt(-100, " ERROR: find_first_endl didn't find anything on %ld bytes read. \n", new_bytes);
+        vpt(-100, " ERROR: DEBUG MODE hoping to jump to end: find_first_endl didn't find anything on %ld bytes read. \n", new_bytes);
+        printf("BUFFER ADD = |%.*s|\n",  new_bytes, buffer+remainder);
+        printf("BUFFER REM = |%.*s|\n",  remainder, buffer);
     } 
     if (verbose >= 2) {
       if (find_first_endl < new_bytes+remainder) {
