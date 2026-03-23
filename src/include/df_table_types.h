@@ -139,7 +139,9 @@ typedef struct _df_bind_data {
 void destroy_df_extra_info(void *v_df_xi);
 void destroy_df_bind_data(void *v_df_bd);
 void duckfix_bind(duckdb_bind_info b_info);
-
+df_bind_data *df_bind_error_case(duckdb_bind_info b_info, int verbose, char* ll_file_name, int len_file_name, 
+  char* ll_json_file_name, int len_json_file_name,
+  DF_config_file *dfc, DF_field_list *dfl);
 // In df_init.c
 void destroy_df_init_data(void *v_df_id);
 void duckfix_init(duckdb_init_info i_info);

@@ -496,11 +496,14 @@ ii++
      vpt(2, ":  Looking for %.*s value bounds, pl=%ld. \n", seek_str_l, seek_str, (long int) i_loc);       \
      st0 = get_value_bounds("get_config_file", sf, i_loc, nmax, verbose-2, &st0, &end0);                   \
      if ((st0 <= 0) || (st0 <= seek_b) || (st0 >= nmax)) {                                                 \
+        printf("ERROR: df_general.h->SchemaSeeker_START() \n");                                            \
         vpt(-10, "ERROR we had i_loc=%ld for location of %.*s.  But st0,end0=[%ld,%ld].  "                 \
-            "  Note sf[%ld:%ld] = \"%.*s\".   ",                                                           \
+            "  Note sf[%ld:%ld] = \"%.*s\".   \n",                                                         \
            (long int) i_loc, seek_str_l, seek_str,  (long int) st0, (long int) end0,                       \
            (long int) i_loc, (long int) (i_loc+30 < nmax ? i_loc+30 : nmax),                               \
            (long int) (i_loc+30 < nmax ? i_loc + 30 : nmax) - i_loc, sf + i_loc);                          \
+        printf(" ---- Error seek_str_l = %ld, seek_str=%.*s, i_loc=%ld \n",                                \
+                (long int) seek_str_l, seek_str_l, seek_str, (long int) i_loc);                            \
         delete_config_file(&dfc, 5); return(NULL);                                                         \
      }                                                                                                     \
      st0 = ((sf[st0] == '\"') || (sf[st0] == '{') || (sf[st0] == '[')) ? st0+1 : st0;                      \
@@ -533,11 +536,14 @@ ii++
      vpt(2, ":  Looking for %.*s value bounds, pl=%ld. \n", seek_str_l, seek_str, (long int) i_loc);       \
      st0 = get_value_bounds("get_config_file", sf, i_loc, nmax, verbose-2, &st0, &end0);                   \
      if ((st0 <= 0) || (st0 <= seek_b) || (st0 >= nmax)) {                                                 \
+        printf("ERROR df_general.h->FieldSeeker_START()  seek_str=|%.*s|. \n", seek_str_l, seek_str);      \
         vpt(-10, "ERROR we had i_loc=%ld for location of %.*s.  But st0,end0=[%ld,%ld].  "                 \
-            "  Note sf[%ld:%ld] = \"%.*s\".   ",                                                           \
+            "  Note sf[%ld:%ld] = \"%.*s\".   \n",                                                         \
            (long int) i_loc, seek_str_l, seek_str,  (long int) st0, (long int) end0,                       \
            (long int) i_loc, (long int) (i_loc+30 < nmax ? i_loc+30 : nmax),                               \
            (long int) (i_loc+30 < nmax ? i_loc + 30 : nmax) - i_loc, sf + i_loc);                          \
+        printf("   ---- Error note that seek_str_l was %d for seek_str=|%.*s|, i_loc=%ld. \n",             \
+            (long int) seek_str_l, seek_str_l, seek_str, (long int) i_loc);                                \
         return(-30430);                                                                                    \
      }                                                                                                     \
      st0 = ((sf[st0] == '\"') || (sf[st0] == '{') || (sf[st0] == '[')) ? st0+1 : st0;                      \
