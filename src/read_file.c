@@ -416,7 +416,7 @@ int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld
     end_fld - st_fld - 1, sf + st_fld);
   iStr iKey = 0; int cnt_keys = 0;
   iKey = get_first_key("update_field_list_on_field", sf, st_fld, end_fld, verbose-1); 
-  int num = 0;  int update_code;  int nKeys = 0; int nEntry = 1;
+  int aFixNum = 0;  int update_code;  int nKeys = 0; int nEntry = 1;
 
   while((iKey > 0) && (iKey <= end_fld) && (sf[iKey] != '}')) {
     if (sf[iKey] != '\"') { vpt(0, "ERROR, iKey=%ld/%ld between [%ld,%ld], cnt_keys=%ld.  We are at sf[%ld]=\'%c\'\n",
@@ -436,30 +436,31 @@ int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld
         (long int) iKey, (long int) end_fld, (long int) endq, (long int) st_fld, (long int) end_fld, (long int) cnt_keys,
         (long int) iKey, (long int) endq, (endq > iKey) ? endq-iKey-1 : 5, (endq > iKey) ? sf + iKey+1 : "None\0" );  return(-303030); 
     }
-    sf[endq] = '\0'; num = atoi(sf + iKey+1); sf[endq] = '\"';
-    if (num <= 0) {
-      vpt(0, "ERROR num picked out was %ld for sf[%ld:%ld] = \"%.*s\" \n", (long int) num, iKey+1, endq,
+    char dmmy = sf[endq];
+    sf[endq] = '\0'; aFixNum = atoi(sf + iKey+1); sf[endq] = dmmy;
+    if (aFixNum <= 0) {
+      vpt(0, "ERROR aFixNum picked out was %ld for sf[%ld:%ld] = \"%.*s\" \n", (long int) aFixNum, iKey+1, endq,
           endq - iKey-1, sf + iKey+1);   return(-103);
     }
-    vpt(2, " on iKey=%ld, we determined num=%ld.  Add to field list. \n", (long int) iKey, (long int) num);
+    vpt(2, " on iKey=%ld, we determined aFixNum=%ld.  Add to field list. \n", (long int) iKey, (long int) aFixNum);
 
     iStr st_v, end_v;  st_v = get_value_bounds(stt, sf, iKey, end_fld, verbose-1, &st_v, &end_v);
     if ((st_v < 0) || (st_v >= end_fld)) {
-      vpt(-1030, " ERROR we were update_field_list_on_field[num=%ld] but received st_v=%ld on a value bounds assessment. iKey=%ld/%ld.\n",
-        (long int) num, (long int) st_v, (long int) iKey, end_fld);  return(-4032);
+      vpt(-1030, " ERROR we were update_field_list_on_field[aFixNum=%ld] but received st_v=%ld on a value bounds assessment. iKey=%ld/%ld.\n",
+        (long int) aFixNum, (long int) st_v, (long int) iKey, end_fld);  return(-4032);
     }
     nEntry = 1;
-    if (IsMultiFix((num))) {
+    if (IsMultiFix((aFixNum))) {
       for (iStr ii = st_v; ii < end_v; ii++) {
         if ((sf[ii] == dfc->general_sep) || (sf[ii] == ' ')){nEntry++;}  // Count unique entries
       }
       vpt(-10, " --- NOTE WE did an 18 update_field_list_on_filed: nEntry = %ld for sf[%ld:%ld] = |%.*s|\n",
         (long int) nEntry, (long int) st_v, (long int) end_v, end_v-st_v, sf + st_v);
     } 
-    update_code = add_to_field_list(dfl, num, iline, verbose-2, nEntry);
+    update_code = add_to_field_list(dfl, aFixNum, iline, verbose-2, nEntry);
     nKeys++;
-    if (update_code < 0) {  vpt(0, "ERROR, update_code=%d for adding num=%ld?  Why ? \n", (long int) update_code, (long int) num); return(-1); }
-    if (update_code != 1) { vpt(1, "Note  we received an update_code of %ld for num=%ld. \n", (long int) update_code, (long int) num); }
+    if (update_code < 0) {  vpt(0, "ERROR, update_code=%d for adding aFixNum=%ld?  Why ? \n", (long int) update_code, (long int) aFixNum); return(-1); }
+    if (update_code != 1) { vpt(1, "Note  we received an update_code of %ld for aFixNum=%ld. \n", (long int) update_code, (long int) aFixNum); }
     iKey = get_next_key("update_field_list_on_field", sf, iKey, end_fld, verbose-2);  nKeys++;
   }
   if (verbose >=3 ) {
