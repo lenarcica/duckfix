@@ -362,7 +362,7 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
           stVal = ii;  NEXTCHARSEP();  
           if ((ii < fixfieldsEnd) && (ii > 0) && (sf[ii] != on_char_sep) && (sf[ii-1] == on_char_sep)) { ii--; }
           if (ii > fixfieldsEnd) { ii=fixfieldsEnd; }
-          endVal = ii;
+          endVal = ii;  endVal =  IsNewLineChar(sf[endVal-1]) ? endVal-1 : endVal;  endVal = IsNewLineChar(sf[endVal-1]) ? endVal-1 : endVal;
         }
         nmultiplicity=1;
       }
@@ -751,6 +751,7 @@ int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iS
   #endif
   DF_field_list *dfl = df_id->dfl;  
   DF_config_file *dfc = df_id->dfc;
+  if ((valEnd-1 > valStart) && (IsNewLineChar(sf[valEnd-1]))) { valEnd-=1; }
   vpt(2, " -- initiate fixField=%ld, sf[%ld:%ld] val =\"%.*s\", searching for prop_known_loc in %ld known fields:%s\n",
     (long int) fixField, (long int) valStart, (long int) valEnd, valEnd-valStart, sf + valStart,
     (long int) dfl->n_known_fields,
@@ -928,7 +929,8 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
   DF_config_file *dfc = df_id->dfc;
   int HH,MM,SS,FF;
   if (sf[valStart] == '\"') { valStart++; }
-  if ((sf[valEnd] == '\"') || (sf[valEnd] == '}') || (sf[valEnd] == ',') || (sf[valEnd]==' ') || (sf[valEnd]==']') || (sf[valEnd]=='\n')) {
+  if ((valEnd-1 > valStart) && (sf[valEnd-1] == '\r')) { valEnd--; }
+  if ((sf[valEnd] == '\"') || (sf[valEnd] == '}') || (sf[valEnd] == ',') || (sf[valEnd]==' ') || (sf[valEnd]==']') || (IsNewLineChar(sf[valEnd]))) {
      vL = valEnd - valStart;
   } else {
      vL = valEnd - valStart + 1;
@@ -1038,7 +1040,7 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
       vpt(3, " -- we have vL=%ld, assigning a string element (-%ld) to ddbv for on_chunk_line=%ld, value sf[%ld:%ld] = \"%.*s\". \n",
         (long int) vL,  (long int) width, (long int) on_chunk_line, (long int) valStart, (long int) valStart + vL, vL, sf + valStart);
       #endif
-      duckdb_vector_assign_string_element_len(ddbv, on_chunk_line, sf +valStart + scale, (vL-width-scale >= 0) ? vL-width-scale : vL);  
+      duckdb_vector_assign_string_element_len(ddbv, on_chunk_line, sf +valStart + scale, (vL-(width+scale) >= 0) ? vL-(width+scale) : vL);  
       break;
     case enum_date:
       memcpy(df_id->int_scratch, sf+valStart,4); df_id->int_scratch[4] = '\0';
@@ -1927,7 +1929,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
       printf("-------------------------------------------------------------------------------------\n");
       return;
       }
-      if (IsNewLineChar(df_id->buffer + df_id->remainder + new_bytes-1)) {
+      if (df_id->buffer[df_id->remainder + new_bytes-1] == '\r') {
          fread(df_id->buffer + df_id->remainder + new_bytes, sizeof(char),1,df_id->fpo); new_bytes++;
       }
       df_id->bytesread = new_bytes + df_id->remainder;
