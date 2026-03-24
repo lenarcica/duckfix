@@ -34,37 +34,10 @@
 
 
 #ifndef PUSH_TO_CHAR_WO
-#if defined(_WIN32) || defined(_WIN64)
 #define PUSH_TO_CHAR_WO(sx,cx) \
   for(;ii < nmax;ii++) {                                               \
-    if ((sf[ii] == ' ') || (sf[ii] == '\t') || (sf[ii] == '\n')) {     \
-    } else if (sf[ii] == (cx)) {                                       \
-      break;                                                                 \
-    } else {                                                           \
-      printf("ERROR(%s--%s) ", (char*) sx, (char*) stt);               \
-      printf("sf[ii=%ld]=", (long int) ii);                            \
-      printf("\'%c\'", (char) (sf[ii]));                               \
-      printf(" invalid here.   ");                                     \
-      printf("sf[%ld:%ld]=", (long int) st, (long int) ii+1);          \
-      printf("\"%*.s\".", (long int) ii+1-st, sf + st);                \
-      return(-1);                                                      \
-    }                                                                  \
-  }                                                                    \
-  ii += 0 
-#define PUSH_TO_CHAR(cx) \
-  for(;ii < nmax;ii++) {                                               \
-    if ((sf[ii] == ' ') || (sf[ii] == '\t') || (sf[ii] == '\n')) {     \
-    } else if (sf[ii] == (cx)) {                                       \
-      break;                                                           \
-    } else {                                                           \
-    }                                                                  \
-  }                                                                    \
-  ii += 0 
-#else
-#define PUSH_TO_CHAR_WO(sx,cx) \
-  for(;ii < nmax;ii++) {                                               \
-    if ((sf[ii] == ' ') || (sf[ii] == '\t') ||                         \
-        (sf[ii] == '\n') || (sf[ii] == '\r')) {                        \
+    if ((sf[ii] == ' ') || (sf[ii] == '\t')) {                         \
+    } else if (IsNewLineChar(sf[ii])) {                                \
     } else if (sf[ii] == (cx)) {                                       \
       break;                                                           \
     } else {                                                           \
@@ -80,15 +53,14 @@
   ii += 0 
 #define PUSH_TO_CHAR(cx) \
   for(;ii < nmax;ii++) {                                               \
-    if ((sf[ii] == ' ') || (sf[ii] == '\t') ||                         \
-        (sf[ii] == '\r') || (sf[ii] == '\n')) {                        \
+    if ((sf[ii] == ' ') || (sf[ii] == '\t')) {                         \
+    } else if (IsNewLineChar(sf[ii])) {                                \
     } else if (sf[ii] == (cx)) {                                       \
       break;                                                           \
     } else {                                                           \
     }                                                                  \
   }                                                                    \
   ii += 0 
-#endif
 #endif
 
 int delete_DF_Schema(DF_Schema *dfs, int verbose);
