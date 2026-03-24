@@ -424,9 +424,17 @@ int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld
       (long int) iKey, sf[iKey]);  return(-1); 
     }
     iStr endq = get_end_quote("update_field_list_kn_field", sf, iKey, end_fld);
-    if ((endq < 0) || (sf[endq] != '\"')) { vpt(0, "ERROR, iKey=%ld/%ld, endq=%ld between [%ld,%ld], cnt_keys=%ld.  We are at sf[%ld:%ld]=\"%.*s\"\n",
-      (long int) iKey, (long int) end_fld, (long int) endq, (long int) st_fld, (long int) end_fld, (long int) cnt_keys,
-      (long int) iKey, (long int) endq, (endq > iKey) ? endq-iKey-1 : 5, (endq > iKey) ? sf + iKey+1 : "None\0" );  return(-1); 
+    if ((endq < 0) || (sf[endq] != '\"')) { 
+      printf("ERROR update_field_list_on_field we got endq bad for get_end_quote(). \n");
+      printf("ERROR iline=%ld, onfield=%ld, st_fld=%ld, end_fld=%ld. \n", (long int) iline, (long int) onfield, (long int) st_fld, (long int) end_fld); 
+      iStr stl_0 = iKey; while((stl_0 >= 1) && (!IsNewLineChar(sf[stl_0-1]))) { stl_0--; }
+      iStr endl_0 = stl_0;  while((sf[endl_0+1] != '\0') && (!IsNewLineChar(sf[endl_0]))) { endl_0++; }
+      printf("ERROR %s we have iKey=%ld, iline=%ld but line=%ld and sf[stl_0=%ld:%ld] = \n|%.*s|\n --- Okay? \n",
+        stt, (long int) iKey, (long int) iline, (long int) get_nlines(sf, iKey, end_fld), (long int) stl_0, 
+        (long int) endl_0, endl_0-stl_0, sf + stl_0);
+      vpt(-203, "ERROR, iKey=%ld/%ld, endq=%ld between [%ld,%ld], cnt_keys=%ld.  We are at sf[%ld:%ld]=\"%.*s\"\n",
+        (long int) iKey, (long int) end_fld, (long int) endq, (long int) st_fld, (long int) end_fld, (long int) cnt_keys,
+        (long int) iKey, (long int) endq, (endq > iKey) ? endq-iKey-1 : 5, (endq > iKey) ? sf + iKey+1 : "None\0" );  return(-303030); 
     }
     sf[endq] = '\0'; num = atoi(sf + iKey+1); sf[endq] = '\"';
     if (num <= 0) {
