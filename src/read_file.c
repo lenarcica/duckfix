@@ -475,7 +475,8 @@ int get_multi_equals_bounds(char *sf, iStr st_eq, iStr nlen, iStr*p_st_v, iStr*p
  // Note technically, all multi entries should be single character.
  iStr onst = st_eq;  p_end_v[0] = st_eq; p_st_v[0] = st_eq;
 
- if ((nlen -2 > st_eq) && (IsNewLineChar( sf[nlen-2] ))) { nlen-=2;
+ if (sf[nlen] == '}') {
+ } else if ((nlen -2 > st_eq) && (IsNewLineChar( sf[nlen-2] ))) { nlen-=2;
  } else if ((nlen-1 > st_eq) && (IsNewLineChar( sf[nlen-1] ))) { nlen-=1;
  }
  if (sf[onst] == on_eq) {
@@ -767,10 +768,10 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
     while (onstr < bytesread) {
       vpt(3, " on iline=%ld, onstr=%ld/%ld, tbytesread=%ld, \"%.*s...\"\n",
         (long int) dfl->n_total_lines, (long int) onstr, (long int) bytesread,  (long int) tbytesread, 30, buffer + onstr);
-      while ((onstr < bytesread) && (buffer[onstr] == '\n')) {onstr++; }
+      while ((onstr < bytesread) && (IsNewLineChar(buffer[onstr] == '\n'))) {onstr++; }
       iStr iLineEnd = get_next_newln(buffer, onstr, bytesread, verbose-2); 
       if ((iLineEnd < onstr) || (iLineEnd >= bytesread))  { break; }
-      if (buffer[iLineEnd] != '\n') { printf("generate_file_list, iLineEnd=%ld, but buffer[%ld]=\'%c\' ? \n",
+      if (!IsNewLineChar(buffer[iLineEnd])) { printf("generate_file_list, iLineEnd=%ld, but buffer[%ld]=\'%c\' ? \n",
                                       (long int) iLineEnd, (long int) iLineEnd, buffer[iLineEnd]);  }
       if (dfl->n_loc_lines >= dfl->alloc_line_loc - 3) {
          dfl->line_locs = realloc(dfl->line_locs, dfl->alloc_line_loc*2);

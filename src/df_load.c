@@ -457,7 +457,7 @@ int get_next_comma(char* assignment, char *sf, iStr on_i, iStr nmax) {
       printf("%s:: PUSH_OUT_WHITE ERROR on_i=%ld, sf[on_i=%ld:%ld/%ld] = \"%.*s\" \n", 
         stt, (long int) on_i, (long int) on_i, (long int) nmax, (long int) nmax, nmax-on_i, sf + on_i);
       return(-2);
-    } else if ((sf[ii] == ' ')  || (sf[ii] == '\t') || (sf[ii] == '\n')) {
+    } else if ((sf[ii] == ' ')  || (sf[ii] == '\t') || (IsNewLineChar(sf[ii]))) {
       printf("%s:: PUSH_OUT_WHITE ERROR on_i=%ld, sf[on_i=%ld:%ld] = \"%.*s\" \n", 
         stt, (long int) on_i, (long int) on_i, (long int) ii, ii+1-on_i, sf + on_i);
       return(-2);
@@ -488,7 +488,7 @@ int get_next_array_value(char *assignment, char*sf, iStr on_i, iStr nmax, DF_Jso
   iStr ii;
   int cnt_comma = 0;
   for (ii = on_i; ii < nmax; ii++) {
-    if ((sf[ii] == ' ') || (sf[ii] == '\t') || (sf[ii] == '\n')) {
+    if ((sf[ii] == ' ') || (sf[ii] == '\t') || (IsNewLineChar(sf[ii]))) {
     } else if (sf[ii] == ',') {
       if (cnt_comma >= 1) {
         printf("ERROR: %s, we had too many commas in a row after on_i=%ld \n", assignment, (long int) on_i);
@@ -517,7 +517,7 @@ iStr get_end_number(char *prstr, char* sf, iStr on_i, iStr nmax) {
   }
   int nDot = sf[on_i] == '.' ? 1 : 0;  iStr ii;
   for (ii = on_i+1; ii < nmax; ii++) {
-    if ((sf[ii] == '\n') || (sf[ii] == ' ') || (sf[ii] == '\t')) {
+    if ((IsNewLineChar(sf[ii])) || (sf[ii] == ' ') || (sf[ii] == '\t')) {
       return(ii);
     } else if ((sf[ii] == ',') || (sf[ii] == ']') || (sf[ii] == '}')) {
       return(ii);
@@ -543,7 +543,7 @@ int get_dict_next_value(char *assignment, char *sf, iStr on_i,
   int cnt_comma = 0;
   p_st[0] = -1; p_end[0] = -1;
   for (ii = on_i; ii < nmax; ii++) {
-    if ((sf[ii] == ' ') || (sf[ii] == '\t') || (sf[ii] == '\n')) {
+    if ((sf[ii] == ' ') || (sf[ii] == '\t') || (IsNewLineChar(sf[ii]))) {
     } else if (sf[ii] == '\"') { break; 
     } else if (sf[ii] == ',') {
       if (cnt_comma >= 1) {
@@ -570,8 +570,7 @@ int get_dict_next_value(char *assignment, char *sf, iStr on_i,
   }
   p_st[0] = -1; p_end[0] = -1;
   for (ii = end_key + 1; ii < nmax; ii++) {
-    if ((sf[ii] == ' ') || (sf[ii] == '\t') || (sf[ii] == '\n')) {
-      
+    if ((sf[ii] == ' ') || (sf[ii] == '\t') || (IsNewLineChar(sf[ii]))) {
     } else if (sf[ii] == ':') {
       break;
     } else {
@@ -580,7 +579,7 @@ int get_dict_next_value(char *assignment, char *sf, iStr on_i,
     }
   }
   for (;ii < nmax;ii++) {
-    if ((sf[ii] == ' ') || (sf[ii] == '\t') || (sf[ii] == '\n')) {
+    if ((sf[ii] == ' ') || (sf[ii] == '\t') || (IsNewLineChar(sf[ii]))) {
 
     } else if (sf[ii] == '[') {
       p_st[0] = ii; pjtype[0] = JSON_TYPE_ARRAY;
@@ -623,7 +622,7 @@ int correct_brace(char *sf, iStr *p_st, iStr *p_end, iStr nmax) {
   if ( ((sf[p_st[0]] == '{')||(sf[p_st[0]] == '\"')) && (sf[p_end[0]-1] == '}')) { return(1); }
   iStr o_st = p_st[0]; iStr o_end = p_end[0];
   if ((sf[nmax-1] != '\0') && (sf[nmax] != '\0')) { nmax++; } // Safe to move up if we aren't on end char yet of sf.
-  while ( (p_st[0] < p_end[0]) && ((sf[p_st[0]] == ' ') || (sf[p_st[0]] == '\t') || (sf[p_st[0]] == '\n')) ) {
+  while ( (p_st[0] < p_end[0]) && ((sf[p_st[0]] == ' ') || (sf[p_st[0]] == '\t') || (IsNewLineChar(sf[p_st[0]])) )) {
     p_st[0]++;
   }
   if ( (sf[p_st[0]] =='{') || (sf[p_st[0]] == '\"')) {
