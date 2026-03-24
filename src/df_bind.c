@@ -275,6 +275,10 @@ void duckfix_bind(duckdb_bind_info b_info) {
     if (strlen(v_char_sep) >= 1) { 
       char_sep = v_char_sep[0]; 
     } 
+    if ((char_sep >= '1') && (char_sep <= '9')) {
+      printf("duckdb you supplied char_sep=\'%c\' but we believe this is a hexadecimal number. \n", char_sep);
+      char_sep = (char) ((int) char_sep - ((int)'0'));
+    }
     vpt(3, "duckfix_bind: Clearing v_char_sep because we think we can. \n");
   }
   if (df_char_sep != NULL) { duckdb_destroy_value(&df_char_sep); df_char_sep=NULL; }

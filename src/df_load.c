@@ -1186,6 +1186,11 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
   SchemaSeeker_STR("desc",4, (dfc->desc), on_i, (nmax), i_loc, st0, end0, 0);
   SchemaSeeker_STR("info",4, (dfc->info), on_i, (nmax), i_loc, st0, end0, 0);
   SchemaSeeker_CHAR("general_sep",11, (dfc->general_sep), on_i, (nmax), i_loc, st0, end0, 0);
+  if ((dfc->general_sep >= '1') &&  (dfc->general_sep <= '9')) {
+    printf("NOTE: general_sep, you gave character \'%c\' which we will interpret as early character. \n",
+      dfc->general_sep);
+    dfc->general_sep =  (char) ((int) dfc->general_sep - ((int) '0'));
+  }
 
   iStr iSchema = -1;
   SchemaSeeker_START("schema",6, on_i, (nmax), iSchema, sch_st, sch_end, 1);
