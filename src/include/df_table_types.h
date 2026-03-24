@@ -26,8 +26,16 @@
 #endif
 
 #ifndef DUCKFIXGENERALH
+#if __has_include("include/df_general.h")
 #include "include/df_general.h"
 #define DUCKFIXGENERALH 0
+#elif __has_include("df_general.h")
+#include "df_general.h"
+#define DUCKFIXGENERALH 1
+#elif __has_include("src/include/df_general.h")
+#include "src/include/df_general.h"
+#define DUCKFIXGENERALH 2
+#endif
 #endif
 
 #ifndef WHAT_DDB_TYPE

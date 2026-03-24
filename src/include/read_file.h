@@ -1,13 +1,29 @@
 #pragma once
 
 #ifndef DUCKFIXGENERALH
+#if __has_include("include/df_general.h")
 #include "include/df_general.h"
 #define DUCKFIXGENERALH 0
+#elif __has_include("df_general.h")
+#include "df_general.h"
+#define DUCKFIXGENERALH 1
+#elif __has_include("src/include/df_general.h")
+#include "src/include/df_general.h"
+#define DUCKFIXGENERALH 2
+#endif
 #endif
 
 #ifndef DUCKFIXLOADH
+#if __has_include("include/df_load.h")
 #include "include/df_load.h"
 #define DUCKFIXLOADH 0
+#elif __has_include("df_load.h")
+#include "df_load.h"
+#define DUCKFIXLOADH 1
+#elif __has_include("src/include/df_load.h")
+#include "src/include/df_load.h"
+#define DUCKFIXLOADH 2 
+#endif
 #endif
 
 #ifndef STDIOH

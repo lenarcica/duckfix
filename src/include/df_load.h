@@ -7,8 +7,21 @@
 #endif
 
 #ifndef DUCKFIXGENERALH
-#include "include/df_general.h"
-#define DUCKFIXGENERALH 0
+  #if defined(_WIN32) || defined(_WIN64)
+    #include "include/df_general.h"
+    #define DUCKFIXGENERALH 0
+  #else 
+    #if __has_include("include/df_general.h")
+    #include "include/df_general.h"
+    #define DUCKFIXGENERALH 0
+    #elif __has_include("df_general.h") 
+    #include "df_general.h"
+    #define DUCKFIXGENERALH 1
+    #elif __has_include("src/include/df_general.h")
+    #include "src/include/df_general.h"
+    #define DUCKFIXGENERALH 2
+    #endif
+  #endif
 #endif
 
 
@@ -19,7 +32,9 @@
 //      printf("\"%*.s\".", (long int) ii+1-st, sf + st);                \
 //
 
+
 #ifndef PUSH_TO_CHAR_WO
+#if defined(_WIN32) || defined(_WIN64)
 #define PUSH_TO_CHAR_WO(sx,cx) \
   for(;ii < nmax;ii++) {                                               \
     if ((sf[ii] == ' ') || (sf[ii] == '\t') || (sf[ii] == '\n')) {     \
@@ -36,9 +51,6 @@
     }                                                                  \
   }                                                                    \
   ii += 0 
-#endif
-
-#ifndef PUSH_TO_CHAR 
 #define PUSH_TO_CHAR(cx) \
   for(;ii < nmax;ii++) {                                               \
     if ((sf[ii] == ' ') || (sf[ii] == '\t') || (sf[ii] == '\n')) {     \
@@ -48,8 +60,36 @@
     }                                                                  \
   }                                                                    \
   ii += 0 
+#else
+#define PUSH_TO_CHAR_WO(sx,cx) \
+  for(;ii < nmax;ii++) {                                               \
+    if ((sf[ii] == ' ') || (sf[ii] == '\t') ||                         \
+        (sf[ii] == '\n') || (sf[ii] == '\r')) {                        \
+    } else if (sf[ii] == (cx)) {                                       \
+      break;                                                           \
+    } else {                                                           \
+      printf("ERROR(%s--%s) ", (char*) sx, (char*) stt);               \
+      printf("sf[ii=%ld]=", (long int) ii);                            \
+      printf("\'%c\'", (char) (sf[ii]));                               \
+      printf(" invalid here.   ");                                     \
+      printf("sf[%ld:%ld]=", (long int) st, (long int) ii+1);          \
+      printf("\"%*.s\".", (long int) ii+1-st, sf + st);                \
+      return(-1);                                                      \
+    }                                                                  \
+  }                                                                    \
+  ii += 0 
+#define PUSH_TO_CHAR(cx) \
+  for(;ii < nmax;ii++) {                                               \
+    if ((sf[ii] == ' ') || (sf[ii] == '\t') ||                         \
+        (sf[ii] == '\r') || (sf[ii] == '\n')) {                        \
+    } else if (sf[ii] == (cx)) {                                       \
+      break;                                                           \
+    } else {                                                           \
+    }                                                                  \
+  }                                                                    \
+  ii += 0 
 #endif
-
+#endif
 
 int delete_DF_Schema(DF_Schema *dfs, int verbose);
 iStr get_end_brace(char *name_str, char *ast, iStr on_i, iStr nmax);

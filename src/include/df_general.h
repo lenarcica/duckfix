@@ -16,18 +16,33 @@
 //     It also assesses the number of chunks and location of line breaks in the file, and determines the final column
 //     order based upon priorities defined in document.
 #ifndef vprintf
+#if defined(_WIN32) || defined(_WIN64)
 #define vprintf(X, Y, ...)    \
   if (verbose >= (X)) {       \
-    printf( (Y),__VA_ARGS__); \
+    printf( (Y), __VA_ARGS__ ); \
   }                           \
   verbose = verbose
 
 #define vpt(X, Y, ...) \
   if (verbose >= (X)) {        \
     printf("%s", stt);         \
-    printf( (Y),__VA_ARGS__);  \
+    printf( (Y), __VA_ARGS__ );  \
   }                            \
   verbose = verbose
+#else
+#define vprintf(X, Y, ...)    \
+  if (verbose >= (X)) {       \
+    printf( (Y), ##__VA_ARGS__ ); \
+  }                           \
+  verbose = verbose
+
+#define vpt(X, Y, ...) \
+  if (verbose >= (X)) {        \
+    printf("%s", stt);         \
+    printf( (Y), ##__VA_ARGS__ );  \
+  }                            \
+  verbose = verbose
+#endif
 #endif
 
 #ifndef ISTRH
@@ -42,6 +57,17 @@ typedef long int iStr;
 
 #ifndef MAXINTCHAR
 #define MAXINTCHAR 20
+#endif
+
+
+#ifndef IsNewLineChar
+#if defined(__WIN32) || defined(__WIN64)
+#define IsNewLineChar( x ) \
+  ( (x) == '\n')
+#else
+#define IsNewLineChar( x ) \
+  (( ((x)) == '\n') || ( ((x)) == '\r'))
+#endif
 #endif
 
 #define NCHARS (26*2+10)
@@ -394,7 +420,31 @@ typedef struct _DF_field_list {
   if ((sf[ii] == '{') || (sf[ii]=='[') || (sf[ii]=='}')) {             \
   } else {                                                             \
     for (;ii < nmax; ii++) {                                           \
-      if ((sf[ii] == ' ') || (sf[ii] == '\t') || (sf[ii]=='\n')) {     \
+      if ((sf[ii] == ' ') || (sf[ii] == '\t') ||                       \
+          IsNewLineChar(sf[ii])) {                                     \
+      } else {                                                         \
+        break;                                                         \
+      }                                                                \
+    }                                                                  \
+  }                                                                    \
+  if (ii >= nmax) {                                                    \
+    vpt(0, "ERROR: in df_general.h "                                   \
+      "PUSH_OUT_WHITE(), over NMAX at ii=%ld/%ld. \n",                 \
+      (long int) ii,                                                   \
+      (long int) nmax);                                                \
+  }                                                                    \
+  ii+=0
+#endif
+
+
+#ifndef PUSH_OUT_WHITE_CS
+#define PUSH_OUT_WHITE_CS()   \
+  if ((sf[ii] == '{') || (sf[ii]=='[') || (sf[ii]=='}')) {             \
+  } else {                                                             \
+    for (;ii < nmax; ii++) {                                           \
+      if ((sf[ii] == ' ') || (sf[ii] == '\t') ||                       \
+          IsNewLineChar(sf[ii])) {                                     \
+      } else if (sf[ii] == char_sep) {                                 \
       } else {                                                         \
         break;                                                         \
       }                                                                \
@@ -412,9 +462,9 @@ typedef struct _DF_field_list {
 #ifndef NEXTCOMMA
 #define NEXTCOMMA() \
 for(;ii < end_ln; ii++) { \
-  if (sf[ii] == '\n') { break;  \
+  if (IsNewLineChar(sf[ii])) { break;  \
   } else if (sf[ii] == ',') { break;  \
-  } else if ((sf[ii] == ' ') || (sf[ii] == '\t')) { \
+  } else if ((sf[ii] == ' ') || (sf[ii] == '\t') ) { \
   } else if (sf[ii]=='\"') { \
     ii = get_end_quote("nextcomma",sf,ii,end_ln); \
   } else if (sf[ii]=='[') { \
@@ -428,14 +478,14 @@ ii++
 
 #ifndef NEXTENDL
 #define NEXTENDL() \
-  ii =  (sf[end_ln-1] == '\n') ? (end_ln-1) : (sf[end_ln] == '\n') ? end_ln : end_ln+1
+  ii =  (IsNewLineChar(sf[end_ln-1])) ? (end_ln-1) : (IsNewLineChar(sf[end_ln])) ? end_ln : end_ln+1
 #endif
 
 #ifndef NEXTCHAREQ
 #define NEXTCHAREQ() \
 for(; ii < end_ln; ii++) { \
   if (sf[ii] == on_char_eq) { break; \
-  } else if (sf[ii] == '\n') { break; \
+  } else if (IsNewLineChar(sf[ii] == '\n')) { break; \
   } else if (sf[ii] == on_char_sep) { \
   } else if ((sf[ii] == ' ') || (sf[ii] == '\t')) { \
   } else if (sf[ii]=='\"') { \
@@ -452,7 +502,7 @@ ii++
 #ifndef NEXTCHARSEP
 #define NEXTCHARSEP() \
 for(;ii < end_ln; ii++) { \
-  if (sf[ii] == '\n') { break; \
+  if (IsNewLineChar(sf[ii])) { break; \
   } else if (sf[ii] == on_char_sep) { break;  \
   } else if ((sf[ii] == ' ') || (sf[ii] == '\t')) { \
   } else if (sf[ii]=='\"') { \
@@ -466,9 +516,53 @@ for(;ii < end_ln; ii++) { \
 ii++ 
 #endif
 
+#ifndef UPDATE_END0 
+#define UPDATE_END0(end0) \
+  end0 = IsNewLineChar(sf[end0-1]) ? end0-1 : end0
+#endif
+
+/*
+#ifndef UPDATE_END0
+#if defined(_WIN32) || defined(_WIN64)
+#define UPDATE_END0(end0) \
+  end0 += 0
+#else
+#define UPDATE_END0(end0) \
+  end0 = ((sf[end0-1] == '\r') || (sf[end0-1] == '\n')) ? end0-1 : end0
+#endif
+#endif
+*/
+
+#ifndef END0COND
+  #define END0COND(end0) \
+  end0 = ((sf[(end0)] == '\"') || (sf[(end0)] == ' ') || (sf[end0] == '\t') ||                                 \
+          (IsNewLineChar(sf[end0]))  || (sf[end0] == ']') || (sf[(end0)] == '}') || (sf[(end0)] == '\0')) ?    \
+          (end0) :                                                                                             \
+         ((((sf[end0] >= '0') && (sf[end0] <= '9')) || ((sf[end0] >= 'A') && (sf[end0] <= 'Z')) ||             \
+         ((sf[end0] >= 'a') && (sf[end0] <= 'z')) || (sf[end0] == '.')) ? (end0+1) : (end0))
+
+#endif
+
+/*
+#ifndef END0COND
+#if defined(_WIN32) || defined(_WIN64)
+   #define END0COND(end0) \
+   end0 = ((sf[end0] == '\"') || (sf[end0] == ' ') || (sf[end0] == '\t') ||                                \
+           (sf[end0] == '\n') ||                                                                           \
+           (sf[end0] == ']') || (sf[end0] == '}') || (sf[end0] == '\0')) ? end0 :                          \
+           (((sf[end0] >= '0') && (sf[end0] <= '9')) || ((sf[end0] >= 'A') && (sf[end0] <= 'Z')) ||        \
+           ((sf[end0] >= 'a') && (sf[end0] <= 'z')) || (sf[end0] == '.')) ? end0+1 : end0
+#else
+   #define END0COND(end0) \
+   end0 = ((sf[end0] == '\"') || (sf[end0] == ' ') || (sf[end0] == '\t') ||                                \
+           (sf[end0] == '\n') || (sf[end0] == '\r') ||                                                     \
+           (sf[end0] == ']') || (sf[end0] == '}') || (sf[end0] == '\0')) ? end0 :                          \
+           (((sf[end0] >= '0') && (sf[end0] <= '9')) || ((sf[end0] >= 'A') && (sf[end0] <= 'Z')) ||        \
+           ((sf[end0] >= 'a') && (sf[end0] <= 'z')) || (sf[end0] == '.')) ? end0+1 : end0
+#endif
+#endif
+*/
 #ifndef SchemaSeeker_INT
-
-
 
 //   if (str_eq("rtrunc",6,seek_str, 0,seek_str_l)) {                                                        \
 //     printf("Wooh SchemaSeeker we have seek_str=%.*s, now string=|%.*s|\n",                                \
@@ -495,6 +589,7 @@ ii++
    if (i_loc >= seek_b) {                                                                                  \
      vpt(2, ":  Looking for %.*s value bounds, pl=%ld. \n", seek_str_l, seek_str, (long int) i_loc);       \
      st0 = get_value_bounds("get_config_file", sf, i_loc, nmax, verbose-2, &st0, &end0);                   \
+     UPDATE_END0(end0);                                                                                    \
      if ((st0 <= 0) || (st0 <= seek_b) || (st0 >= nmax)) {                                                 \
         printf("ERROR: df_general.h->SchemaSeeker_START() \n");                                            \
         vpt(-10, "ERROR we had i_loc=%ld for location of %.*s.  But st0,end0=[%ld,%ld].  "                 \
@@ -507,10 +602,7 @@ ii++
         delete_config_file(&dfc, 5); return(NULL);                                                         \
      }                                                                                                     \
      st0 = ((sf[st0] == '\"') || (sf[st0] == '{') || (sf[st0] == '[')) ? st0+1 : st0;                      \
-     end0 = ((sf[end0] == '\"') || (sf[end0] == ' ') || (sf[end0] == '\t') || (sf[end0] == '\n') ||        \
-           (sf[end0] == ']') || (sf[end0] == '}') || (sf[end0] == '\0')) ? end0 :                          \
-           (((sf[end0] >= '0') && (sf[end0] <= '9')) || ((sf[end0] >= 'A') && (sf[end0] <= 'Z')) ||        \
-           ((sf[end0] >= 'a') && (sf[end0] <= 'z')) || (sf[end0] == '.')) ? end0+1 : end0;                 \
+     END0COND(end0);                                                                                       \
    }                                                                                                       \
    end0+=0
 
@@ -535,6 +627,7 @@ ii++
    if (i_loc >= seek_b) {                                                                                  \
      vpt(2, ":  Looking for %.*s value bounds, pl=%ld. \n", seek_str_l, seek_str, (long int) i_loc);       \
      st0 = get_value_bounds("get_config_file", sf, i_loc, nmax, verbose-2, &st0, &end0);                   \
+     UPDATE_END0(end0);                                                                                    \
      if ((st0 <= 0) || (st0 <= seek_b) || (st0 >= nmax)) {                                                 \
         printf("ERROR df_general.h->FieldSeeker_START()  seek_str=|%.*s|. \n", seek_str_l, seek_str);      \
         vpt(-10, "ERROR we had i_loc=%ld for location of %.*s.  But st0,end0=[%ld,%ld].  "                 \
@@ -547,10 +640,7 @@ ii++
         return(-30430);                                                                                    \
      }                                                                                                     \
      st0 = ((sf[st0] == '\"') || (sf[st0] == '{') || (sf[st0] == '[')) ? st0+1 : st0;                      \
-     end0 = ((sf[end0] == '\"') || (sf[end0] == ' ') || (sf[end0] == '\t') || (sf[end0] == '\n') ||        \
-           (sf[end0] == ']') || (sf[end0] == '}') || (sf[end0] == '\0')) ? end0 :                          \
-           (((sf[end0] >= '0') && (sf[end0] <= '9')) || ((sf[end0] >= 'A') && (sf[end0] <= 'Z')) ||        \
-           ((sf[end0] >= 'a') && (sf[end0] <= 'z')) || (sf[end0] == '.')) ? end0+1 : end0;                 \
+     END0COND(end0);                                                                                       \
    }                                                                                                       \
    end0+=0
 
@@ -614,3 +704,7 @@ ii++
 
 #endif
 
+#ifndef IsMultiFix
+#define IsMultiFix(x) \
+  (( (x) == 18) ||  ( (x) == 21) || ( (x) == 69) || ( (x) == 276) || ( (x) == 277 ))
+#endif
