@@ -179,7 +179,7 @@ void duckfix_init(duckdb_init_info i_info) {
   df_id->fpo = NULL; 
   vpt(1, " Trying to open df_id->file_name=\"%s\". We believe there are %ld bytes. \n", 
     (char*) df_id->file_name, (long int) df_id->dfl->file_total_bytes);
-  df_id->fpo = fopen(df_id->file_name, "rt");  rewind(df_id->fpo);
+  df_id->fpo = fopen(df_id->file_name, FILE_READ_TYPE);  rewind(df_id->fpo);
   if (df_id->fpo == NULL) {
     vpt(-1, " FAILED to open file_name = \"%s\". \n", df_id->file_name);
     duckdb_init_set_error(i_info, "Failed to open the file.\n");

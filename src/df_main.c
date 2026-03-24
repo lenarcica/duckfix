@@ -376,8 +376,9 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
       df_id->last_fix_num = aFixNum;
       if (nmultiplicity  == 1) {
         if (endVal >= fixfieldsEnd) {
-          if (sf[endVal] != '\n') {
-            vpt(-10, " Error endVal=%ld, fixfieldsEnd=%ld, but sf[%ld] = \'%c\'.  Why ? \n", (long int) endVal, (long int) fixfieldsEnd,
+          if (!IsNewLineChar(sf[endVal])) {
+            printf("ERROR on IsNewLineChar[endVal]. stt=%s\n", stt);
+            vpt(-10, " ERROR endVal=%ld, fixfieldsEnd=%ld, but sf[%ld] = \'%c\'.  Why ? \n", (long int) endVal, (long int) fixfieldsEnd,
                (long int) endVal, sf[endVal]);
             return(-4050323);
           }
@@ -1377,7 +1378,7 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
     //}
     fieldStart = ii; NEXTCHARSEP(); fieldEnd = ii;
     if ((fieldEnd-1 > fieldStart) && (sf[fieldEnd-1] == df_id->dfl->char_sep)) { fieldEnd--; }
-    while((fieldEnd-1 > fieldStart) && ((sf[fieldEnd-1] == ' ') || (sf[fieldEnd-1] == '\t') || (sf[fieldEnd-1] == '\n'))) { fieldEnd--; } 
+    while((fieldEnd-1 > fieldStart) && ((sf[fieldEnd-1] == ' ') || (sf[fieldEnd-1] == '\t') || (IsNewLineChar(sf[fieldEnd-1])))) { fieldEnd--; } 
     while((fieldStart < fieldEnd-1) && ((sf[fieldStart] == ' ') || (sf[fieldStart] == '\t'))) { fieldStart++; }
     if (dfc->schemas[df_id->ion_schema].typ == fix42) { 
        if ((sf[fieldStart] != '{') || (sf[fieldEnd-1] != '}')) {
@@ -1679,7 +1680,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
   int len_keep_line_text = 0; int len_ignore_line_text = 0;
   if (df_id->keep_line_text != NULL) { len_keep_line_text = strlen(df_id->keep_line_text); }
   if (df_id->ignore_line_text != NULL) { len_ignore_line_text = strlen(df_id->ignore_line_text); }
-  int do_line=0;
+  int do_line=0; int new_bytes=0;
 
   int add_line_error;
   char error_text[500];
@@ -1723,7 +1724,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
         break;
       }
       if (df_id->iLineEnd >= df_id->bytesread) { break; }
-      if (df_id->buffer[df_id->iLineEnd] != '\n') { 
+      if (!IsNewLineChar(df_id->buffer[df_id->iLineEnd])) { 
          printf("duckfix_main_table_function, iLineEnd=%ld, but buffer[%ld]=\'%c\' ? \n",
             (long int) df_id->iLineEnd, (long int) df_id->iLineEnd, df_id->buffer[df_id->iLineEnd]);  
          duckdb_function_set_error(df_info, "Failed to reach an end line or end of buffer"); return;
@@ -1882,7 +1883,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
       }
     }
     #ifdef DEBUG_MODE
-    vpt(2, "Buffer break, iLineEnd = %ld versus onstr=%ld. tbytesread=%ld/%ld for online=%ld/%ld. \n",
+    vpt(2, " CHECKING::: Buffer break, iLineEnd = %ld versus onstr=%ld. tbytesread=%ld/%ld for online=%ld/%ld. \n",
       (long int) df_id->iLineEnd, (long int) df_id->onstr, 
       (long int) df_id->tbytesread, (long int) df_id->dfl->file_total_bytes, 
       (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines);
@@ -1895,11 +1896,17 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
     }
     df_id->tbytesread += df_id->bytesread-df_id->remainder;
     #ifdef DEBUG_MODE
-    vpt(1, "Buffer break, now trying to read %ld bytes. \n", MAXREAD-df_id->remainder);
+    vpt(1, " CHECKING::: Buffer break, now trying to read %ld bytes. \n", MAXREAD-df_id->remainder);
     #endif
-    int new_bytes = fread(df_id->buffer+df_id->remainder,sizeof(char),MAXREAD-df_id->remainder,df_id->fpo);  df_id->onstr = 0;
-    if ((new_bytes <= 0) || (ferror(df_id->fpo))) {
+    if (df_id->on_overall_line >= df_id->dfl->n_total_lines) {
+      break;
+    } else {
+      new_bytes = fread(df_id->buffer+df_id->remainder,sizeof(char),MAXREAD-df_id->remainder,df_id->fpo);  df_id->onstr = 0;
+      if ((new_bytes <= 0) || (ferror(df_id->fpo))) {
       printf("-------------------------------------------------------------------------------------\n");
+      printf("ERROR ERROR ERROR ERROR on file read! %s\n", stt);
+      printf("ERROR Note df_id->on_overall_line=%ld, n_total_lines=%ld, actual_rows_read=%ld, n_total_all_lines=%ld. \n",
+        (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines, (long int) df_id->actual_rows_read, (long int) df_id->dfl->n_total_all_lines);
       printf("--- ERROR new_bytes = %ld, and ferror(df_id->fpo)=%d \n", 
         (long int) new_bytes, (long int) (df_id->fpo == NULL ? -953232: (ferror(df_id->fpo))));
       printf("--- Checking fpo: %s. \n", df_id->fpo == NULL ? " fpo is null " : "fpo is not null");
@@ -1915,11 +1922,16 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
         (long int) df_id->on_chunk_line, (long int) df_id->dfl->standard_vector_size, df_id->on_overall_line, (long int) df_id->dfl->n_total_lines);
       duckdb_function_set_error(df_info, error_text); 
       duckdb_data_chunk_set_size(out_chunk,df_id->on_chunk+1);
-      printf("--- Returning with Error checked, please check. \n");
+      printf("--- ERROR Returning with Error checked, please check. \n");
+      printf("--- ERROR ERROR ERROR ERROR ERROR on File REad! \n");
       printf("-------------------------------------------------------------------------------------\n");
       return;
+      }
+      if (IsNewLineChar(df_id->buffer + df_id->remainder + new_bytes-1)) {
+         fread(df_id->buffer + df_id->remainder + new_bytes, sizeof(char),1,df_id->fpo); new_bytes++;
+      }
+      df_id->bytesread = new_bytes + df_id->remainder;
     }
-    df_id->bytesread = new_bytes + df_id->remainder;
   }
   #ifdef DEBUG_MODE
   vpt(2, "On Chunk=%d/%d:  Reached entire end of duckfix_main_table loop with bytesread=%ld, tbytesread=%ld, ",

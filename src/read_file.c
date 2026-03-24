@@ -549,7 +549,7 @@ int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_f
   char on_char_sep = dfc->general_sep;
   int nEntries = -1;  iStr st_v, end_v;
 
-  while((iKey > 0) && (iKey <= end_fld) && (sf[iKey] != '\n')) {
+  while((iKey > 0) && (iKey <= end_fld) && (!IsNewLineChar(sf[iKey]))) {
     if (sf[iKey] == '\"') {
       ii = get_end_quote("update_file_list_on_fix2end", sf, iKey, end_fld); endq = ii;
       char old_char = sf[endq];
@@ -560,6 +560,15 @@ int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_f
       char dmmy = sf[endq]; sf[endq]='\0'; aFixNum=atoi(sf+iKey); sf[endq] = dmmy;
     }
     if (aFixNum <= 0) {
+      printf("ERROR on update_field_list_on_fix2end: nEntries=%ld. \n", nEntries);
+      if (iKey == endq) {
+        printf("ERROR on update_field_list_on_fix2end: pretty obvious because iKey=%ld=endq \n", (long int) iKey, (long int) endq);
+      }
+      iStr stl_0 = iKey; while((stl_0 >= 1) && (!IsNewLineChar(sf[stl_0-1]))) { stl_0--; }
+      iStr endl_0 = stl_0;  while((sf[endl_0+1] != '\0') && (!IsNewLineChar(sf[endl_0]))) { endl_0++; }
+      printf("ERROR update_field_list_on_fix2end: We had iKey=%ld, n_total_all_lines=%ld, for line =%ld, sf[stl_0=%ld:%ld] = \n|%.*s|\n -- what line? \n",
+        (long int) iKey, (long int) dfl->n_total_all_lines, (long int) get_nlines(sf, stl_0, endl_0), (long int) stl_0,
+        (long int) endl_0,  endl_0-stl_0, sf + stl_0);  
       vpt(-1030, "ERROR, iline=%ld, iKey=%ld/%ld, onfield=%ld, st_fld=%ld, we received aFixNum=%ld for sf[%ld:%ld]=|%.*s|. sf[%ld:%ld]=|%.*s|\n",
         (long int) iline, (long int) iKey, (long int) end_fld, (long int) onfield, (long int) st_fld,
         (long int) aFixNum, (long int) iKey, (long int) end_fld, end_fld-iKey, sf+iKey, (long int) st_fld, (long int) end_fld,
@@ -726,7 +735,7 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
   //return(dfl);
 
   vpt(1,  " -- Opening File pointer for first time. \n");
-  FILE *fpo = NULL; fpo = fopen(tgt_filename, "rt");
+  FILE *fpo = NULL; fpo = fopen(tgt_filename, FILE_READ_TYPE);
   if (fpo == NULL) {
     vpt(-1, " FAILED to open tgt_filename = \"%s\". \n", tgt_filename);
     printf(" ERROR filename |%s| might not exist. \n", tgt_filename);
@@ -824,7 +833,11 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
       } else {
         dfl->n_total_all_lines++;
       }
-      onstr = iLineEnd+1;  num_since_new++;
+      if (IsNewLineChar(buffer[iLineEnd]) &&  (iLineEnd+1 < bytesread) && (IsNewLineChar(buffer[iLineEnd+1]))) {
+        onstr = iLineEnd+2; num_since_new+=2;
+      } else {
+        onstr = iLineEnd+1;  num_since_new++;
+      }
     }
     if (onstr < 0) {
       printf("ERROR: onstr = %ld on num_reads=%ld. \n", (long int) onstr, (long int) num_reads);
@@ -851,6 +864,9 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
       printf("ERROR: onstr=%ld, num_reads=%ld, we read MAXREAD[%ld]-remainder[%ld] bytes but got %ld bytes. \n",
         (long int) onstr, (long int) num_reads, (long int) MAXREAD, (long int) remainder, (long int) new_bytes);
       rewind(fpo); fclose(fpo); delete_field_list(&dfl, verbose); return(NULL);
+    }
+    if (buffer[remainder + new_bytes-1] == '\r') {
+      fread(buffer+remainder+new_bytes, sizeof(char),1,fpo);  new_bytes++;
     }
     #ifdef DEBUG_MODE
     int find_first_endl = 0;  while((find_first_endl < new_bytes + remainder) && (!IsNewLineChar(buffer[find_first_endl]))) { find_first_endl++; }

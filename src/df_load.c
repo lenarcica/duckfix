@@ -220,7 +220,7 @@ iStr load_file_to_str(char **out_p_sf, char *json_filename, int verbose) {
   char stt[500];  
   sprintf(stt, "load_file_to_str(%s,v=%ld): ", 
     json_filename, (long int) verbose);
-  FILE *fpo = NULL; fpo = fopen(json_filename, "rt");
+  FILE *fpo = NULL; fpo = fopen(json_filename, FILE_READ_TYPE);
   if (fpo == NULL) { vpt(0, "ERROR FAIL to open file.\n"); return(-1); }
   iStr file_len = 0;
   if (fseek(fpo, 0L, SEEK_END) == 0) {
@@ -1162,10 +1162,10 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
       (on_i + 40 ? nmax - on_i : 40), sf + on_i);
     printf("get_config_file: ERROR no schema, no config file. \n"); return(NULL);
   }
-  if ((sf[on_i] == ' ') ||  (sf[on_i] == '\n') || (sf[on_i] == '\t')) {
+  if ((sf[on_i] == ' ') ||  (sf[on_i] == '\n') || (IsNewLineChar(sf[on_i]))) {
    for (;on_i < nmax; on_i++) {
      if (sf[on_i] == '{') { break;
-     } else if ((sf[on_i] == ' ' )  || (sf[on_i] == '\t') || (sf[on_i] == '\n')) {
+     } else if ((sf[on_i] == ' ' )  || (sf[on_i] == '\t') || (IsNewLineChar(sf[on_i]))) {
      } else {
        vpt(0, " ERROR on start of sf[on_i=%ld] = \'%c\' \n", (long int) on_i, sf[on_i]); return(NULL);
      }
