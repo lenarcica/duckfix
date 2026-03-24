@@ -509,7 +509,7 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
       break; 
     } else {
       //vpt(2, "  ---- Pushing out WHITE. \n", (long int) ii);
-      PUSH_OUT_WHITE();  
+      PUSH_OUT_WHITE_CS();  
       //vpt(2, "  ---- Done Pushing out WHITE, ii=%ld. \n", (long int) ii);
       if (sf[ii] != '\"') {
         vpt(0, "ERROR, We are on cntFields=%ld, but sf[%ld]=\'%c\' but expected \'\"\'\n", cntFields, ii, sf[ii]); 

@@ -9,7 +9,10 @@ int get_nlines(char *sf, int onst, int nmax) {
    int nlines = 0;
    if (onst > nmax) { printf("get_nlines: no, onst=%ld, nmax=%ld we won't find anything. \n", (long int) onst, (long int) nmax); return(-5); }
    for (int ii = 0; ii < onst; ii++) {
-     if (sf[ii] == '\n') { nlines++; }
+     if ((sf[ii] == '\r') && (ii < onst-1) && (sf[ii+1] == '\n')) { nlines++; ii++; 
+     } else if (sf[ii] == '\n') { nlines++;
+     } else if (sf[ii] == '\r') { nlines++; 
+     }
    }
    return(nlines);
 }
@@ -57,6 +60,11 @@ iStr get_end_bracket(char *name_str, char *ast, iStr on_i, iStr nmax) {
     } else { ii = jj; }
   }
   printf("ERROR: get_end_bracket(%s) no next bracket at nmax=%ld. \n", name_str, nmax);
+  printf("ERROR we started at on_i=%ld, or nline=%ld. \n", (long int) on_i, (long int) get_nlines(ast, on_i, nmax));
+  iStr stl = on_i;  while((stl >= 1) && (!IsNewLineChar(ast[stl]))) { stl--; }
+  iStr endl = stl; while((endl < nmax) && (!IsNewLineChar(ast[endl]))) { endl++; }
+  printf("ERROR get_end_bracket(%s) we were at on_i=%ld for line %ld or sf[%ld:%ld] = |%.*s|\n",
+    name_str, (long int) on_i, (long int) get_nlines(ast, on_i, nmax), (long int) stl, (long int) endl, endl-stl, ast + stl);
   return(-1);
 }
 
@@ -101,8 +109,8 @@ iStr get_end_brace(char *name_str, char *ast, iStr on_i, iStr nmax) {
           name_str, (long int) ii, (long int) nmax, (long int) error_jj);
         printf("ERROR, at this point ii=%ld, on_i=%ld, line for ii is %ld. \n",
           (long int) ii, (long int) on_i, ii);
-        printf("ERROR get_end_brace(%s): If we back up. \n", name_str); jj = ii; while((jj >= 1) && (ast[jj-1] != '\n')) { jj--; } 
-        int next_ln = jj;  while((next_ln < nmax) && (ast[next_ln] != '\n')) { next_ln++; }
+        printf("ERROR get_end_brace(%s): If we back up. \n", name_str); jj = ii; while((jj >= 1) && (!IsNewLineChar(ast[jj-1]))) { jj--; } 
+        int next_ln = jj;  while((next_ln < nmax) && (!IsNewLineChar(ast[next_ln]))) { next_ln++; }
         printf("ERROR: get_end_brace(%s): We identify the bad line to be line %ld, ast[%ld:%ld]=\n|%.*s|\nERROR: get_end_brace(%s) -- end of line \n", name_str,
           (long int) get_nlines(ast, jj, nmax),  (long int) jj, (long int) next_ln, next_ln - jj, ast + jj, name_str);
         printf("ERROR: get_end_brace(%s) we started with on_i=%ld/%ld on line=%ld, sf[%ld:%ld] = |%.*s|\n",
@@ -157,15 +165,15 @@ iStr get_end_quote(char* vstr, char *in_str, iStr on_i, iStr nmax) {
     if (in_str[ii] == '\0') {
       printf("get_end_quote(%s) error reached end at ii=%ld though nlen = %ld. \n",
         vstr, (long int) ii, (long int) nmax);
-    } else if (in_str[ii] == '\n') {
+    } else if (IsNewLineChar(in_str[ii])) {
       int nline = get_nlines(in_str, on_i, nmax);
       printf("ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR\n");
       printf("ERROR ERROR ERROR get_end_quote on json read. nline=%ld\n", (long int) nline);
-      printf("ERROR get_end_quote(%s) technically \'\\n\' should not occur but we found at ii=%ld/%ld. \n",
+      printf("ERROR get_end_quote(%s) technically \'\\n\'  or \'\\r\' should not occur but we found at ii=%ld/%ld. \n",
         vstr, (long int) ii, (long int) nmax);
       printf("ERROR get_end_quote(%s) on_i=%ld, sf[%d:%d] = |%.*s| \n",  vstr, (long int) on_i, (int) on_i, (int) ii, ii-on_i, in_str + on_i);
-      iStr begin_line = on_i; while((begin_line >= 1) && (in_str[begin_line-1] != '\n')) { begin_line--; }
-      iStr end_line = on_i;  while((end_line < nmax) && (in_str[end_line] != '\n')) { end_line++; }
+      iStr begin_line = on_i; while((begin_line >= 1) && (!IsNewLineChar(in_str[begin_line-1]))) { begin_line--; }
+      iStr end_line = on_i;  while((end_line < nmax) && (!IsNewLineChar(in_str[end_line]))) { end_line++; }
       printf("ERROR get_end_quote(%s), though on_i=%ld, sf[%ld:%ld] = |%.*s| for line %d. \n",
         vstr, (long int) on_i, (long int) begin_line, (long int) end_line, end_line -begin_line, in_str + begin_line,
         get_nlines(in_str, begin_line, nmax));
