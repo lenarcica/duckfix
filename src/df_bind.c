@@ -396,7 +396,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
   dfl = NULL;
   dfl = generate_field_list(ll_file_name, dfc, char_sep, verbose-2, standard_vector_size,
     start_byte, end_byte, len_ignore_line_text > 0 ? ll_ignore_line_text : NULL, len_keep_line_text > 0 ? ll_keep_line_text : NULL);
-  dfl->standard_vector_size = (int) duckdb_vector_size(); 
+
   if (dfl == NULL) {
     vpt(0, "ERROR trying to intially pass file for types.  We read %s, We did not receive field_list for file \"%s\" and json file \"%s\"\n",
       ll_file_name, ll_file_name, ll_json_file_name); 
@@ -405,6 +405,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
     duckdb_bind_set_error(b_info, "ERROR in generate_field_list read of file\n");
     return;
   }
+  dfl->standard_vector_size = (int) duckdb_vector_size(); 
   vpt(1, " -- After generate_field_list(%s) received with num_used_known=%ld/%ld, num_unknown=%ld. \n", 
     ll_file_name, (long int) dfl->num_used_known_fields,(long int) dfl->n_known_fields, (long int) dfl->num_unknown);
 
@@ -645,7 +646,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
       }
       for (int onm = 0; onm < on_multiplicity; onm++) {
         if (on_multiplicity > 1) {
-          sprintf(ptitle_mult, "%.*s_%02d\0", (int) (strlen(ptitle) < 40 ? strlen(ptitle) : 40), ptitle, (int) i_multiplicity);
+          sprintf(ptitle_mult, "%.*s_%02d\0", (int) (strlen(ptitle) < 40 ? strlen(ptitle) : 40), ptitle, (int) onm);
           duckdb_bind_add_result_column(b_info, ptitle_mult, on_type);
         } else {
           duckdb_bind_add_result_column(b_info, ptitle, on_type);

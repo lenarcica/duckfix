@@ -78,6 +78,7 @@ int PRINT_multiplicity(df_init_data *df_id, const char *nmstr, duckdb_data_chunk
   int ntm = dfc->n_total_multiplicity_columns;
   int *mmv = dfc->mark_m_visited; DF_DataType ontyp;
   int oncl = df_id->on_chunk_line;
+  int scale, width; long int mnum;  int last_sc_digits;
   for (int ii = 0; ii < ntm; ii++) { 
     int mv = mmv[ntm + ii];  int fn = mv >= 0 ? -10 : -mv -1;
     ontyp = mv >= 0 ? dfc->schemas[mv].typ : dfc->fxs[fn].typ;
@@ -114,8 +115,8 @@ int PRINT_multiplicity(df_init_data *df_id, const char *nmstr, duckdb_data_chunk
            case decimal154 :
            case decimal153 :
            case decimal_gen :
-              int scale = mv >= 0 ? dfc->schemas[mv].scale : dfc->fxs[fn].scale;
-              int width = mv >= 0 ? dfc->schemas[mv].width : dfc->fxs[fn].width;
+              scale = mv >= 0 ? dfc->schemas[mv].scale : dfc->fxs[fn].scale;
+              width = mv >= 0 ? dfc->schemas[mv].width : dfc->fxs[fn].width;
               long int mnum = (long int) *( ((int64_t*) vddbv) + ii);
               int last_sc_digits = scale >= 0 ? mnum % (int)pow(10, scale) : pow(10,-scale);
               if (scale >= 0) {
@@ -181,6 +182,7 @@ int add_schema_entry_to_chunk(df_init_data *df_id, char*buffer, iStr st,
   DF_config_file *dfc = df_id->dfc;  
   DF_field_list *dfl = df_id->dfl;
   DF_DataType on_typ = dfc->schemas[df_id->ion_schema].typ;
+  char char_sep = df_id->dfl->char_sep;
   #ifdef DEBUG_MODE
     #ifdef DDBUG
       char stt[500];
@@ -202,7 +204,7 @@ int add_schema_entry_to_chunk(df_init_data *df_id, char*buffer, iStr st,
   duckdb_vector ddbv = duckdb_data_chunk_get_vector(out_chunk, dfc->schemas[df_id->ion_schema].final_m_loc);
   void * vddbv = (void *)duckdb_vector_get_data(ddbv);  uint64_t *ddbv_validity=NULL;
   iStr nmax = end; char *sf = buffer;  iStr end_ln = end;
-  PUSH_OUT_WHITE();  st = ii;
+  PUSH_OUT_WHITE_CS();  st = ii;
   if ((buffer[st]=='\"') && (buffer[end] == '\"')) {
     st++; end--;
   }
@@ -241,16 +243,32 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
   #ifndef DEBUG_MODE
     char stt[] = "  df_main.add_fix2end_entries_to_chunk(): ";
   #endif
+  char char_sep = df_id->dfl->char_sep;
   if (fixfieldsEnd < fixfieldsStart) {
+    printf("ERROR ERROR ERROR ERROR ERROR %s  \n", stt);
+    printf("ERROR fixfieldsEnd < fixfieldsStart or %ld < %ld. \n", (long int) fixfieldsStart, (long int) fixfieldsEnd);
     vpt(-3, "ERROR add_fix2end_entries_to_chunk, fixfieldsStart=%ld, fixfieldsEnd=%ld.  Obvious error. \n",
       (long int) fixfieldsStart, (long int) fixfieldsEnd);
     return(-4303234);
   }
   int oldfixfieldsEnd = fixfieldsEnd;
-  if (sf[fixfieldsEnd] != '\n') {
-    while((fixfieldsEnd > fixfieldsStart) && (sf[fixfieldsEnd] != '\n')) {fixfieldsEnd--; }
+  if (!IsNewLineChar(sf[fixfieldsEnd])) {
+    while((fixfieldsEnd > fixfieldsStart) && (IsNewLineChar(sf[fixfieldsEnd]))) {fixfieldsEnd--; }
   }
-  if (sf[fixfieldsEnd] != '\n') {
+  if (fixfieldsEnd == fixfieldsStart) {
+    printf("ERROR ERROR ERROR ERROR ERROR %s we looked for fixfieldsEnd but it equaled fixfieldsStart. \n", stt);
+    printf("ERROR oldfixfieldsEnd=%ld, fixfieldsStart=%ld. \n", (long int) oldfixfieldsEnd, (long int) fixfieldsStart); 
+    printf("ERROR df_id->on_overall_line=%ld.  NWant=%ld, NAll=%ld\n", 
+      (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines, (long int) df_id->dfl->n_total_all_lines);
+    iStr nSt = fixfieldsStart; while((nSt >= 1) && (!IsNewLineChar(sf[nSt]))) { nSt--; }
+    iStr nEnd = nSt+1; while((nEnd < df_id->bytesread) && (!(IsNewLineChar(sf[nEnd])))) { nEnd++; }
+    printf("ERROR %s --  we saw a new line sf[%ld:%ld] = \n|%.*s|\n", stt, (long int) nSt,(long int) nEnd, nEnd-nSt, sf + nSt);
+    printf("ERROR %s return -999888666 \n", stt);
+    return(-999888666);
+  }
+  if (!IsNewLineChar(sf[fixfieldsEnd])) {
+    printf("ERROR ERROR ERROR ERROR ERROR %s \n", stt);
+    printf("ERROR we want sf[fixfieldsEnd]=sf[%ld] to be newline. \n", (long int) fixfieldsEnd);
     vpt(-100, " ERROR sf[fixfieldsEnd=%ld] = \'%c\', and fixfieldsStart=%ld=\'%c\'. sf[%ld:%ld] = \"%.*s\".\n",
      (long int) fixfieldsEnd, sf[fixfieldsEnd], (long int) fixfieldsStart, sf[fixfieldsStart],
      (long int) fixfieldsStart, (long int) oldfixfieldsEnd, oldfixfieldsEnd-fixfieldsStart, sf + fixfieldsStart); 
@@ -261,11 +279,12 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
   if (sf[ii] == '{') {
     ii++;
   } else {
-    PUSH_OUT_WHITE();  
+    PUSH_OUT_WHITE_CS();  
   }
   if (sf[ii] == df_id->dfc->general_sep) { ii++; }
   if (ii >= fixfieldsEnd) {
-    printf("ERROR %s -- We hit ii>=fixfieldsEnd=%ld on first PUSH_OUT_WHITE. \n",
+    printf("ERROR ERROR %s: but ii >= fixfieldsEnd or %ld >= %ld. \n", stt, (long int) ii, (long int) fixfieldsEnd);
+    printf("ERROR %s -- We hit ii>=fixfieldsEnd=%ld on first PUSH_OUT_WHITE_CS. \n",
       stt, (long int) fixfieldsEnd);
     printf("ERROR --- We started with sf[fixfieldsStart=%ld:%ld] = \"%.*s\" \n", 
       (long int) fixfieldsStart, (long int) fixfieldsEnd, fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
@@ -286,7 +305,7 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
         (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd, (long int) cntFields,
         (long int) ii, (long int) fixfieldsEnd, fixfieldsEnd-ii, sf + ii, on_char_sep, on_char_eq);
     #endif
-    if ((sf[ii] == '\n') || (sf[ii] == '}')) { 
+    if ((IsNewLineChar(sf[ii])) || (sf[ii] == '}')) { 
       #ifdef DEBUG_MODE
         vpt(1, " -ii=%ld, fs,fE=[%ld,%ld], cntFields=%ld, we have an end point \'}\' \n",
           (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd, (long int) cntFields);
@@ -294,7 +313,7 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
       break; 
     } else {
       //vpt(2, "  ---- Pushing out WHITE. \n", (long int) ii);
-      PUSH_OUT_WHITE();  
+      PUSH_OUT_WHITE_CS();  
       //vpt(2, "  ---- Done Pushing out WHITE, ii=%ld. \n", (long int) ii);
       if (sf[ii] != '\"') {
         keyStart=ii; NEXTCHAREQ(); 
@@ -330,14 +349,15 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
         return(-4050343);
       }
       if (sf[ii]==on_char_eq) { ii++; }
-      if (aFixNum == 18) {
+      if (IsMultiFix(aFixNum)) {
         nmultiplicity = get_multi_equals_bounds(sf, ii, fixfieldsEnd, &stVal, &endVal, on_char_eq, on_char_sep);
         ii = endVal;
       } else {
-        PUSH_OUT_WHITE();
+        PUSH_OUT_WHITE_CS();
         if (sf[ii] == '\"') {
           stVal = ii;  endVal = get_end_quote("add_fix2end_entries_to_chunk",sf,ii,fixfieldsEnd); ii = endVal;
-          PUSH_OUT_WHITE(); NEXTCHARSEP();
+          endVal = (IsNewLineChar(sf[endVal-1])) ? (endVal-1) : endVal;
+          PUSH_OUT_WHITE_CS(); NEXTCHARSEP();
         } else {
           stVal = ii;  NEXTCHARSEP();  
           if ((ii < fixfieldsEnd) && (ii > 0) && (sf[ii] != on_char_sep) && (sf[ii-1] == on_char_sep)) { ii--; }
@@ -346,6 +366,8 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
         }
         nmultiplicity=1;
       }
+      if ((ii < fixfieldsEnd-1) && (IsNewLineChar(sf[ii])) && (IsNewLineChar(sf[ii+1]))) { ii++; }
+
       #ifdef DEBUG_MODE
         vpt(2, " -- Note fix2end::: on ii=%ld/%ld, aFixNum=%ld, [keyStart,keyEnd]=[%ld,%ld] for field = \"%ld\", val = sf[%ld:%ld] =\"%.*s\" for nmultiplicity=%ld. \n",
            (long int) ii, (long int) fixfieldsEnd, (long int) aFixNum, (long int) keyStart, (long int) keyEnd, (long int) aFixNum,
@@ -452,14 +474,17 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
       (long int) fixfieldsStart, (long int) fixfieldsEnd);
     return(-4303234);
   }
+  if (IsNewLineChar(sf[fixfieldsEnd-2])) { fixfieldsEnd-=2;
+  } else if (IsNewLineChar(sf[fixfieldsEnd-1])) { fixfieldsEnd--; }
   iStr end_ln = fixfieldsEnd;
+  char char_sep = df_id->dfl->char_sep;
   int ii = fixfieldsStart;  iStr nmax = fixfieldsEnd;
   if (sf[ii] == '{') {
   } else {
-    PUSH_OUT_WHITE();  
+    PUSH_OUT_WHITE_CS();  
   }
   if (ii >= fixfieldsEnd) {
-    printf("ERROR %s -- We hit ii>=fixfieldsEnd=%ld on first PUSH_OUT_WHITE. \n",
+    printf("ERROR %s -- We hit ii>=fixfieldsEnd=%ld on first PUSH_OUT_WHITE_CS. \n",
       stt, (long int) fixfieldsEnd);
     printf(" --- We started with sf[fixfieldsStart=%ld:%ld] = \"%.*s\" \n", 
       (long int) fixfieldsStart, (long int) fixfieldsEnd, fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
@@ -515,14 +540,14 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
           (long int) ii, (long int) keyStart, (long int) keyEnd, keyEnd-keyStart, sf + keyStart);
         #endif
         ii = keyEnd+1;
-        PUSH_OUT_WHITE();
+        PUSH_OUT_WHITE_CS();
         if (sf[ii] == ':') {  ii++; } else {
           vpt(-10, " ---- Error on ii=%ld, we though key was sf[%ld:%ld]=\"%.*s\", did not find colon after, sf[%ld:%ld]=\"%.*s\". \n",
             (long int) ii, (long int) keyStart, (long int) keyEnd, keyEnd-keyStart, sf + keyStart,
             (long int) fixfieldsStart, (long int) fixfieldsEnd, fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
           return(-9340329);
         }
-        PUSH_OUT_WHITE();
+        PUSH_OUT_WHITE_CS();
         if (sf[ii] == '\"') {
           stVal = ii+1;
           if (sf[ii] != '\"') { 
@@ -593,7 +618,7 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
                (long int) an_error, (long int) aFixNum, endVal-stVal, sf + stVal);
               ii = endVal;
               if (sf[ii] == '\"') { ii++; } 
-              PUSH_OUT_WHITE();
+              PUSH_OUT_WHITE_CS();
               if (sf[ii] == '}') { 
                 vpt(1, " Reached end on ii=%ld, [ffS,ffE]=[%ld,%ld], found %ld fields in \"%.*s\"\n",
                   (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd, (long int) cntFields,
@@ -711,9 +736,9 @@ int add_multi_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixFiel
 }
 int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iStr valStart, iStr valEnd, duckdb_data_chunk out_chunk, int verbose) {
   char on_char_sep = df_id->dfl->char_sep;
-  if ((sf[valEnd] != '\n') && (sf[valEnd] != on_char_sep) && ( (sf[valEnd-1] == on_char_sep) || (sf[valEnd-1] == ' ') || (sf[valEnd-1] == '\n'))) {
+  if ((IsNewLineChar(sf[valEnd])) && (sf[valEnd] != on_char_sep) && ( (sf[valEnd-1] == on_char_sep) || (sf[valEnd-1] == ' ') || (IsNewLineChar(sf[valEnd-1])))) {
     valEnd--;
-  }
+  } else if ((IsNewLineChar(sf[valEnd])) && (IsNewLineChar(sf[valEnd-1]))) { valEnd--; }
   #ifdef DDBUG
     char stt[500];
     sprintf(stt, "   add_fixfield_entry_to_chunk(v=%ld,chkln=%ld,oln=%ld/%ld,fld=%ld,val=\"%.*s\"): ",
@@ -900,6 +925,7 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
   int vL = 0; int jj =0;
   int on_chunk_line = df_id->on_chunk_line;
   DF_config_file *dfc = df_id->dfc;
+  int HH,MM,SS,FF;
   if (sf[valStart] == '\"') { valStart++; }
   if ((sf[valEnd] == '\"') || (sf[valEnd] == '}') || (sf[valEnd] == ',') || (sf[valEnd]==' ') || (sf[valEnd]==']') || (sf[valEnd]=='\n')) {
      vL = valEnd - valStart;
@@ -1028,7 +1054,6 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
     case tns :
       switch (fmttyp) {
         case YYYYcmmcddtHHcMMcSScF :
-          int HH,MM,SS,FF;
           memcpy(df_id->int_scratch, sf+valStart,4); df_id->int_scratch[4] = '\0';
           df_id->dds.year = atoi(df_id->int_scratch);
           memcpy(df_id->int_scratch, sf+valStart+5,2); df_id->int_scratch[2] = '\0';
@@ -1666,6 +1691,15 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
       vpt(3, " here is the complete buffer so far: \n%.*s\nLet's begin...\n", (long int) df_id->bytesread, df_id->buffer);
     #endif
     while (df_id->onstr < df_id->bytesread) {
+      #if defined(__WIN32) || defined(__WIN64)
+        df_id->onstr +=0;
+      #else
+        if ((df_id->onstr < df_id->bytesread-2) && (df_id->buffer[df_id->onstr] == '\r') && (df_id->buffer[df_id->onstr] == '\n')) {
+          df_id->onstr += 2;
+        } else if ((df_id->onstr < df_id->bytesread-1) && (df_id->buffer[df_id->onstr] == '\n')) {
+          df_id->onstr += 1;
+        }
+      #endif 
       #ifdef DEBUG_MODE
         vpt(3, " on reading_line=%ld, onstr=%ld/%ld, tbytesread=%ld.  \n", 
           (long int) df_id->on_overall_line, (long int) df_id->onstr, (long int) df_id->bytesread,  (long int) df_id->tbytesread);
@@ -1715,7 +1749,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
         // }
         //
         if ((verbose >= 2) || ((verbose >= 1) && (df_id->on_overall_line % 10000) == 0)) {
-           printf("     dfmtf -- Aobut to add line %ld/%ld, totalall=%ld. \n",
+           printf("     dfmtf -- About to add line %ld/%ld, totalall=%ld. \n",
              (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines, 
              (long int) df_id->dfl->n_total_all_lines);
         }

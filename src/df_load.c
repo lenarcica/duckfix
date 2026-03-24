@@ -274,8 +274,26 @@ iStr get_next_key(char* assignment, char *sf, iStr on_i, iStr nmax, int verbose)
   iStr st = on_i;  iStr ii = st;
   if (sf[ii] == '{') {
     ii++;  PUSH_OUT_WHITE();
-    if (sf[ii] = '\"') { return(ii); 
-    } else { printf("kkk: %s we failed because we started on { but did not find a quote next. \n", stt); return(-1); }
+    if (sf[ii] == '\"') { return(ii); 
+    } else { 
+      printf("kkk: %s we failed because we started on { but did not find a quote after searching. \n", stt); 
+      iStr stl = 0; iStr endl = 0;
+      stl = on_i; while((stl >= 1) && (sf[stl-1] != '\n')) { stl--;}
+      endl = on_i; while((endl < nmax) && (sf[endl] != '\n')) { endl++; }
+      printf("kkk: %s -- we started on_i=%ld/%ld on line %ld of sf[%ld:%ld] = |%.*s| \n",
+        stt, (long int) on_i, (long int) nmax, get_nlines(sf, on_i, nmax), (long int) stl,
+        (long int) endl, endl-stl, sf + stl);
+      iStr stl2 = ii; iStr endl2 = ii;
+      stl2 = ii; while((stl2 >= 1) && (sf[stl2-1] != '\n')) { stl2--;}
+      endl2 = ii; while((endl2 < nmax) && (sf[endl2] != '\n')) { endl2++; }
+      printf("kkk: %s -- we started ii=%ld/%ld on line %ld of sf[%ld:%ld] = |%.*s| \n",
+        stt, (long int) ii, (long int) nmax, get_nlines(sf, on_i, ii), (long int) stl2,
+        (long int) endl2, endl2-stl2, sf + stl2);
+
+      printf("kkk: %s -- AKA lines from on_i to ii are |\n%.*s\n| \n",
+        stt, endl2-stl, sf + stl); 
+      return(-3434); 
+    }
   }
   if (sf[ii] == '\"') {
   } else {
