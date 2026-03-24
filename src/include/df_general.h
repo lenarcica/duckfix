@@ -45,6 +45,16 @@
 #endif
 #endif
 
+#ifndef FILE_READ_TYPE
+#if defined(_WIN32) || defined(_WIN64) 
+#define FILE_READ_TYPE "rb"
+#define BINARY_READ_TYPE 0
+#else
+#define FILE_READ_TYPE "rb"
+#define BINARY_READ_TYPE 0
+#endif
+#endif
+
 #ifndef ISTRH
 #define ISTRH 0
 typedef long int iStr;
@@ -62,8 +72,13 @@ typedef long int iStr;
 
 #ifndef IsNewLineChar
 #if defined(__WIN32) || defined(__WIN64)
-#define IsNewLineChar( x ) \
-  ( (x) == '\n')
+  #ifndef BINARY_READ_TYPE
+  #define IsNewLineChar( x ) \
+    ( ( (x) == '\n') || ( (
+  #else
+  #define IsNewLineChar( x ) \
+    ( ( (x) == '\n') || ( (x) == '\r') )
+  #endif
 #else
 #define IsNewLineChar( x ) \
   (( ((x)) == '\n') || ( ((x)) == '\r'))
