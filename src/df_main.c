@@ -219,7 +219,7 @@ int add_schema_entry_to_chunk(df_init_data *df_id, char*buffer, iStr st,
     buffer, st, end, verbose-1, 
     dfc->schemas[df_id->ion_schema].typ == str ? dfc->schemas[df_id->ion_schema].rtrunc : dfc->schemas[df_id->ion_schema].width, 
     dfc->schemas[df_id->ion_schema].typ == str ? dfc->schemas[df_id->ion_schema].ltrunc : dfc->schemas[df_id->ion_schema].scale, 
-    dfc->schemas[df_id->ion_schema].fmttyp, dfc->schemas[df_id->ion_schema].final_m_loc);
+    dfc->schemas[df_id->ion_schema].fmttyp, dfc->schemas[df_id->ion_schema].final_m_loc, char_sep);
   df_id->dfc->mark_visited[dfc->schemas[df_id->ion_schema].final_o_loc] = dfc->n_read_cols++;
   dfc->mark_m_visited[ dfc->schemas[df_id->ion_schema].final_m_loc] = dfc->n_read_cols+1; dfc->n_read_cols++;
   return(an_Error);
@@ -764,6 +764,8 @@ int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iS
   #endif
   DF_field_list *dfl = df_id->dfl;  
   DF_config_file *dfc = df_id->dfc;
+  char char_sep = dfc->fix_sep != '\0' ? dfc->fix_sep : 
+     dfc->schemas[dfc->n_schemas-1].fixsep != '\0' ? dfc->schemas[dfc->n_schemas-1].fixsep : dfc->general_sep;
   if ((valEnd-1 > valStart) && (IsNewLineChar(sf[valEnd-1]))) { valEnd-=1; }
   vpt(2, " -- initiate fixField=%ld, sf[%ld:%ld] val =\"%.*s\", searching for prop_known_loc in %ld known fields:%s\n",
     (long int) fixField, (long int) valStart, (long int) valEnd, valEnd-valStart, sf + valStart,
@@ -921,12 +923,12 @@ int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iS
       (long int) prop_known_loc, (long int) dfl->final_known_print_loc[prop_known_loc], (long int) df_id->dfc->n_total_print_columns );
     return(fill_in_chunk(on_typ, ddbv, df_id, sf, valStart, valEnd, verbose-1, 
       on_typ==str ? dff.rtrunc : dff.width, on_typ==str ? dff.ltrunc : dff.scale, 
-      dff.fmttyp, dfl->final_known_print_loc[prop_known_loc]));
+      dff.fmttyp, dfl->final_known_print_loc[prop_known_loc], char_sep));
 
   }
 }
 int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
-   char*sf, iStr valStart, iStr valEnd, int verbose, int width, int scale, DF_TSType fmttyp, int nCol) {
+   char*sf, iStr valStart, iStr valEnd, int verbose, int width, int scale, DF_TSType fmttyp, int nCol, char char_sep) {
   #ifdef DEBUG_MODE
     char stt[] = "    fill_in_chunk(): ";
   #endif
@@ -943,7 +945,7 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
   int HH,MM,SS,FF;
   if (sf[valStart] == '\"') { valStart++; }
   if ((valEnd-1 > valStart) && (sf[valEnd-1] == '\r')) { valEnd--; }
-  if ((sf[valEnd] == '\"') || (sf[valEnd] == '}') || (sf[valEnd] == ',') || (sf[valEnd]==' ') || (sf[valEnd]==']') || (IsNewLineChar(sf[valEnd]))) {
+  if ((sf[valEnd] == '\"') || (sf[valEnd] == '}') || (sf[valEnd] == ',') || (sf[valEnd]==' ') || (sf[valEnd]==']') || (sf[valEnd] == char_sep) || (IsNewLineChar(sf[valEnd]))) {
      vL = valEnd - valStart;
   } else {
      vL = valEnd - valStart + 1;
