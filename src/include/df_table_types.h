@@ -162,5 +162,5 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
 int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  
   iStr valStart, iStr valEnd,  duckdb_data_chunk out_chunk, int verbose);
 int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
-   char*sf, iStr valStart, iStr valEnd, int verbose, int width, int scale, DF_TSType fmttyp, int nCol);
+   char*sf, iStr valStart, iStr valEnd, int verbose, int width, int scale, DF_TSType fmttyp, int nCol, char char_sep);
 void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk out_chunk);
