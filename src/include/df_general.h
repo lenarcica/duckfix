@@ -363,6 +363,7 @@ typedef struct _DFSchema {
   int final_m_loc;  // Multiplicity based column location
   short ltrunc, rtrunc;
   char fixequal;
+  char fixsep;
 } DF_Schema;
 #endif
 
@@ -386,7 +387,7 @@ typedef struct _DF_config_file {
   char *desc; 
   char *info;
   char *exampleline;
-  char general_sep;
+  char general_sep; char fix_sep;
   int n_schemas;
   DF_Schema *schemas;
   int nfields;
@@ -500,7 +501,7 @@ ii++
 #define NEXTCHAREQ() \
 for(; ii < end_ln; ii++) { \
   if (sf[ii] == on_char_eq) { break; \
-  } else if (IsNewLineChar(sf[ii] == '\n')) { break; \
+  } else if (IsNewLineChar(sf[ii])) { break; \
   } else if (sf[ii] == on_char_sep) { \
   } else if ((sf[ii] == ' ') || (sf[ii] == '\t')) { \
   } else if (sf[ii]=='\"') { \
@@ -511,7 +512,7 @@ for(; ii < end_ln; ii++) { \
     ii =  get_end_brace("nextchareq", sf, ii, end_ln); \
   } \
 } \
-ii++ 
+ii+=0 
 #endif
 
 #ifndef NEXTCHARSEP
