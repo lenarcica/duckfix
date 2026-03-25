@@ -65,12 +65,13 @@ def load_config_file(config_file:str="fix42.json", config_dir:str="") :
     schM[key]['nm'] = key;
   fix2M = fx2d['fix_fields'];
   general_sep = ',' if ('general_sep' not in fx2d.keys()) else fx2d['general_sep'];
+  fix_sep = ',' if ('fix_sep' not in fx2d.keys()) else fx2d['fix_sep'];
   fixK = dict();
   for kk in fix2M.keys() :
     if (fix2M[kk]['priority']> 0) :
       fixK[kk] = fix2M[kk];
   print(" -- We have read fixK of length " + str(len(fixK)));
-  return(jhome, fx2d, fixK, schM, fix2M, general_sep);
+  return(jhome, fx2d, fixK, schM, fix2M, general_sep, fix_sep);
 
 def rand_fix(nfx=3, fixK=dict(), ngrp=[], general_sep=' ', fixequal=':', fixstyle="fixjson") :
   aKeys = [x for x in list(fixK.keys()) if str(x) not in ngrp];
@@ -157,7 +158,7 @@ example_exfile = "ex_random.csv";
 
 schM=[]; fixK=[];
 def create_random_file(exdir=example_exdir, exfile=example_exfile, verbose=1,
-  schM=schM, fixK=fixK, general_sep=",", nfx=3, nLines=300) :
+  schM=schM, fixK=fixK, general_sep=",", nfx=3, nLines=300, fix_sep=",") :
   vstr = "create_random_file("+exdir+","+exfile+",v="+str(verbose)+"):";
   if (verbose >= 1) :
     print(vstr + "fake_data.py -- we are about to write to exfile = \"" + exfile + "\"");
@@ -174,7 +175,7 @@ def create_random_file(exdir=example_exdir, exfile=example_exfile, verbose=1,
             onfixgrp = list(set(list(onfixgrp) + newKeys));
             myL.append(nf)
         elif (onS['typ'] == 'fix2end') :
-            newKeys, nf = rand_fix(nfx, fixK=fixK, ngrp=onfixgrp, general_sep=general_sep, fixequal = ':' if 'fixequal' not in onS else onS['fixequal'], fixstyle="fix2end");
+            newKeys, nf = rand_fix(nfx, fixK=fixK, ngrp=onfixgrp, general_sep=fix_sep, fixequal = ':' if 'fixequal' not in onS else onS['fixequal'], fixstyle="fix2end");
             onfixgrp = list(set(list(onfixgrp)))
             myL.append(nf);
         elif (onS['typ'] in ['Decimal','decimal']) :
@@ -194,13 +195,16 @@ if __name__ == '__main__' :
   nfx = nfx if (len(sys.argv) < 8) else int(str(sys.argv[7]));
   print(" -- running load_config_file=" + config_file + ": nLines=" + str(nLines) + ", nfx=" + str(nfx));
   #jhome, fx2d, fixK, schM, fix2M, general_sep)
-  jhome, fx2d, fixK, schM, fix2M, general_sep = load_config_file(config_file=config_file, config_dir=config_dir);
+  jhome, fx2d, fixK, schM, fix2M, general_sep, fix_sep = load_config_file(config_file=config_file, config_dir=config_dir);
   print(" --  Are we ready jhome = " + jhome);
   example_exdir = jhome + "/../example";
   example_exfile = example_exdir + "/ex_random.csv";
   exfile = example_exfile if len(sys.argv) < 3 else str(sys.argv[2]);
   exdir = example_exdir if len(sys.argv) < 5 else str(sys.argv[4]);
   print(" -- Create_random_file now with " + str(exdir) + ", exfile=" + str(exfile) + ", len(schM) = " + str(len(schM)) + ", to exdir=" + exdir);
-  create_random_file(exdir=exdir, exfile=exfile, verbose=verbose, schM=schM, fixK=fixK, general_sep=general_sep, nLines=nLines, nfx=nfx);
+  create_random_file(exdir=exdir, exfile=exfile, verbose=verbose, schM=schM, fixK=fixK, general_sep=general_sep, fix_sep=fix_sep, nLines=nLines, nfx=nfx);
 
 # python py/fake_data.py 'fix42_t2.json' ex_random2.csv config_jsons example 2 400 3 
+
+
+# python py/fake_data.py 'fix42_t2.json' ex_random4.csv config_jsons example 2 120000 4
