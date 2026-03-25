@@ -227,13 +227,20 @@ int add_schema_entry_to_chunk(df_init_data *df_id, char*buffer, iStr st,
 
 int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iStr fixfieldsStart, iStr fixfieldsEnd, 
   duckdb_data_chunk out_chunk, int verbose) {
+
+
+  char on_char_eq = df_id->dfc->schemas[onschema].fixequal;
+  char char_sep = (char) df_id->dfc->fix_sep != '\0' ? df_id->dfc->fix_sep : 
+     df_id->dfc->schemas[onschema].fixsep != '\0' ? df_id->dfc->schemas[onschema].fixsep != '\0' : 
+     df_id->dfc->general_sep;
+  char on_char_sep = char_sep;
   #ifdef DEBUG_MODE
     #ifdef DDBUG 
       char stt[500];
-      sprintf(stt, "  df_main.add_fix2end_entries_to_chunk(v=%d,ckln=%ld,oln=%ld/%ld,%ld:%ld,\"%.*s...\"): ",
+      sprintf(stt, "  df_main.add_fix2end_entries_to_chunk(v=%d,ckln=%ld,oln=%ld/%ld,%ld:%ld,cs=\'%c\',\"%.*s...\"): ",
         (int) verbose, 
         (long int) df_id->on_chunk_line, (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines,
-        (long int) fixfieldsStart,  fixfieldsEnd, (fixfieldsEnd-fixfieldsStart < 15) ? fixfieldsEnd-fixfieldsStart : 15,
+        (long int) fixfieldsStart,  fixfieldsEnd,  char_sep, (fixfieldsEnd-fixfieldsStart < 15) ? fixfieldsEnd-fixfieldsStart : 15,
         sf + fixfieldsStart); 
     #endif
     #ifndef DDBUG
@@ -243,7 +250,8 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
   #ifndef DEBUG_MODE
     char stt[] = "  df_main.add_fix2end_entries_to_chunk(): ";
   #endif
-  char char_sep = df_id->dfc->schemas[onschema].fixsep;
+
+
   if (char_sep == '\0') {
     char_sep = df_id->dfc->fix_sep != '\0' ? df_id->dfc->fix_sep : 
       (df_id->dfl->char_sep != '\0' ? df_id->dfl->char_sep : df_id->dfc->general_sep);
@@ -300,18 +308,14 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
   fixfieldsStart = ii;
   int cntFields = 0;  int aFixNum = 0;  iStr keyStart, keyEnd; 
   int an_error;  iStr stVal, endVal; char old_end = '.';
-  char on_char_eq = df_id->dfc->schemas[onschema].fixequal;
-  char on_char_sep = (char) df_id->dfc->fix_sep != '\0' ? df_id->dfc->fix_sep : 
-     df_id->dfc->schemas[df_id->dfc->n_schemas-1].fixsep != '\0' ? df_id->dfc->schemas[df_id->dfc->n_schemas-1].fixsep != '\0' : 
-     df_id->dfc->general_sep;
   int nmultiplicity = 0;
   for (; ii < fixfieldsEnd;ii++) {
     #ifdef DEBUG_MODE
-      vpt(2, " - ii=%ld, fS,fE=[%ld,%ld], cntFields=%ld, starting with sf[%ld:%ld]=\"%.*s\", on_char_sep=\'%c\', on_char_eq=\'%c\'.\n",
+      vpt(2, " - ii=%ld, fS,fE=[%ld,%ld], cntFields=%ld, starting with sf[%ld:%ld]=\"%.*s\", char_sep=\'%c\', on_char_eq=\'%c\'.\n",
         (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd, (long int) cntFields,
-        (long int) ii, (long int) fixfieldsEnd, fixfieldsEnd-ii, sf + ii, on_char_sep, on_char_eq);
+        (long int) ii, (long int) fixfieldsEnd, fixfieldsEnd-ii, sf + ii, char_sep, on_char_eq);
     #endif
-    if (sf[ii] == on_char_sep) { ii++; }
+    if (sf[ii] == char_sep) { ii++; }
     if ((IsNewLineChar(sf[ii])) || (sf[ii] == '}')) { 
       #ifdef DEBUG_MODE
         vpt(1, " -ii=%ld, fs,fE=[%ld,%ld], cntFields=%ld, we have an end point \'}\' \n",
@@ -368,8 +372,9 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
           PUSH_OUT_WHITE_CS(); NEXTCHARSEP();
         } else {
           stVal = ii;  NEXTCHARSEP();  
-          if ((ii < fixfieldsEnd) && (ii > 0) && (sf[ii] != on_char_sep) && (sf[ii-1] == on_char_sep)) { ii--; }
           if (ii > fixfieldsEnd) { ii=fixfieldsEnd; }
+          if ((ii > 0) && (sf[ii-1] == char_sep)) { ii--; }
+          if ((ii > 1) && (sf[ii-2] == char_sep)) { ii = ii-2;}
           endVal = ii;  endVal =  IsNewLineChar(sf[endVal-1]) ? endVal-1 : endVal;  endVal = IsNewLineChar(sf[endVal-1]) ? endVal-1 : endVal;
         }
         nmultiplicity=1;
@@ -377,8 +382,8 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
       if ((ii < fixfieldsEnd-1) && (IsNewLineChar(sf[ii])) && (IsNewLineChar(sf[ii+1]))) { ii++; }
 
       #ifdef DEBUG_MODE
-        vpt(2, " -- Note fix2end::: on ii=%ld/%ld, aFixNum=%ld, [keyStart,keyEnd]=[%ld,%ld] for field = \"%ld\", val = sf[%ld:%ld] =\"%.*s\" for nmultiplicity=%ld. \n",
-           (long int) ii, (long int) fixfieldsEnd, (long int) aFixNum, (long int) keyStart, (long int) keyEnd, (long int) aFixNum,
+        vpt(2, " -- Note fix2end(os=\'%c\')::: on ii=%ld/%ld, aFixNum=%ld, [keyStart,keyEnd]=[%ld,%ld] for field = \"%ld\", val = sf[%ld:%ld] =\"%.*s\" for nmultiplicity=%ld. \n",
+           (char) on_char_sep, (long int) ii, (long int) fixfieldsEnd, (long int) aFixNum, (long int) keyStart, (long int) keyEnd, (long int) aFixNum,
            (long int) stVal, (long int) endVal, endVal-stVal, sf + stVal, nmultiplicity);
       #endif
       df_id->last_fix_num = aFixNum;
