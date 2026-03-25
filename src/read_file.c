@@ -249,14 +249,17 @@ int find_o_list(int num, int nlist, int *olist) {
 int add_to_field_list(DF_field_list *dfl, int aFixNum, int iline, int verbose, int multiplicity) {
    char stt[500];
    if (aFixNum <= 0) {
-     printf("add_to_field_list:: Fix fields are zero or negative, aFixNum=%ld. \n", (long int) aFixNum); return(-10);
+     printf("ERROR ERROR add_to_field_list, aFixNum <= 0.  return -89310. \n");
+     printf("ERROR ERROR add_to_field_list:: Fix fields are zero or negative, aFixNum=%ld. \n", (long int) aFixNum); return(-89310);
    }
    sprintf(stt, "add_to_field_list[aFixNum=%ld,line=%ld,v=%ld, multiplicity=%ld]: ",
      (long int) aFixNum, (long int) iline, (long int) verbose, (long int) multiplicity);
    int prop_known_loc = find_o_list(aFixNum, dfl->n_known_fields, dfl->ordered_known_fields);
    if (multiplicity <= 0) {
-     vpt(-10, "ERROR: multiplicity given as %ld, that's not realistic. \n", (long int) multiplicity);
-     return(-10);
+     printf("ERROR ERROR %s: -6950 add_field_to_list(aFixNum=%ld): multiplicty = %ld <= 0. \n", stt, aFixNum, multiplicity);
+     printf("ERROR ERROR %s: note prop_known_loc = %ld. \n", stt, (long int) prop_known_loc); 
+     printf("ERROR ERROR %s: multiplicity given as %ld, that's not realistic. \n", stt, (long int) multiplicity);
+     return(-6950);
    }
    if (prop_known_loc < 0) {
      vpt(0, " ERROR, prop_known_loc returned %ld.  Must be a problem with algo on search dfl->ordered_known_fields\n", (long int) prop_known_loc);
@@ -395,6 +398,7 @@ int add_to_field_list(DF_field_list *dfl, int aFixNum, int iline, int verbose, i
    }
    return(5);
 }
+// This only works if field list is json
 int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld, iStr end_fld, DF_config_file *dfc, DF_field_list *dfl, int verbose) {
   char stt[200];
   sprintf(stt, "update_field_list_on_field(ln=%ld,fld=%d,[%ld:%ld],v=%d): ",
@@ -412,9 +416,11 @@ int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld
   if (sf[end_fld-1] != '}') {
     for(;end_fld >st_fld; end_fld--) { if (sf[end_fld-1] == '}') { break; }}
   }
-  vpt(2, "We have field list inspecting = {%.%s}. \n",
+  vpt(2, "We have field list inspecting = {%.*s}. \n",
     end_fld - st_fld - 1, sf + st_fld);
   iStr iKey = 0; int cnt_keys = 0;
+
+  char char_sep = dfc->fix_sep != '\0' ? dfc->fix_sep : dfc->general_sep;
   iKey = get_first_key("update_field_list_on_field", sf, st_fld, end_fld, verbose-1); 
   int aFixNum = 0;  int update_code;  int nKeys = 0; int nEntry = 1;
 
@@ -452,14 +458,17 @@ int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld
     nEntry = 1;
     if (IsMultiFix((aFixNum))) {
       for (iStr ii = st_v; ii < end_v; ii++) {
-        if ((sf[ii] == dfc->general_sep) || (sf[ii] == ' ')){nEntry++;}  // Count unique entries
+        if ((sf[ii] == char_sep) || (sf[ii] == ' ')){nEntry++;}  // Count unique entries
       }
       vpt(-10, " --- NOTE WE did an 18 update_field_list_on_filed: nEntry = %ld for sf[%ld:%ld] = |%.*s|\n",
         (long int) nEntry, (long int) st_v, (long int) end_v, end_v-st_v, sf + st_v);
     } 
     update_code = add_to_field_list(dfl, aFixNum, iline, verbose-2, nEntry);
     nKeys++;
-    if (update_code < 0) {  vpt(0, "ERROR, update_code=%d for adding aFixNum=%ld?  Why ? \n", (long int) update_code, (long int) aFixNum); return(-1); }
+    if (update_code < 0) {  
+      printf("ERROR propagate to(%s) update_code=%d for adding aFixNum=%ld?  Why ? \n", stt, (long int) update_code, (long int) aFixNum); 
+      return(update_code); 
+    }
     if (update_code != 1) { vpt(1, "Note  we received an update_code of %ld for aFixNum=%ld. \n", (long int) update_code, (long int) aFixNum); }
     iKey = get_next_key("update_field_list_on_field", sf, iKey, end_fld, verbose-2);  nKeys++;
   }
@@ -512,6 +521,7 @@ int get_multi_equals_bounds(char *sf, iStr st_eq, iStr nlen, iStr*p_st_v, iStr*p
  }
  for (; ii < nlen; ii++) {
    if (sf[ii] == on_sp) {  nEntry++;  p_end_v[0] = ii;
+   } else if (sf[ii] == ' ') { nEntry++; p_end_v[0] = ii; // Spaces shouldn't happen between data we can treat as item breaks
    } else if (sf[ii] == on_eq) { return(nEntry); // Means last number read is not an entry
    } else if (IsNewLineChar( sf[ii] ) ) {  p_end_v[0] = ii; return(nEntry+1); }
  }
@@ -520,16 +530,16 @@ int get_multi_equals_bounds(char *sf, iStr st_eq, iStr nlen, iStr*p_st_v, iStr*p
  p_end_v[0] = nlen; return(nEntry + 1);
 }
 // "fix2end" is not a json format it is a separated format of fix fields going on to end of a line.
-int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_fld, iStr end_fld, DF_config_file *dfc, DF_field_list *dfl, int verbose) {
+int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_fld, iStr end_fld, DF_config_file *dfc, DF_field_list *dfl, int verbose, char fixsep) {
   char stt[200];
-  sprintf(stt, "update_field_list_on_fix2end(ln=%ld,fld=%d,[%ld:%ld],v=%d,fe=\'%c\'): ",
-    (long int) iline, (int) onfield, (long int) st_fld, (long int) end_fld, (int) verbose, dfc->schemas[onfield].fixequal);
+  sprintf(stt, "update_field_list_on_fix2end(ln=%ld,fld=%d,[%ld:%ld],v=%d,fe=\'%c\',fs=\'%c\'): ",
+    (long int) iline, (int) onfield, (long int) st_fld, (long int) end_fld, (int) verbose, dfc->schemas[onfield].fixequal, fixsep);
   iStr orig_st_fld = st_fld;
   if ((sf[st_fld] == ' ') || (sf[st_fld] == dfc->general_sep)) {
     for (;st_fld < end_fld; st_fld++) { if((sf[st_fld]!=' ') && (sf[st_fld] != dfc->general_sep)) { break; } }
   }
-  if ((sf[st_fld] == ' ') || (sf[st_fld] == dfc->general_sep))  {
-     vpt(0, "ERROR, sf from %ld:%ld had no \'%c\' end. \n", orig_st_fld, st_fld, dfc->general_sep); 
+  if ((sf[st_fld] == ' ') || (sf[st_fld] == dfc->general_sep) || (sf[st_fld] == fixsep))  {
+     vpt(0, "ERROR, sf from %ld:%ld had no \'%c\' or fixsep=\'%c\' end. \n", orig_st_fld, st_fld, dfc->general_sep, fixsep); 
      printf("---: %.*s\n", end_fld-st_fld+1, sf + st_fld);
      return(-1);
   }
@@ -546,42 +556,89 @@ int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_f
   iKey = ii; 
   
   int aFixNum = 0;  int update_code;  int nKeys = 0;  iStr endq;
-  char on_char_sep = dfc->general_sep;
+  char on_char_sep = fixsep != '\0' ? fixsep : (dfc->fix_sep == '\0' ? dfc->general_sep : dfc->fix_sep);
+  if (fixsep > '\0') { on_char_sep = fixsep; }
   int nEntries = -1;  iStr st_v, end_v;
 
+  int last_ml_endv=-1; int last_ml_stv = -1; int last_ml_mv = -1;
+  if (on_char_sep == '\0') {
+    printf("ERROR ERROR Cofniguring update_file_list_on_fix2end: on_char_sep=\'\\0\'. \n");
+    printf("ERROR No ability to find real spaces with this logic. \n");
+    printf("ERROR fixsep = \'%c\' or %d. \n", fixsep == '\0' ? '0' : fixsep, (int) fixsep);
+    printf("ERROR dfc->fix_sep = \'%c\' or %d. \n", dfc->fix_sep == '\0' ? '0' : dfc->fix_sep, (int) dfc->fix_sep);
+    printf("ERROR dfc->general_sep = \'%c\' or %d. \n", dfc->general_sep == '\0' ? '0' : dfc->general_sep, (int) dfc->general_sep);
+    printf("ERROR return -887700\n");
+    return(-887700);
+  }
+
   while((iKey > 0) && (iKey <= end_fld) && (!IsNewLineChar(sf[iKey]))) {
+    if (sf[iKey] == on_char_sep) { iKey++; }
     if (sf[iKey] == '\"') {
       ii = get_end_quote("update_file_list_on_fix2end", sf, iKey, end_fld); endq = ii;
       char old_char = sf[endq];
       sf[endq] = '\0'; aFixNum=atoi(sf + iKey+1); sf[endq] = old_char;
       NEXTCHAREQ();
     } else {
-      NEXTCHAREQ(); endq = ii;
+      ii = iKey;
+      NEXTCHAREQ(); endq = (sf[ii] == on_char_eq) ? ii : (sf[ii+1] == on_char_eq) ? ii+1 : ii;
       char dmmy = sf[endq]; sf[endq]='\0'; aFixNum=atoi(sf+iKey); sf[endq] = dmmy;
     }
     if (aFixNum <= 0) {
-      printf("ERROR on update_field_list_on_fix2end: nEntries=%ld. \n", nEntries);
+      printf("\n\nERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR \n");
+      printf("ERROR ERROR update_field_list_on_fix2end:  ERROR -4434 Negative aFixNum \n");
+      printf("ERROR on update_field_list_on_fix2end(on_char_sep=\'%c\',fixsep=\'%c\', fixequal=\'%c\'): nEntries=%ld.  but we read aFixNum=%ld.\n", 
+         on_char_sep, fixsep, on_char_eq, (long int) nEntries, (long int) aFixNum);
       if (iKey == endq) {
         printf("ERROR on update_field_list_on_fix2end: pretty obvious because iKey=%ld=endq \n", (long int) iKey, (long int) endq);
       }
+      printf("Technically we tried to process aFixNum out of \"%.*s\". \n", endq-(iKey+1), sf + iKey+1);
+
+      printf("ERROR   Note that last multi_line_equals_bounds as (st_v=%ld, end_v=%ld, nEntries=%ld. For bounds --%.*s--\n",  
+          (long int) last_ml_stv, (long int) last_ml_endv, (long int) last_ml_mv, last_ml_endv >= 0 ? last_ml_endv-last_ml_stv : 0,
+          last_ml_stv < 0 ? "" : sf + last_ml_stv);
       iStr stl_0 = iKey; while((stl_0 >= 1) && (!IsNewLineChar(sf[stl_0-1]))) { stl_0--; }
       iStr endl_0 = stl_0;  while((sf[endl_0+1] != '\0') && (!IsNewLineChar(sf[endl_0]))) { endl_0++; }
-      printf("ERROR update_field_list_on_fix2end: We had iKey=%ld, n_total_all_lines=%ld, for line =%ld, sf[stl_0=%ld:%ld] = \n|%.*s|\n -- what line? \n",
+      printf("ERROR  -- note on_char_sep = \'%c\', fixsep = \'%c\', dfc->fix_sep=\'%c\', and dfc->schemas[nschemas-1=%ld].fixsep=\'%c\'.\n",
+       (char) on_char_sep, (char)fixsep, (char)dfc->fix_sep, (long int) dfc->n_schemas - 1, dfc->schemas[dfc->n_schemas-1].fixsep);
+      printf("ERROR update_field_list_on_fix2end: We had iKey=%ld, n_total_all_lines=%ld, for line =%ld, sf[stl_0=%ld:%ld] =\n---\n%.*s\n---\n --- what line? \n",
         (long int) iKey, (long int) dfl->n_total_all_lines, (long int) get_nlines(sf, stl_0, endl_0), (long int) stl_0,
         (long int) endl_0,  endl_0-stl_0, sf + stl_0);  
-      vpt(-1030, "ERROR, iline=%ld, iKey=%ld/%ld, onfield=%ld, st_fld=%ld, we received aFixNum=%ld for sf[%ld:%ld]=|%.*s|. sf[%ld:%ld]=|%.*s|\n",
+      printf("ERROR update_field_list_on_fix2end: Note that iKey=%ld, for sf[iKey=%ld]=\'%c\', ii=%ld for sf[ii=%ld] = \'%c\' \n",
+        (long int) iKey, (long int) iKey, sf[iKey], (long int) ii, (long int) ii, sf[ii]);
+      printf("ERROR Note that endq = %ld for sf[%ld] = \'%c\' and we attempted to read \"%.*s\". \n",
+       (long int) endq, (long int) endq, sf[endq], endq-iKey, sf+iKey);
+      printf("ERROR, Note that st_fld=%ld, end_fld=%ld, so the line excerpt for field is sf[%ld:%ld]=\n---\n%.*s\n---\n -- That useful? \n",
+        (long int) st_fld, (long int) end_fld, (long int) st_fld, (long int) end_fld, end_fld-st_fld, sf + st_fld);
+      vpt(-1030, "ERROR, iline=%ld, iKey=%ld/%ld, onfield=%ld, st_fld=%ld, we received aFixNum=%ld for sf[%ld:%ld]=--%.*s--. sf[%ld:%ld]= \n---\n%.*s\n---\n",
         (long int) iline, (long int) iKey, (long int) end_fld, (long int) onfield, (long int) st_fld,
         (long int) aFixNum, (long int) iKey, (long int) end_fld, end_fld-iKey, sf+iKey, (long int) st_fld, (long int) end_fld,
         end_fld-st_fld, sf + st_fld);
-      return(-4032034);
+      printf("ERROR update_field_list_on_fix2end: here is dfc: \n");
+      PRINT_dfc(dfc);
+      printf("ERROR update_field_list_on_fix2end: Can you tell what is broken?\n");
+      return(-4434);
     }
     if (IsMultiFix((aFixNum))) {
       nEntries = get_multi_equals_bounds(sf, endq, end_fld, &st_v, &end_v, on_char_eq, on_char_sep);
-      if ((nEntries < 0) || (st_v < 0)) {
-        vpt(-10, "ERROR, we tried to get multi_equals_bounds for this entry for code %ld.  st_fld=%ld, end_fld=%ld, iKey=%ld, for %.*s.\n",
-          (long int) aFixNum, (long int) st_fld, (long int) end_fld, (long int) iKey, end_fld-iKey, sf + iKey);
+      if ((nEntries <= 0) || (st_v < 0)) {
+        printf("\n\n\nERROR ERROR ERROR ERROR ERROR ERROR \n");
+        printf("ERROR ERROR update_field_list_on_fix2end(line=%ld,total line=%ld) \n", dfl->n_loc_lines, dfl->n_total_all_lines);
+        printf("ERROR update_field_list_on_fix2end: MULTI EQUALLS BOUNDS for aFixNum = %ld. \n", (long int) aFixNum);
+        printf("ERROR (%s), we tried to get multi_equals_bounds for this entry for code %ld.  st_fld=%ld, end_fld=%ld, iKey=%ld, for %.*s, on_char_eq=\'%c\', on_char_sep=\'%c\'\n",
+          stt, (long int) aFixNum, (long int) st_fld, (long int) end_fld, (long int) iKey, end_fld-iKey, sf + iKey, (char) on_char_eq, (char) on_char_sep);
+        iStr stl_4 = iKey; while((stl_4 >= 1) && (!IsNewLineChar(sf[stl_4-1]))) { stl_4--; }
+        iStr endl_4 = stl_4; while((sf[endl_4+1] != '\0') && (!IsNewLineChar(sf[endl_4]))) { endl_4++; }
+        printf("ERROR (%s) current line sf[%ld:%ld] = \n ---\n%.*s\n --- \n SOLVE ERROR ? \n",
+          stt, (long int) stl_4, (long int) endl_4,  endl_4-stl_4, sf + stl_4);
+        printf("ERROR note multiequalsbounds has (sf, endq=%ld, end_fld=%ld, st_v=%ld, end_v=%ld, on_char_eq=\'%c\', on_char_sep=\'%c\') \n",
+        (long int) endq, (long int) end_fld, (long int) st_v, (long int) end_v, (char) on_char_eq, (char) on_char_sep);
+        printf("ERROR note that on_char_sep=\'%c\' or integer wide=%d\n", (char) on_char_sep, (int) on_char_sep);
+        int c_cs = 0;  for (iStr i0 = stl_4; i0 < endl_4; i0++) { if (sf[i0] == on_char_sep) { c_cs++; }}
+        printf("ERROR note that for on_char_sep code %d, we found that separator a total of %d times in line. \n",
+          (int) on_char_sep, (int) c_cs);
+        return(-989800);
       }
-      ii = end_v;
+      ii = end_v;  last_ml_mv = nEntries; last_ml_endv = end_v;  last_ml_stv = st_v;
       if ((end_v > end_fld) || (end_v < st_v)) {
         printf("get_multi_equals_bounds::: ERROR, end_v=%ld, but end_fld=%ld, st_v=%ld. \n", (long int) end_v, (long int) end_fld, (long int) st_v);
         vpt(-10, " --  ERROR I guess we will report an error. \n");
@@ -590,7 +647,7 @@ int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_f
       if (verbose >= 2) {
         printf("UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU\n");
       }
-      vpt(1, " NOTE update_field_list_on_fix2end: we got a aFixNum=%d, and nEntries=%ld. sf[%ld:%ld] = |%.*s|\n", 
+      vpt(1, " NOTE update_field_list_on_fix2end: we got a aFixNum=%d, and nEntries=%ld. sf[%ld:%ld] = --%.*s--\n", 
         aFixNum, (long int) nEntries, (long int) st_v, (long int) end_v, end_v-st_v, sf + st_v);
     } else {
       nEntries = 1;  NEXTCHARSEP();
@@ -600,8 +657,18 @@ int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_f
       vpt(1, " --- We have zero working field lists. aFixNum is returned as %ld.\n", (long int) aFixNum);
       return(-403023);
     }
+    if (nEntries <= 0) {
+      printf("ERROR ERROR update_field_list_on_fix2end. nEntries=%ld for  aFixNum=%ld:%s\n",
+        (long int) nEntries, (long int) aFixNum, IsMultiFix(aFixNum) ? "used get_multi_equals_bounds" : "single entry");
+      printf("ERROR (start at %s) propagate nEntries <= 0. \n", stt); 
+      printf("ERROR note on_char_sep = \'%c\'. \n", on_char_sep);
+      return(-503023);
+    }
     update_code = add_to_field_list(dfl, aFixNum, iline, verbose+1, nEntries);
-    if (update_code < 0) {  vpt(0, "ERROR, update_code=%d for adding aFixNum=%ld?  Why ? \n", (long int) update_code, (long int) aFixNum); return(-1); }
+    if (update_code < 0) {  
+      printf("ERROR (proagate to %s), update_code=%d for adding aFixNum=%ld?  Why ? \n", 
+      stt, (long int) update_code, (long int) aFixNum); return(update_code); 
+    }
     if (update_code != 1) { vpt(1, "Note  we received an update_code of %ld for aFixNum=%ld. \n", (long int) update_code, (long int) aFixNum); }
     nKeys++;
     iKey =  ii;
@@ -619,7 +686,7 @@ int update_field_list_on_line(long int iline, char*sf, iStr st_ln, iStr end_ln, 
   sprintf(stt, "update_field_list_on_line(iline=%ld,v=%d,ns=%ld): ", (long int) iline, (int) verbose, (long int) dfc->n_schemas);
   vpt(2, "Here is complete line...\n%.*s\n", end_ln-st_ln, sf+st_ln);
   int attempt;
-  char on_char_sep = dfl->char_sep;
+  char on_char_sep = dfl->char_sep != '\0' ? dfl->char_sep : dfc->general_sep;
   if (IsNewLineChar( (sf[end_ln-2]) )) {
     end_ln = end_ln-2;
   } else if (IsNewLineChar( (sf[end_ln-1]))) {
@@ -632,10 +699,12 @@ int update_field_list_on_line(long int iline, char*sf, iStr st_ln, iStr end_ln, 
     } else if (dfc->schemas[ion_schema].typ == fix2end) {
       iStr fieldStart = ii;  iStr fieldEnd = end_ln; ii = end_ln;
       ii++;
-      vpt(1, "on is=%ld/%ld, we get fix2end to end line from [%ld:%ld]: \"%.*s...\" \n",
+
+      dfc->schemas[ion_schema].fixsep = dfc->schemas[ion_schema].fixsep =='\0' ? dfc->fix_sep : dfc->schemas[ion_schema].fixsep;
+      vpt(1, "on is=%ld/%ld, we get fix2end to end line from [%ld:%ld]: \"%.*s...\", fix_sep moving to \'%c\'\n",
         (long int) ion_schema, (long int) dfc->n_schemas, (long int) fieldStart, (long int) fieldEnd,
-        fieldEnd-fieldStart < 20 ? fieldEnd-fieldStart : 20, (char*) sf + fieldStart);
-      attempt = update_field_list_on_fix2end(iline, ion_schema, sf, fieldStart, sf[fieldEnd] == '\n' ? fieldEnd : fieldEnd, dfc, dfl, verbose);
+        fieldEnd-fieldStart < 20 ? fieldEnd-fieldStart : 20, (char*) sf + fieldStart, dfc->schemas[ion_schema].fixsep);
+      attempt = update_field_list_on_fix2end(iline, ion_schema, sf, fieldStart, sf[fieldEnd] == '\n' ? fieldEnd : fieldEnd, dfc, dfl, verbose, dfc->schemas[ion_schema].fixsep);
       if (attempt < 0) {
         printf("update_field_list_on_line(iline=%ld) ERROR, attempt=%d after update_field_list_on_fix2end,ion_schema=%ld/%ld \n",
           (long int) iline, (int) attempt, (long int) ion_schema, (long int) dfc->n_schemas);
@@ -654,11 +723,11 @@ int update_field_list_on_line(long int iline, char*sf, iStr st_ln, iStr end_ln, 
       //NEXTCOMMA();  
       NEXTCHARSEP();
       iStr fieldEnd = ii-1;
-      vpt(1, "on is=%ld/%ld, found FX between [%ld,%ld]: \"%.*s...\" \n", 
+      vpt(1, "on is=%ld/%ld, found FX between [%ld,%ld]: \"%.*s...\" on_char_sep=\'%c\' going to \'%c\'\n", 
           (long int) ion_schema, (long int) dfc->n_schemas, 
           (long int) fieldStart, (long int) fieldEnd, 
           fieldEnd-fieldStart < 10 ? fieldEnd-fieldStart : 10, 
-          (char*) sf + fieldStart);
+          (char*) sf + fieldStart, on_char_sep, dfc->fix_sep);
       attempt = update_field_list_on_field(iline, ion_schema, sf, fieldStart, sf[fieldEnd] == '}' ? fieldEnd+1 : fieldEnd, dfc, dfl, verbose);
       if (attempt < 0) {
         vpt(0, " ERROR attempt = %ld for schema=%ld/%ld on iline=%ld. [st,end]=[%ld,%ld] with fieldst/end=[%ld,%ld] for:\n",
@@ -723,14 +792,32 @@ int confirm_txt_exists(int lntxt, const char*seektxt, const char*sf, iStr st, iS
   }
   return(0);
 }
-DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char char_sep, int verbose, int standard_vector_size,
+DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char char_sep, char fix_sep, int verbose, int standard_vector_size,
   long long int start_byte, long long int end_byte, char *ignore_line_text, char *keep_line_text) {
   char stt[500];
-  sprintf(stt, "generate_file_list(\"%.*s\",v=%ld,nf=%ld): ", 40, tgt_filename, (long int) verbose, (long int) dfc->nfields); 
+
+
+  if (fix_sep > '\0') { 
+    if ((fix_sep >= '1') && (fix_sep <= '9')) { 
+      fix_sep = (char) ( (int) fix_sep - (int) '0'); 
+    }
+    dfc->fix_sep = fix_sep; 
+  } else {
+    fix_sep = dfc->fix_sep; 
+  }
+
+  if (char_sep > '\0') { 
+    if ((char_sep >= '1') && (char_sep <= '9')) { char_sep = (char) ((int)char_sep - (int) '0'); }
+    dfc->general_sep = char_sep; 
+  } else {
+    char_sep = dfc->general_sep;
+  }
+  sprintf(stt, "generate_file_list(\"%.*s\",v=%ld,nf=%ld,cs=\'%c\',fx=\'%c\'): ", 40, tgt_filename, (long int) verbose, (long int) dfc->nfields, char_sep, fix_sep); 
   vpt(1, "  -- Welcome I hope DFC is populated. \n");
   DF_field_list *dfl = create_blank_field_list(dfc, verbose-1);
   if (dfl == NULL) { vpt(0, " -- failed to allocate dfl at beginning. \n");  return(NULL); }
 
+  dfl->char_sep = char_sep;
   //printf("--- generate_field_list --- No files!. \n");
   //return(dfl);
 
@@ -764,7 +851,6 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
   int update_error;
   dfl->file_total_bytes = (long int) file_len;
   dfl->n_total_lines = 0;  dfl->n_total_all_lines = 0;
-  dfl->char_sep = char_sep;
   dfl->line_locs[0] = onstr;  dfl->line_locs[1] = bytesread;  
 
   int do_line = 0;
@@ -813,9 +899,10 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
         if (update_error < 0) {
           printf("ERROR: generate_field_list(onstr=%ld, iLineEnd=%ld, n_total_lines=%ld, update_error=%ld. \n", (long int) onstr,
             (long int) iLineEnd, (long int) dfl->n_total_lines, (long int) update_error);
-          printf(" -- gfl -- ERROR: on update with [onstr,iLineEnd]=[%ld,%ld] for |%.*s|\n",
-           (long int) onstr, (long int) iLineEnd, iLineEnd-onstr +1, buffer+onstr);
-          printf(" -- gfl -- ERROR  Note: num_reads=%d. num_since_new=%d last remainder was %d\n", (int) num_reads, (int) num_since_new, (int) remainder);
+          printf(" -- gfl(cs=\'%c\',fs=\'%c\') -- ERROR: on update with [onstr,iLineEnd]=[%ld,%ld] for |%.*s|\n",
+           char_sep, fix_sep, (long int) onstr, (long int) iLineEnd, iLineEnd-onstr +1, buffer+onstr);
+          printf(" -- gfl(cs=\'%c\',fs=\'%c\') -- ERROR  Note: num_reads=%d. num_since_new=%d last remainder was %d\n", 
+            char_sep, fix_sep,(int) num_reads, (int) num_since_new, (int) remainder);
           printf(" -- gfl -- ERROR buffer[onstr=%ld:iLineEnd=%ld]= |%.*s| \n", 
             (long int) onstr, (long int) iLineEnd, iLineEnd-onstr, buffer+onstr);
           printf(" -- gfl -- ERROR Last remainder was %ld, bytesread = %ld, new_bytes=%ld. \n",
@@ -864,6 +951,11 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
       printf("ERROR: onstr=%ld, num_reads=%ld, we read MAXREAD[%ld]-remainder[%ld] bytes but got %ld bytes. \n",
         (long int) onstr, (long int) num_reads, (long int) MAXREAD, (long int) remainder, (long int) new_bytes);
       rewind(fpo); fclose(fpo); delete_field_list(&dfl, verbose); return(NULL);
+    } else if (new_bytes == 0) {
+      if (tbytesread <= 0) {
+        printf("ERROR ERROR: tbytesread=%ld, new_bytes=%ld.", (long int) tbytesread, (long int) new_bytes);
+        printf("ERROR this must have been an empty file? new_bytes=%ld, remainder=%ld. \n", (long int) new_bytes, (long int) remainder);
+      }
     }
     if (buffer[remainder + new_bytes-1] == '\r') {
       fread(buffer+remainder+new_bytes, sizeof(char),1,fpo);  new_bytes++;
@@ -871,10 +963,16 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
     #ifdef DEBUG_MODE
     int find_first_endl = 0;  while((find_first_endl < new_bytes + remainder) && (!IsNewLineChar(buffer[find_first_endl]))) { find_first_endl++; }
     if (find_first_endl >= new_bytes + remainder) {
-        vpt(-100, " ERROR: DEBUG MODE hoping to jump to end: find_first_endl didn't find anything on %ld bytes read. \n", new_bytes);
+        vpt(-100, " ERROR: DEBUG MODE find_first_endl =%ld, new_bytes=%ld, remainder=%ld. \n",
+          (long int) find_first_endl, (long int) new_bytes, (long int) remainder);
+        printf("ERROR: hoping to jump to end: find_first_endl didn't find anything on %ld bytes read, find_first_endl=%ld \n", 
+          (long int) new_bytes, (long int) find_first_endl);
         printf("BUFFER ADD = |%.*s|\n",  new_bytes, buffer+remainder);
         printf("BUFFER REM = |%.*s|\n",  remainder, buffer);
-        printf("  NOT tbytesread = %ld. \n", tbytesread);
+        printf("ERROR  NOTE tbytesread = %ld. \n", tbytesread);
+        printf("ERROR n_loc_lines = %ld. \n", dfl->n_loc_lines, dfl->n_total_lines);
+        printf("ERROR Note at this point dfl->n_known_fields = %ld. \n", (long int) dfl->n_known_fields);
+        printf("ERROR %s: \n", stt);
     } 
     if (verbose >= 2) {
       if (find_first_endl < new_bytes+remainder) {
@@ -1035,8 +1133,10 @@ int configure_column_order(DF_config_file *dfc, DF_field_list *dfl, int verbose)
       dfc->schemas[on_s].final_o_loc = on_final_o_loc;  
       dfc->schemas[on_s].final_m_loc = on_final_m_loc;  
       n_on_s = next_priority_schema(dfc, on_s, verbose-1);
-      if (n_on_s == on_s) { vpt(-10, " ERROR: n_on_s=%ld, on_s=%ld. We didn't jump correct\n", (long int) n_on_s,
-         (long int) on_s);  return(-10); }
+      if (n_on_s == on_s) { 
+         vpt(-10, " ERROR: n_on_s=%ld, on_s=%ld. We didn't jump correct\n", (long int) n_on_s,
+         (long int) on_s);  return(-2220); 
+      }
       on_s = n_on_s;
       p_on_s =  ((on_s >= 0) && (on_s < dfc->n_schemas)) ? dfc->schemas[on_s].priority : -999;
       on_final_m_loc++;
@@ -1045,8 +1145,8 @@ int configure_column_order(DF_config_file *dfc, DF_field_list *dfl, int verbose)
       dfl->final_known_multiplicity_loc[on_f] = on_final_m_loc;
       n_on_f = next_priority_fixfield(dfc, dfl, on_f, verbose-1);
       if (on_f == n_on_f) { 
-        vpt(-10, "ERROR: n_on_f=%ld, on_f=%ld.  This doesn't jump. \n", (long int) n_on_f, on_f);
-        return(-10);
+        vpt(-10, " ERROR: n_on_f=%ld, on_f=%ld.  This doesn't jump. \n", (long int) n_on_f, on_f);
+        return(-22210);
       }
       nkeep = ((dfl->known_multiplicity[on_f] < dfc->fxs[on_f].maxmultiplicity) ? dfl->known_multiplicity[on_f] :
          dfc->fxs[on_f].maxmultiplicity);  nkeep = nkeep >= 1 ? nkeep : 1;
@@ -1148,13 +1248,18 @@ int configure_column_order(DF_config_file *dfc, DF_field_list *dfl, int verbose)
   } 
   vpt(1, " We have concluded with on_final_o_loc=%ld, versus on_final_m_loc=%ld. \n", (long int) on_final_o_loc, (long int) on_final_m_loc);
   if (error_form > 0) {
-    vpt(-1, "Calculating mark_visited failed. \n"); return(-10);
+    printf("ERROR Configure Column Order -- error_form = %ld. \n", (long int) error_form);
+    vpt(-30320, "Calculating mark_visited failed. \n"); 
+    return(-66610);
   }
   vpt(0, "Mark Visited returns all correct. \n");
   return(1);
 } 
 int clear_m_visited(DF_config_file *dfc) {
-  if (dfc == NULL) { return(-10); } 
+  if (dfc == NULL) { 
+    printf("ERROR ERROR clear_m_visited: we have dfc == NULL. \n");
+    return(-55510); 
+  } 
   if ((dfc->mark_m_visited == 0) || (dfc->n_total_multiplicity_columns <= 0)) { return(-5); }
   for (int ii = 0; ii < dfc->n_total_multiplicity_columns;ii++) {
     dfc->mark_m_visited[ii] = 0;

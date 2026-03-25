@@ -157,6 +157,8 @@ void destroy_df_bind_data(void *v_df_bd) {
   if (df_keep_line_text != NULL) { duckdb_destroy_value(&df_keep_line_text); df_keep_line_text=NULL; }       \
   if (df_start_byte != NULL) { duckdb_destroy_value(&df_start_byte); df_start_byte=NULL; }                   \
   if (df_end_byte != NULL) { duckdb_destroy_value(&df_end_byte); df_end_byte=NULL; }                         \
+  if (df_fix_sep != NULL) { duckdb_destroy_value(&df_fix_sep); df_fix_sep=NULL; }                            \
+  if (df_char_sep != NULL) { duckdb_destroy_value(&df_char_sep); df_char_sep=NULL; }                         \
   df_file_name = NULL
 
 #define my_dbp_clear() \
@@ -165,6 +167,7 @@ void destroy_df_bind_data(void *v_df_bd) {
   if (keep_line_text != NULL) {   duckdb_free(keep_line_text); keep_line_text = NULL; }                      \
   if (ignore_line_text != NULL) { duckdb_free(ignore_line_text); ignore_line_text = NULL; }                  \
   if (v_char_sep != NULL) { duckdb_free(v_char_sep);  v_char_sep = NULL; }                                   \
+  if (v_fix_sep != NULL) { duckdb_free(v_fix_sep);  v_fix_sep = NULL; }                                      \
   keep_line_text=NULL
 
 
@@ -212,9 +215,12 @@ void duckfix_bind(duckdb_bind_info b_info) {
   duckdb_value df_file_name = NULL; duckdb_value df_json_file_name=NULL;
   duckdb_value df_start_byte=NULL; duckdb_value df_end_byte = NULL;
   duckdb_value df_keep_line_text=NULL; duckdb_value df_ignore_line_text=NULL;
-  char *v_char_sep = NULL; char *file_name=NULL; char * json_file_name=NULL;
+  duckdb_value df_fix_sep=NULL;
+  char *v_char_sep = NULL; char *v_fix_sep = NULL; 
+  char *file_name=NULL; char * json_file_name=NULL;
   char *ignore_line_text=NULL; char*keep_line_text=NULL;
 
+  char fix_sep = '\0'; char char_sep='\0';
   // ll, long-lived copies that will live on stack here in the function;
   char ll_file_name[600]; char ll_json_file_name[600];  ll_file_name[0] = '\0'; ll_json_file_name[0] = '\0';
   int len_file_name = 0; int len_json_file_name = 0;
@@ -262,7 +268,6 @@ void duckfix_bind(duckdb_bind_info b_info) {
   #endif
 
   df_char_sep = duckdb_bind_get_named_parameter(b_info, "char_sep");
-  char char_sep = ',';
   vpt(2, " We are looking to charge char_sep. \n");
   if (df_char_sep == NULL) {
     vpt(2, "-- we had df_char_sep was complete NULL.\n");
@@ -282,6 +287,29 @@ void duckfix_bind(duckdb_bind_info b_info) {
     vpt(3, "duckfix_bind: Clearing v_char_sep because we think we can. \n");
   }
   if (df_char_sep != NULL) { duckdb_destroy_value(&df_char_sep); df_char_sep=NULL; }
+
+
+  df_fix_sep = duckdb_bind_get_named_parameter(b_info, "fix_sep");
+  if (df_fix_sep == NULL) {
+  } else if (duckdb_is_null_value(df_fix_sep)) {
+  } else {
+    v_fix_sep = duckdb_get_varchar( (duckdb_value) df_fix_sep);
+    vpt(2, "-- we got a pointer and strlen(v_fix_sep) = %ld. \n", (int) strlen(v_fix_sep));
+    if (strlen(v_fix_sep) >= 1) { 
+      fix_sep = v_fix_sep[0]; 
+    } 
+    if ((fix_sep >= '1') && (fix_sep <= '9')) {
+      printf("duckdb you supplied fix_sep=\'%c\' but we believe this is a hexadecimal number. \n", fix_sep);
+      fix_sep = (char) ((int) fix_sep - ((int)'0'));
+    }
+    vpt(3, "duckfix_bind: Clearing v_fix_sep because we think we can. \n");
+  }
+  if (df_fix_sep != NULL) { duckdb_destroy_value(&df_fix_sep); df_fix_sep=NULL; }
+  if (fix_sep <= '\0') { fix_sep='\0'; }
+  if (char_sep <= '\0') { char_sep='\0'; }
+  vpt(-10, " After load, fix_sep=\'%c\',char_sep=\'%c\'\n",
+     fix_sep == '\0' ? '0' : (char_sep >= 1 && char_sep <= 9) ? (char) (fix_sep + '0') : fix_sep,
+     char_sep == '\0' ? '0' : (char_sep >= 1 && char_sep <= 9) ? (char) (char_sep + '0') : char_sep);
 
   vpt(2, " We are looking to try and extract json_file_name. \n");
   df_json_file_name = duckdb_bind_get_named_parameter(b_info, "json_file_name");
@@ -396,9 +424,16 @@ void duckfix_bind(duckdb_bind_info b_info) {
   //my_clear();
   //printf("Die after MyClearKill. ttc from test was %d\n", ttc);
   //return;
+  dfc->general_sep = dfc->general_sep == '\0' ? (char_sep != '\0' ? char_sep : ',') : dfc->general_sep;
+  dfc->fix_sep = (dfc->fix_sep == '\0')
+      ? (dfc->schemas[dfc->n_schemas-1].fixsep != '\0' ? dfc->schemas[dfc->n_schemas-1].fixsep : dfc->general_sep) 
+      : dfc->fix_sep;
+  fix_sep = (fix_sep == '\0') ? (dfc->fix_sep != '\0' ? dfc->fix_sep : dfc->general_sep) : fix_sep;
 
+  vpt(0, "Before we start fix_sep=\'%c\', char_sep=\'%c\', dfc->general_sep=\'%c\', dfc->fix_sep=\'%c\'. \n",
+     (char) fix_sep, (char) char_sep, (char) dfc->general_sep, (char) dfc->fix_sep);
   dfl = NULL;
-  dfl = generate_field_list(ll_file_name, dfc, char_sep, verbose-2, standard_vector_size,
+  dfl = generate_field_list(ll_file_name, dfc, char_sep, fix_sep, verbose-2, standard_vector_size,
     start_byte, end_byte, len_ignore_line_text > 0 ? ll_ignore_line_text : NULL, len_keep_line_text > 0 ? ll_keep_line_text : NULL);
 
   if (dfl == NULL) {
@@ -412,6 +447,24 @@ void duckfix_bind(duckdb_bind_info b_info) {
   dfl->standard_vector_size = (int) duckdb_vector_size(); 
   vpt(1, " -- After generate_field_list(%s) received with num_used_known=%ld/%ld, num_unknown=%ld. \n", 
     ll_file_name, (long int) dfl->num_used_known_fields,(long int) dfl->n_known_fields, (long int) dfl->num_unknown);
+  if ((dfl->n_known_fields <= 0) && (dfl->num_unknown <= 0)) {
+    printf("ERROR ERROR ERROR ERROR ERROR df_bind.c->df_bind() fail, n_known_fields=%ld, num_unknown=%ld. n_loc_lines=%ld, n_loc_all_lines=%ld. \n",
+       (long int) dfl->n_known_fields, (long int) dfl->num_unknown, (long int) dfl->n_loc_lines, (long int) dfl->n_total_lines);
+    printf("ERROR df_bind.c->df_bind: note char_sep=\'%c\', fix_sep=\'%c\', dfc->general_sep=\'%c\', dfc->fix_sep=\'%c\'\n",
+       (char) char_sep, (char) fix_sep, (char) dfc->general_sep, (char) dfc->fix_sep);
+    printf("ERROR note that dfc->schemas[n_schemas-1=%ld].fixsep=\'%c\'\n", (long int) dfc->n_schemas-1, dfc->schemas[dfc->n_schemas-1].fixsep);
+    vpt(-100, " ERROR, no known fields or unknown in field list the file read must have failed! \n");
+    delete_field_list(&dfl, 2); dfl = NULL;
+    dfl = generate_field_list(ll_file_name, dfc, char_sep, fix_sep, verbose+1, standard_vector_size,
+      start_byte, end_byte, len_ignore_line_text > 0 ? ll_ignore_line_text : NULL, len_keep_line_text > 0 ? ll_keep_line_text : NULL);
+    if (dfl == NULL) {
+      duckdb_bind_set_error(b_info, " Rerun of generate_field_list made non null large data.\n"); my_clear(); return;
+    }
+    vpt(-100, " ERROR after error and rerun dfl->n_known_fields=%ld, dfl->num_unknown=%ld. \n",
+      dfl->n_known_fields, dfl->num_unknown);
+      duckdb_bind_set_error(b_info, " Rerun of generate_field_list made non null large data.\n"); my_clear();
+      return;
+  }
 
   /*
   printf("Kill after Field List My Clear Kill! \n"); 

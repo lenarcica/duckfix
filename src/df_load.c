@@ -969,7 +969,7 @@ int test_replace_config_file(DF_config_file **p_odfc, int verbose) {
 
   ndfc->ordered_fields = odfc->ordered_fields; odfc->ordered_fields = NULL;
   ndfc->n_total_print_columns = odfc->n_total_print_columns;  ndfc->n_total_multiplicity_columns = odfc->n_total_multiplicity_columns;
-  ndfc->general_sep = odfc->general_sep;
+  ndfc->general_sep = odfc->general_sep;  ndfc->fix_sep = odfc->fix_sep;
   ndfc->mark_visited = odfc->mark_visited; odfc->mark_visited = NULL;
   ndfc->mark_m_visited = odfc->mark_m_visited; odfc->mark_m_visited = NULL;
   delete_config_file(p_odfc, verbose);
@@ -1005,6 +1005,7 @@ int copy_replace_schemas(DF_config_file *odfc, DF_config_file *ndfc, int verbose
     ndfc->schemas[ii].final_m_loc = odfc->schemas[ii].final_m_loc;
     ndfc->schemas[ii].rtrunc = odfc->schemas[ii].rtrunc;
     ndfc->schemas[ii].ltrunc = odfc->schemas[ii].ltrunc; ndfc->schemas[ii].fixequal = odfc->schemas[ii].fixequal;
+    ndfc->schemas[ii].fixsep = odfc->schemas[ii].fixsep;
   }
   delete_schemas(odfc->n_schemas, &odfc->schemas, verbose);
   return(1);
@@ -1076,6 +1077,7 @@ DF_Schema *create_blank_schemas(int n_schemas) {
     dfs[ii].timestamp_format = NULL;  dfs[ii].priority = -1;
     dfs[ii].width = (char) 0; dfs[ii].scale = (char) 0;  dfs[ii].fmttyp=UNKNOWN_TS;
     dfs[ii].final_o_loc=-1; dfs[ii].final_m_loc=-1; dfs[ii].ltrunc=0;dfs[ii].rtrunc=0;
+    dfs[ii].fixsep = ' ';  dfs[ii].fixequal='=';
   }
   return(dfs);
 }
@@ -1100,7 +1102,7 @@ DF_config_file *new_config_file() {
   DF_config_file *dfc = malloc(sizeof(DF_config_file));
   if (dfc == NULL) {  printf("ERROR: DF_config file, failed to allocate dfc. \n");  return(NULL); }
   dfc->schemas = NULL; dfc->name = NULL; dfc->info = NULL; dfc->desc = NULL; dfc->exampleline=NULL; 
-  dfc->nfields = 0; dfc->ordered_fields=NULL;
+  dfc->nfields = 0; dfc->ordered_fields=NULL;  dfc->general_sep=','; dfc->fix_sep=',';
 
   dfc->fxs = NULL;  dfc->mark_visited=NULL; dfc->mark_m_visited=NULL;
   return(dfc);
@@ -1191,6 +1193,15 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
       dfc->general_sep);
     dfc->general_sep =  (char) ((int) dfc->general_sep - ((int) '0'));
   }
+
+  dfc->fix_sep = '\0';
+  SchemaSeeker_CHAR("fix_sep",7, (dfc->fix_sep), on_i, (nmax), i_loc, st0, end0, 0);
+  if ((dfc->fix_sep >= '1') &&  (dfc->fix_sep <= '9')) {
+    printf("NOTE: fix_sep, you gave character \'%c\' which we will interpret as early character. \n",
+      dfc->general_sep);
+    dfc->fix_sep =  (char) ((int) dfc->fix_sep - ((int) '0'));
+  }
+  if ((dfc->fix_sep == '\0') && (dfc->general_sep != '\0')) { dfc->fix_sep = dfc->general_sep; }
 
   iStr iSchema = -1;
   SchemaSeeker_START("schema",6, on_i, (nmax), iSchema, sch_st, sch_end, 1);
@@ -1370,6 +1381,14 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
     }
    
     SchemaSeeker_CHAR("fixequal",8, (dfc->schemas[i_s].fixequal), st_V, (end_V+1), i_loc, st0, end0, 0);
+
+    SchemaSeeker_CHAR("fixsep",6, (dfc->schemas[i_s].fixsep), st_V, (end_V+1), i_loc, st0, end0, 0);
+    if ((dfc->schemas[i_s].fixsep != '\0') && (dfc->schemas[i_s].fixsep >= '1') && 
+        (dfc->schemas[i_s].fixsep <= '9')) {
+      vpt(1, " I think fixfep for i_s=%ld is \'%c\' will code as \\x0%c. \n",
+        (long int) i_s, dfc->schemas[i_s].fixsep, dfc->schemas[i_s].fixsep);
+      dfc->schemas[i_s].fixsep = (char) ((int) dfc->schemas[i_s].fixsep-((int)'0'));
+    }
     iStr typ_loc = 0;
     SchemaSeeker_START("typ",3, st_V, (end_V+1), typ_loc, st0, end0, 1);
     dfc->schemas[i_s].typ = MATCHTYPE(sf,st0,end0);
@@ -1441,7 +1460,7 @@ void PRINT_dfc(DF_config_file *dfc) {
           (int) dfc->schemas[i_s].ltrunc, (int) dfc->schemas[i_s].rtrunc
         );
         if ((dfc->schemas[i_s].typ == fix42) || (dfc->schemas[i_s].typ == fix2end)) {
-          printf(",fixequal=\'%c\'", dfc->schemas[i_s].fixequal );
+          printf(",fixequal=\'%c\',fixsep=\'%c\'", dfc->schemas[i_s].fixequal, dfc->schemas[i_s].fixsep);
         }
         if (dfc->schemas[i_s].typ == decimal_gen) {
           printf("[w=%ld,scale=%ld]", 

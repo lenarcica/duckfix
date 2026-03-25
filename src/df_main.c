@@ -243,7 +243,11 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
   #ifndef DEBUG_MODE
     char stt[] = "  df_main.add_fix2end_entries_to_chunk(): ";
   #endif
-  char char_sep = df_id->dfl->char_sep;
+  char char_sep = df_id->dfc->schemas[onschema].fixsep;
+  if (char_sep == '\0') {
+    char_sep = df_id->dfc->fix_sep != '\0' ? df_id->dfc->fix_sep : 
+      (df_id->dfl->char_sep != '\0' ? df_id->dfl->char_sep : df_id->dfc->general_sep);
+  }
   if (fixfieldsEnd < fixfieldsStart) {
     printf("ERROR ERROR ERROR ERROR ERROR %s  \n", stt);
     printf("ERROR fixfieldsEnd < fixfieldsStart or %ld < %ld. \n", (long int) fixfieldsStart, (long int) fixfieldsEnd);
@@ -297,7 +301,9 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
   int cntFields = 0;  int aFixNum = 0;  iStr keyStart, keyEnd; 
   int an_error;  iStr stVal, endVal; char old_end = '.';
   char on_char_eq = df_id->dfc->schemas[onschema].fixequal;
-  char on_char_sep = (char) df_id->dfl->char_sep;
+  char on_char_sep = (char) df_id->dfc->fix_sep != '\0' ? df_id->dfc->fix_sep : 
+     df_id->dfc->schemas[df_id->dfc->n_schemas-1].fixsep != '\0' ? df_id->dfc->schemas[df_id->dfc->n_schemas-1].fixsep != '\0' : 
+     df_id->dfc->general_sep;
   int nmultiplicity = 0;
   for (; ii < fixfieldsEnd;ii++) {
     #ifdef DEBUG_MODE
@@ -305,6 +311,7 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
         (long int) ii, (long int) fixfieldsStart, (long int) fixfieldsEnd, (long int) cntFields,
         (long int) ii, (long int) fixfieldsEnd, fixfieldsEnd-ii, sf + ii, on_char_sep, on_char_eq);
     #endif
+    if (sf[ii] == on_char_sep) { ii++; }
     if ((IsNewLineChar(sf[ii])) || (sf[ii] == '}')) { 
       #ifdef DEBUG_MODE
         vpt(1, " -ii=%ld, fs,fE=[%ld,%ld], cntFields=%ld, we have an end point \'}\' \n",
@@ -319,6 +326,7 @@ int add_fix2end_entries_to_chunk(df_init_data *df_id, char *sf, int onschema, iS
         keyStart=ii; NEXTCHAREQ(); 
         keyEnd = (sf[ii-1] == on_char_eq) ? (ii-1) : ((sf[ii-2] == on_char_eq) ? (ii-2) : (sf[ii] == on_char_eq ? ii : ii));
         if (keyEnd >=fixfieldsEnd) {
+          printf("\n\n\nERROR ERROR ERROR ERROR ERROR ERROR ERROR ERROR. \n");
           vpt(-302,"ERROR: we got keyEnd=%ld, with fixfieldsEnd=%ld, keyStart was %ld, end_ln=%ld\n",
             (long int) keyEnd, (long int) fixfieldsEnd, (long int) keyStart, (long int) end_ln); 
           printf("  -- ERROR has for sf[%ld:%ld]=\"%.*s\", on_char_eq=\'%c\',ii=%ld, with sf[%ld]=\'%c\'\n",
