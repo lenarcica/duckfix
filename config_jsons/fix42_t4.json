@@ -8,9 +8,9 @@
     "bsentry1": { "desc":"vague string", "typ":"str", "priority":-1, "rtrunc":1, "ltrunc":1, "keep":1},
     "bsentry2": { "desc":"uselesscolon", "typ":"str", "priority":-10, "rtrunc":1, "ltrunc":0, "keep":0}, 
     "AorB": { "desc":"A or a B", "typ":"str", "priority":2, "rtrunc":2, "ltrunc":1},
-    "fixfields": {"desc":"RestAreFixEntries, non json","typ":"fix2end","priority":3, "fixequal":"=", "fixsep":" "}
+    "fixfields": {"desc":"RestAreFixEntries, non json","typ":"fix2end","priority":3, "fixequal":"=", "fixsep":"|"}
   },
-  "general_sep":" ", "fix_sep":" ", "fix_equal":"=",
+  "general_sep":" ", "fix_sep":"|", "fix_equal":"=",
   "fix_type":"4.20",
   "fix_fields":{
     "1":{"fixtitle":"Account<1>","keep":1,"priority":20,
