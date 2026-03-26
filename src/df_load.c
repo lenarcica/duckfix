@@ -9,9 +9,9 @@ int get_nlines(char *sf, int onst, int nmax) {
    int nlines = 0;
    if (onst > nmax) { printf("get_nlines: no, onst=%ld, nmax=%ld we won't find anything. \n", (long int) onst, (long int) nmax); return(-5); }
    for (int ii = 0; ii < onst; ii++) {
-     if ((sf[ii] == '\r') && (ii < onst-1) && (sf[ii+1] == '\n')) { nlines++; ii++; 
-     } else if (sf[ii] == '\n') { nlines++;
-     } else if (sf[ii] == '\r') { nlines++; 
+     if ((sf[ii] == '\r') && (ii < onst-1) && (sf[ii+1] == '\n')) { nlines++; ii+=2;  // \n\n would not count
+     } else if (sf[ii] == '\n') { nlines++; ii++;
+     } else if (sf[ii] == '\r') { nlines++; ii++;
      }
    }
    return(nlines);
@@ -41,6 +41,11 @@ iStr get_end_bracket(char *name_str, char *ast, iStr on_i, iStr nmax) {
       name_str, (long int) on_i);
   }
   iStr ii; iStr jj;
+  if (on_i+1 == nmax) { 
+    printf("get_end_bracket() error, on_i=%ld, ast[%ld]=\'%c\' but nmax=%ld no home! \n",
+      (long int) on_i, (long int) on_i, ast[on_i], (long int) nmax);
+    return(-1);
+  }
   for (ii = on_i + 1; ii < nmax; ii++) {
     if (ast[ii] == ']') { return(ii); }
     jj = ii;
@@ -333,7 +338,7 @@ iStr get_next_key(char* assignment, char *sf, iStr on_i, iStr nmax, int verbose)
   PUSH_OUT_WHITE();
   if ((ii >= nmax) || (ii < 0)) {
     vpt(0,"kkk ERROR(%s), on value search: we pushed out white but ii=%ld/%ld or bad! \n", stt, (long int) ii, (long int) nmax);  return(-5);
-  } else if ((sf[ii] == ' ') || (sf[ii] == '\t') || (sf[ii] == '\n')) {
+  } else if ((sf[ii] == ' ') || (sf[ii] == '\t') || IsNewLineChar(sf[ii])) {
     vpt(0,"kkk ERROR(%s), on value search: we pushed out white but sf[ii=%ld] = \'%c\' bad! \n", stt, (long int) ii, sf[ii]); return(-6);
   }
   vpt(2, ", after colon ii=%ld (st=%ld,max=%ld), and we have sf[ii=%ld]=\'%c\'\n",
@@ -1164,7 +1169,7 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
       (on_i + 40 ? nmax - on_i : 40), sf + on_i);
     printf("get_config_file: ERROR no schema, no config file. \n"); return(NULL);
   }
-  if ((sf[on_i] == ' ') ||  (sf[on_i] == '\n') || (IsNewLineChar(sf[on_i]))) {
+  if ((sf[on_i] == ' ') ||  (IsNewLineChar(sf[on_i]))) {
    for (;on_i < nmax; on_i++) {
      if (sf[on_i] == '{') { break;
      } else if ((sf[on_i] == ' ' )  || (sf[on_i] == '\t') || (IsNewLineChar(sf[on_i]))) {
@@ -1189,7 +1194,7 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
   SchemaSeeker_STR("info",4, (dfc->info), on_i, (nmax), i_loc, st0, end0, 0);
   SchemaSeeker_CHAR("general_sep",11, (dfc->general_sep), on_i, (nmax), i_loc, st0, end0, 0);
   if ((dfc->general_sep >= '1') &&  (dfc->general_sep <= '9')) {
-    printf("NOTE: general_sep, you gave character \'%c\' which we will interpret as early character. \n",
+    vpt(2, "NOTE: general_sep, you gave character \'%c\' which we will interpret as early character. \n",
       dfc->general_sep);
     dfc->general_sep =  (char) ((int) dfc->general_sep - ((int) '0'));
   }
@@ -1197,8 +1202,8 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
   dfc->fix_sep = '\0';
   SchemaSeeker_CHAR("fix_sep",7, (dfc->fix_sep), on_i, (nmax), i_loc, st0, end0, 0);
   if ((dfc->fix_sep >= '1') &&  (dfc->fix_sep <= '9')) {
-    printf("NOTE: fix_sep, you gave character \'%c\' which we will interpret as early character. \n",
-      dfc->general_sep);
+    vpt(2, "NOTE: fix_sep, you gave character \'%c\' which we will interpret as early character and route to a number. \n",
+      dfc->fix_sep);
     dfc->fix_sep =  (char) ((int) dfc->fix_sep - ((int) '0'));
   }
   if ((dfc->fix_sep == '\0') && (dfc->general_sep != '\0')) { dfc->fix_sep = dfc->general_sep; }

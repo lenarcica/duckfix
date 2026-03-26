@@ -279,8 +279,10 @@ int add_to_field_list(DF_field_list *dfl, int aFixNum, int iline, int verbose, i
      ((prop_known_loc >= 0) && (prop_known_loc < dfl->n_known_fields)) ? prop_known_loc : -100,
      ((prop_known_loc >= 0) && (prop_known_loc < dfl->n_known_fields)) ? dfl->ordered_known_fields[prop_known_loc] : -999);
    if ((prop_known_loc >= 0) && (prop_known_loc < dfl->n_known_fields) && dfl->ordered_known_fields[prop_known_loc] == aFixNum) {
-      vpt(1, " found (aFixNum=%ld)  at %ld, current multiplicity=%ld, num_used_known=%ld [%ld/%ld total known, %ld unknown] \n", (long int) aFixNum, (long int) prop_known_loc,
-         (long int) multiplicity, dfl->known_usage_count[prop_known_loc], (long int) dfl->num_used_known_fields, (long int) dfl->n_known_fields, (long int) dfl->num_unknown);
+      vpt(1, " found (aFixNum=%ld)  at %ld, current multiplicity=%ld, num_used_known=%ld [%ld/%ld total known, %ld unknown] \n", 
+         (long int) aFixNum, (long int) prop_known_loc,
+         (long int) multiplicity, (long int) dfl->known_usage_count[prop_known_loc], 
+         (long int) dfl->num_used_known_fields, (long int) dfl->n_known_fields, (long int) dfl->num_unknown);
       if (dfl->known_usage_count[prop_known_loc] == 0) { dfl->num_used_known_fields++; }
       if (multiplicity > dfl->known_multiplicity[prop_known_loc]) { dfl->known_multiplicity[prop_known_loc] = multiplicity; }
       dfl->known_usage_count[prop_known_loc]++; 
@@ -484,7 +486,7 @@ int get_multi_equals_bounds(char *sf, iStr st_eq, iStr nlen, iStr*p_st_v, iStr*p
  // Note technically, all multi entries should be single character.
  iStr onst = st_eq;  p_end_v[0] = st_eq; p_st_v[0] = st_eq;
 
- if (sf[nlen] == '}') {
+ if (sf[nlen] == '}' || IsNewLineChar(sf[nlen])) {
  } else if ((nlen -2 > st_eq) && (IsNewLineChar( sf[nlen-2] ))) { nlen-=2;
  } else if ((nlen-1 > st_eq) && (IsNewLineChar( sf[nlen-1] ))) { nlen-=1;
  }
@@ -516,9 +518,10 @@ int get_multi_equals_bounds(char *sf, iStr st_eq, iStr nlen, iStr*p_st_v, iStr*p
    }
    for(ii=onst+1; ii < p_end_v[0]; ii++) {
      if (sf[onst] == on_sp) { nEntry++; }
-     return(nEntry+1);
-   } 
+   }
+   return(nEntry+1);
  }
+ for (;ii < nlen;ii++) { if ((sf[ii] == ' ') || (sf[ii] == on_sp)) {} else {break;} }
  for (; ii < nlen; ii++) {
    if (sf[ii] == on_sp) {  nEntry++;  p_end_v[0] = ii;
    } else if (sf[ii] == ' ') { nEntry++; p_end_v[0] = ii; // Spaces shouldn't happen between data we can treat as item breaks
@@ -531,9 +534,9 @@ int get_multi_equals_bounds(char *sf, iStr st_eq, iStr nlen, iStr*p_st_v, iStr*p
 }
 // "fix2end" is not a json format it is a separated format of fix fields going on to end of a line.
 int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_fld, iStr end_fld, DF_config_file *dfc, DF_field_list *dfl, int verbose, char fixsep) {
-  char stt[200];
-  sprintf(stt, "update_field_list_on_fix2end(ln=%ld,fld=%d,[%ld:%ld],v=%d,fe=\'%c\',fs=\'%c\'): ",
-    (long int) iline, (int) onfield, (long int) st_fld, (long int) end_fld, (int) verbose, dfc->schemas[onfield].fixequal, fixsep);
+  char stt[300];
+  sprintf(stt, "update_field_list_on_fix2end(tal=%ld,ln=%ld,fld=%d,[%ld:%ld],v=%d,fe=\'%c\',fs=\'%c\'): ",
+    (long int) dfl->n_total_all_lines, (long int) iline, (int) onfield, (long int) st_fld, (long int) end_fld, (int) verbose, dfc->schemas[onfield].fixequal, fixsep);
   iStr orig_st_fld = st_fld;
   if ((sf[st_fld] == ' ') || (sf[st_fld] == dfc->general_sep)) {
     for (;st_fld < end_fld; st_fld++) { if((sf[st_fld]!=' ') && (sf[st_fld] != dfc->general_sep)) { break; } }
@@ -580,7 +583,7 @@ int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_f
       NEXTCHAREQ();
     } else {
       ii = iKey;
-      NEXTCHAREQ(); endq = (sf[ii] == on_char_eq) ? ii : (sf[ii+1] == on_char_eq) ? ii+1 : ii;
+      NEXTCHAREQ(); endq = (sf[ii] == on_char_eq) ? ii : ((ii < end_fld) && (sf[ii+1] == on_char_eq)) ? ii+1 : (sf[ii-1] == on_char_eq ? ii-1 : ii);
       char dmmy = sf[endq]; sf[endq]='\0'; aFixNum=atoi(sf+iKey); sf[endq] = dmmy;
     }
     if (aFixNum <= 0) {
@@ -665,16 +668,19 @@ int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_f
       return(-503023);
     }
     update_code = add_to_field_list(dfl, aFixNum, iline, verbose+1, nEntries);
+    vpt(1, " -- success add_to_field_list(aFixNum=%ld), update_code=%ld. \n", (long int) aFixNum, (long int) update_code);
     if (update_code < 0) {  
-      printf("ERROR (proagate to %s), update_code=%d for adding aFixNum=%ld?  Why ? \n", 
+      printf("ERROR (proagate to %s), update_code=%ld for adding aFixNum=%ld?  Why ? \n", 
       stt, (long int) update_code, (long int) aFixNum); return(update_code); 
     }
     if (update_code != 1) { vpt(1, "Note  we received an update_code of %ld for aFixNum=%ld. \n", (long int) update_code, (long int) aFixNum); }
     nKeys++;
     iKey =  ii;
+    if (iKey >= end_fld) { break; }
+    vpt(1, " ---  sf[iKey=%ld:end_fld=%ld] = %.*s\n", (long int) iKey, (long int) end_fld, end_fld-iKey, sf + iKey);
   }
-  if (verbose >=3 ) {
-     vpt(3, "Finished iline=%ld, onfield=%ld.  Found %ld keys. \n", (long int) iline, (long int) onfield, (long int) nKeys);
+  if (verbose >=1 ) {
+     vpt(1, "Finished iline=%ld, onfield=%ld.  Found %ld keys. \n", (long int) iline, (long int) onfield, (long int) nKeys);
      printf("--------------------------------------------------------------------------------------------------------------\n\n");
   }
   return(1);
@@ -704,7 +710,7 @@ int update_field_list_on_line(long int iline, char*sf, iStr st_ln, iStr end_ln, 
       vpt(1, "on is=%ld/%ld, we get fix2end to end line from [%ld:%ld]: \"%.*s...\", fix_sep moving to \'%c\'\n",
         (long int) ion_schema, (long int) dfc->n_schemas, (long int) fieldStart, (long int) fieldEnd,
         fieldEnd-fieldStart < 20 ? fieldEnd-fieldStart : 20, (char*) sf + fieldStart, dfc->schemas[ion_schema].fixsep);
-      attempt = update_field_list_on_fix2end(iline, ion_schema, sf, fieldStart, sf[fieldEnd] == '\n' ? fieldEnd : fieldEnd, dfc, dfl, verbose, dfc->schemas[ion_schema].fixsep);
+      attempt = update_field_list_on_fix2end(iline, ion_schema, sf, fieldStart, IsNewLineChar(sf[fieldEnd]) ? fieldEnd : fieldEnd, dfc, dfl, verbose, dfc->schemas[ion_schema].fixsep);
       if (attempt < 0) {
         printf("update_field_list_on_line(iline=%ld) ERROR, attempt=%d after update_field_list_on_fix2end,ion_schema=%ld/%ld \n",
           (long int) iline, (int) attempt, (long int) ion_schema, (long int) dfc->n_schemas);
@@ -716,7 +722,7 @@ int update_field_list_on_line(long int iline, char*sf, iStr st_ln, iStr end_ln, 
         printf("uflf2e ---: sf[st_ln=%ld:end_ln=%ld] = |%.*s|\n", (long int)st_ln, (long int)end_ln, end_ln-st_ln, sf + st_ln);
         printf("uflf2e ---:  What went wrong? \n");  return(-1);
       }
-      vpt(2, " --- Finished fix2end for i_s=%ld/%ld.  Attempt generated was %ld. \n", (long int) ion_schema, (long int) dfc->n_schemas, (long int) attempt);
+      vpt(1, " --- Finished fix2end for i_s=%ld/%ld.  Attempt generated was %ld. \n", (long int) ion_schema, (long int) dfc->n_schemas, (long int) attempt);
       return(1);
     } else {
       iStr fieldStart = ii;
@@ -744,7 +750,7 @@ int update_field_list_on_line(long int iline, char*sf, iStr st_ln, iStr end_ln, 
 
 iStr get_next_newln(char *sf, iStr st, iStr nmax, int verbose) {
   char stt[] = "read_file.c->get_next_newln()";
-  iStr ii;
+  iStr ii; iStr outii = 0;
   for (ii=st; ii < nmax; ii++) {
     if (IsNewLineChar(sf[ii])) { return(ii); }
     if (sf[ii] == '\"') {
@@ -753,7 +759,14 @@ iStr get_next_newln(char *sf, iStr st, iStr nmax, int verbose) {
         st, nmax-st < 20 ? nmax : st + 20, nmax-st < 20 ? nmax-st : 20 , sf + st, ii);  return(nmax+1); }
     } else if (sf[ii] == '{') {
       // get_next_newln(...) we don't care about not getting a fill.
-    } else if (sf[ii] == '[') { ii = get_end_bracket( (char*) stt,sf, ii, nmax); 
+    } else if (sf[ii] == '[') { 
+      outii = get_end_bracket( (char*) stt,sf, ii, nmax); 
+      if (outii < 0) {
+        printf("get_next_newln(st=%ld, ii=%ld,outii=%ld) -- we tried to read logs but got an error: sf[st=%ld:nmax=%ld]=\n---\n%.*s\n---\n",
+             (long int) st, (long int) ii, (long int) outii, (long int) st, (long int) nmax, nmax-st, sf + st);
+        return(-557755); 
+      }
+      ii = outii;
       // get_next_newln(...) we don't care about not getting a fill.
     }
   }
@@ -761,20 +774,20 @@ iStr get_next_newln(char *sf, iStr st, iStr nmax, int verbose) {
 }
 // Two types of next newln
 iStr get_next_newln_force_end(char *sf, iStr st, iStr nmax, int verbose) {
-  char stt[] = "read_file.c->get_next_newln()";
+  char stt[] = "read_file.c->get_next_newln_force_end()";
   iStr ii;
   for (ii=st; ii < nmax; ii++) {
     if (IsNewLineChar(sf[ii])) { return(ii);  }
     if (sf[ii] == '\"') {
       ii = get_end_quote((char*) stt, sf, ii, nmax);
-      if (ii < 0) { printf("get_next_newln(sf[st=%ld:%ld] = \"%.*s\" no exit from quote. ii=%ld. \n",
+      if (ii < 0) { printf("get_next_newln_force_end(sf[st=%ld:%ld] = \"%.*s\" no exit from quote. ii=%ld. \n",
         st, nmax-st < 20 ? nmax : st + 20, nmax-st < 20 ? nmax-st : 20 , sf + st, ii);  return(nmax+1); }
     } else if (sf[ii] == '{') {
       ii = get_end_brace((char*) stt,sf, ii, nmax); 
-      if (ii < 0) { printf("get_next_newln(sf[st=%ld:%ld] = \"%.*s\" no exit from get_end_brace. ii=%ld. \n",
+      if (ii < 0) { printf("get_next_newln_force_end(sf[st=%ld:%ld] = \"%.*s\" no exit from get_end_brace. ii=%ld. \n",
         st, nmax-st < 20 ? nmax : 20, nmax-st < 20 ? nmax-st : 20 , sf + st, ii);  return(nmax+1); }
     } else if (sf[ii] == '[') { ii = get_end_bracket( (char*) stt,sf, ii, nmax); 
-      if (ii < 0) { printf("get_next_newln(sf[st=%ld:%ld] = \"%.*s\" no exit from get_end_bracket. ii=%ld. \n",
+      if (ii < 0) { printf("get_next_newln_force_end(sf[st=%ld:%ld] = \"%.*s\" no exit from get_end_bracket. ii=%ld. \n",
         st, nmax-st < 20 ? nmax : st + 20, nmax-st < 20 ? nmax-st : 20, sf + st, ii);  return(nmax+1); }
     }
   }
@@ -782,10 +795,12 @@ iStr get_next_newln_force_end(char *sf, iStr st, iStr nmax, int verbose) {
 }
 // Basic flip through file beginning character by beginning character, hoping to see if target string exists in a line
 int confirm_txt_exists(int lntxt, const char*seektxt, const char*sf, iStr st, iStr end) {
-  iStr st_i;
+  iStr st_i; int hit = 0;
+  if (end < st+lntxt) { return(0); }
   for (st_i = st; st_i < end-lntxt; st_i++) {
-    int hit = 1;
+    hit = 1;
     for (iStr onj = 0; onj < lntxt; onj++) {
+      if (st_i + onj >= end) { hit = 0; break; }
       if (sf[st_i + onj] != seektxt[onj]) { hit = 0; break; }
     }
     if (hit == 1) { return(1); }
@@ -841,30 +856,37 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
   if (keep_line_text != NULL) { len_keep_line_text = strlen(keep_line_text); }
   if (ignore_line_text != NULL) { len_ignore_line_text = strlen(ignore_line_text); }
 
-  char buffer[MAXREAD+5];  int remainder= 0;
+  char buffer[MAXREAD+5];  int remainder= 0;  buffer[MAXREAD]='\0'; buffer[MAXREAD+1]='\0';
+  buffer[MAXREAD+2]='\0'; buffer[MAXREAD+3]='\0'; buffer[MAXREAD+4]='\0';
   long int bytesread; long int tbytesread = 0; int new_bytes;
 
-  int num_reads = 0;
+  int num_reads = 0; int nbuff_up = 0;
   bytesread = fread(buffer,sizeof(char),MAXREAD,fpo);   num_reads++;
   int onstr = 0; long int iline_prints=0;
-  int ibuffreads = 1;
   int update_error;
   dfl->file_total_bytes = (long int) file_len;
   dfl->n_total_lines = 0;  dfl->n_total_all_lines = 0;
+  if (dfl->line_locs == NULL) { vpt(-10, "ERROR dfl->line_locs is NULL at start, quit. \n"); fclose(fpo); return(dfl); }
   dfl->line_locs[0] = onstr;  dfl->line_locs[1] = bytesread;  
 
+  iStr max_newln_bytes = -1;  max_newln_bytes = bytesread;  while((max_newln_bytes >= 0) && (!IsNewLineChar(buffer[max_newln_bytes]))) { max_newln_bytes--; }
   int do_line = 0;
   int num_since_new = 0;
   while ((tbytesread < dfl->file_total_bytes) && (bytesread > 0)) {
     if (verbose >= 3) { printf("\n----------------------------------------------------\n"); }
-    vpt(1, " on ibuffreads=%ld  bytesread=%ld, remainder=%ld, tbytesread=%ld. \n",
-      (long int) ibuffreads, (long int) bytesread, (long int) remainder, (long int) tbytesread);
-    vpt(3, " here is the complete buffer so far: \n%.*s\nLet's begin...\n", (long int) bytesread, buffer);
-    while (onstr < bytesread) {
+    vpt(1, " on num_reads=%ld  bytesread=%ld, remainder=%ld, tbytesread=%ld.ll=%ld, lt=%ld, file_len=%ld\n",
+      (long int) num_reads, (long int) bytesread, (long int) remainder, (long int) tbytesread,
+      (long int) dfl->n_loc_lines, (long int) dfl->n_total_lines, (long int) file_len);
+    vpt(5, " here is the complete buffer so far: \n ---\n%.*s\n ---\nLet's begin...\n", (long int) bytesread, buffer);
+    while (onstr < max_newln_bytes) {
       vpt(3, " on iline=%ld, onstr=%ld/%ld, tbytesread=%ld, \"%.*s...\"\n",
-        (long int) dfl->n_total_lines, (long int) onstr, (long int) bytesread,  (long int) tbytesread, 30, buffer + onstr);
-      while ((onstr < bytesread) && (IsNewLineChar(buffer[onstr] == '\n'))) {onstr++; }
-      iStr iLineEnd = get_next_newln(buffer, onstr, bytesread, verbose-2); 
+        (long int) dfl->n_total_lines, (long int) onstr, (long int) bytesread,  (long int) tbytesread, 
+         onstr + 30 < max_newln_bytes ? onstr+30: max_newln_bytes-onstr, buffer + onstr);
+      while ((onstr < bytesread) && (IsNewLineChar(buffer[onstr]))) {onstr++; }
+      iStr iLineEnd = get_next_newln(buffer, onstr, max_newln_bytes, verbose-2); 
+      if (iLineEnd < 0) {
+         printf("ERROR ISSUE we read all the way to a last line not conducive for support. \n");
+      }
       if ((iLineEnd < onstr) || (iLineEnd >= bytesread))  { break; }
       if (!IsNewLineChar(buffer[iLineEnd])) { printf("generate_file_list, iLineEnd=%ld, but buffer[%ld]=\'%c\' ? \n",
                                       (long int) iLineEnd, (long int) iLineEnd, buffer[iLineEnd]);  }
@@ -925,6 +947,8 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
       } else {
         onstr = iLineEnd+1;  num_since_new++;
       }
+      vpt(2, " -- gfl -- Conclude another loop with onstr=%ld/%ld, ttl=%ld, tal=%ld. \n",
+        (long int) onstr, (long int) bytesread, (long int) dfl->n_total_lines, (long int) dfl->n_total_all_lines);
     }
     if (onstr < 0) {
       printf("ERROR: onstr = %ld on num_reads=%ld. \n", (long int) onstr, (long int) num_reads);
@@ -940,13 +964,14 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
     #ifdef DEBUG_MODE 
     if (verbose >= 2) {
       printf("\n");
-      printf(" -- gfl --  num_reads=%ld: num_since_new=%d, onstr=%d, remainder=%ld, remaining string = |%.*s| \n", (long int) num_reads, 
-         (int) num_since_new, (long int) onstr, (long int) remainder,
+      printf(" -- gfl -- REQUIRE ADDIONTAL LOAD: num_reads=%ld: num_since_new=%d, onstr=%ld, remainder=%ld, remaining string = |%.*s| \n", 
+         (long int) num_reads, (int) num_since_new, (long int) onstr, (long int) remainder,
          remainder, buffer + onstr);
     }
     #endif
     tbytesread += bytesread-remainder;
     new_bytes = fread(buffer+remainder,sizeof(char),MAXREAD-remainder,fpo);  onstr = 0;  num_reads++;
+    vpt(2, " -- glf -- ADDITIONAL LOAD, returned new_bytes = %ld. \n", (long int) new_bytes);
     if (new_bytes+remainder > MAXREAD) {
       printf("ERROR: onstr=%ld, num_reads=%ld, we read MAXREAD[%ld]-remainder[%ld] bytes but got %ld bytes. \n",
         (long int) onstr, (long int) num_reads, (long int) MAXREAD, (long int) remainder, (long int) new_bytes);
@@ -958,11 +983,18 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
       }
     }
     if (buffer[remainder + new_bytes-1] == '\r') {
-      fread(buffer+remainder+new_bytes, sizeof(char),1,fpo);  new_bytes++;
+      vpt(0, "Note on ttl=%ld, tal=%ld, num_reads=%ld, we need to buff up because we might be half newline. nbuff now-%ld. \n",
+        (long int) dfl->n_total_lines,  (long int) dfl->n_total_all_lines, (long int) num_reads, (long int) nbuff_up);
+      fread(buffer+remainder+new_bytes, sizeof(char),1,fpo);  new_bytes++; nbuff_up++;
     }
     #ifdef DEBUG_MODE
-    int find_first_endl = 0;  while((find_first_endl < new_bytes + remainder) && (!IsNewLineChar(buffer[find_first_endl]))) { find_first_endl++; }
-    if (find_first_endl >= new_bytes + remainder) {
+    iStr find_first_endl = 0;
+    if (remainder+new_bytes <= 0) {
+      vpt(1, " NOTE We did not open any new code.  We are likely done, new_bytes=%ld. bytesread=%ld, old bytesread=%ld\n", 
+        (long int) new_bytes, (long int) (new_bytes + remainder), (long int) bytesread);
+    }  else {
+      while((find_first_endl < new_bytes + remainder) && (!IsNewLineChar(buffer[find_first_endl]))) { find_first_endl++; }
+      if (find_first_endl >= new_bytes + remainder) {
         vpt(-100, " ERROR: DEBUG MODE find_first_endl =%ld, new_bytes=%ld, remainder=%ld. \n",
           (long int) find_first_endl, (long int) new_bytes, (long int) remainder);
         printf("ERROR: hoping to jump to end: find_first_endl didn't find anything on %ld bytes read, find_first_endl=%ld \n", 
@@ -973,21 +1005,23 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
         printf("ERROR n_loc_lines = %ld. \n", dfl->n_loc_lines, dfl->n_total_lines);
         printf("ERROR Note at this point dfl->n_known_fields = %ld. \n", (long int) dfl->n_known_fields);
         printf("ERROR %s: \n", stt);
-    } 
-    if (verbose >= 2) {
-      if (find_first_endl < new_bytes+remainder) {
-        printf(" -- gfl -- after next fread, buffer[0:%d]=|%.*s| \n",
-          200 > find_first_endl ? find_first_endl : 200,
-          200 > find_first_endl ? find_first_endl : 200, buffer);
-      } else {
-        printf(" -- glf -- no first endl found. \n");
+      } 
+      if (verbose >= 2) {
+        if (find_first_endl < new_bytes+remainder) {
+          printf(" -- gfl -- after next fread, buffer[0:%d]=|%.*s| \n",
+            (int) (200 > find_first_endl ? find_first_endl : 200),
+           200 > find_first_endl ? find_first_endl : 200, buffer);
+        } else {
+          printf(" -- glf -- no first endl found. \n");
+        }
+        printf(" -- gfl -- after this fread, buffer[remainder=%d:%d] = |%.*s| \n",
+          remainder, remainder+40 > find_first_endl ? find_first_endl : remainder+40,
+          remainder+40 > find_first_endl ? find_first_endl - remainder : 40, buffer+remainder);
       }
-      printf(" -- gfl -- after this fread, buffer[remainder=%d:%d] = |%.*s| \n",
-        remainder, remainder+40 > find_first_endl ? find_first_endl : remainder+40,
-        remainder+40 > find_first_endl ? find_first_endl - remainder : 40, buffer+remainder);
     }
     #endif
     bytesread = new_bytes + remainder; num_since_new = 0;
+    max_newln_bytes = bytesread;  while((max_newln_bytes >= 1) && (!(IsNewLineChar(buffer[max_newln_bytes])))) { max_newln_bytes--; }
   }
   dfl->finish = 1;
   rewind(fpo);

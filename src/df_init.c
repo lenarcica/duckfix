@@ -59,7 +59,6 @@ DUCKDB_EXTENSION_EXTERN
 void destroy_df_init_data( void *v_df_id) {
   if (v_df_id == NULL) { return; }
   df_init_data *df_id = (df_init_data*) v_df_id;
-  printf("df_init.c->destroy_df_init_data->called");
   int verbose = df_id->verbose;
   if (verbose >= 1) {
     printf("destroy_df_init_data:: Activated. \n");
@@ -97,8 +96,6 @@ void destroy_df_init_data( void *v_df_id) {
 }
 
 void duckfix_init(duckdb_init_info i_info) {
-
-  printf("df_init.c->duckfix_init called.\n");
   char stt[500]; 
   sprintf(stt, "df_init.c->duckfix_init(): ");
   void * v_df_bd = (void *) duckdb_init_get_bind_data(i_info);

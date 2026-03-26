@@ -52,7 +52,7 @@ df_bind_data* create_null_bind_data() {
 void destroy_df_extra_info(void *v_df_xi) {
   //printf("destroy_df_extra_info() we have now called. \n");
   df_extra_info *df_xi = (df_extra_info*) v_df_xi;
-  printf("df_bind.c->destroy_df_extra_info() start. \n");
+  //printf("df_bind.c->destroy_df_extra_info() start. \n");
   if (df_xi == NULL) { return; }
   if (df_xi->verbose > 0) {
     printf("destroy_df_xtra_info -- starting. \n");
@@ -150,6 +150,7 @@ void destroy_df_bind_data(void *v_df_bd) {
 }
 
 #define my_dbv_clear() \
+  if (verbose >= 1) { printf("my_dbv_clear(%s,v=%d) starting. \n", stt, verbose);  }                         \
   if (df_file_name != NULL) { duckdb_destroy_value(&df_file_name); df_file_name=NULL; }                      \
   if (df_json_file_name != NULL) { duckdb_destroy_value(&df_json_file_name); df_json_file_name=NULL; }       \
   if (df_verbose != NULL) { duckdb_destroy_value(&df_verbose); df_verbose=NULL; }                            \
@@ -157,6 +158,7 @@ void destroy_df_bind_data(void *v_df_bd) {
   if (df_keep_line_text != NULL) { duckdb_destroy_value(&df_keep_line_text); df_keep_line_text=NULL; }       \
   if (df_start_byte != NULL) { duckdb_destroy_value(&df_start_byte); df_start_byte=NULL; }                   \
   if (df_end_byte != NULL) { duckdb_destroy_value(&df_end_byte); df_end_byte=NULL; }                         \
+  if (verbose >= 1) { printf("my_dbv_clear ---- about to destroy df_fix_sep,df_char_sep.\n"); }              \
   if (df_fix_sep != NULL) { duckdb_destroy_value(&df_fix_sep); df_fix_sep=NULL; }                            \
   if (df_char_sep != NULL) { duckdb_destroy_value(&df_char_sep); df_char_sep=NULL; }                         \
   df_file_name = NULL
@@ -173,11 +175,13 @@ void destroy_df_bind_data(void *v_df_bd) {
 
 //my_dbp_clear();                                                                                            
 #define my_clear() \
+  if (verbose >= 1) { printf("my_clear(%s,v=%d) starting. \n", stt, verbose); }                              \
   my_dbv_clear();                                                                                            \
   if (dfc != NULL) {  delete_config_file(&dfc,verbose); }                                                    \
   if (dfl != NULL) {  delete_field_list(&dfl,verbose); }                                                     \
   if (json_sf != NULL) { if(verbose >= 1) { printf("duckfix_bind->freeing json_sf\n");   }                   \
      free(json_sf); json_sf = NULL; }                                                                        \
+  if (verbose >= 1) { printf("my_clear(%s,v=%d) finished. \n", stt, verbose); }                              \
   dfc=NULL; dfl=NULL
 
 void duckfix_bind(duckdb_bind_info b_info) {
@@ -191,9 +195,9 @@ void duckfix_bind(duckdb_bind_info b_info) {
   sprintf(stt, "df_bind.c->duckfix_bind(): ");
   df_extra_info *x_info = duckdb_bind_get_extra_info((duckdb_bind_info) b_info);
   if (x_info != NULL) {
-    printf("df_bind.c->duckfix_bind() we got x_info is not null. \n");
+    //printf("df_bind.c->duckfix_bind() we got x_info is not null. \n");
   } else {
-    printf("df_bind.c->duckfix_bind() we got x_info is null. \n");
+    //printf("df_bind.c->duckfix_bind() we got x_info is null. \n");
   }
   //duckdb_connection ddb_con = x_info->ddb_con;
   duckdb_value df_verbose = duckdb_bind_get_named_parameter(b_info, "verbose");
@@ -286,7 +290,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
     }
     vpt(3, "duckfix_bind: Clearing v_char_sep because we think we can. \n");
   }
-  if (df_char_sep != NULL) { duckdb_destroy_value(&df_char_sep); df_char_sep=NULL; }
+  //if (df_char_sep != NULL) { duckdb_destroy_value(&df_char_sep); df_char_sep=NULL; }
 
 
   df_fix_sep = duckdb_bind_get_named_parameter(b_info, "fix_sep");
@@ -299,15 +303,15 @@ void duckfix_bind(duckdb_bind_info b_info) {
       fix_sep = v_fix_sep[0]; 
     } 
     if ((fix_sep >= '1') && (fix_sep <= '9')) {
-      printf("duckdb you supplied fix_sep=\'%c\' but we believe this is a hexadecimal number. \n", fix_sep);
+      vpt(1,"duckdb you supplied fix_sep=\'%c\' but we believe this is a hexadecimal number. \n", fix_sep);
       fix_sep = (char) ((int) fix_sep - ((int)'0'));
     }
     vpt(3, "duckfix_bind: Clearing v_fix_sep because we think we can. \n");
   }
-  if (df_fix_sep != NULL) { duckdb_destroy_value(&df_fix_sep); df_fix_sep=NULL; }
+  //if (df_fix_sep != NULL) { duckdb_destroy_value(&df_fix_sep); df_fix_sep=NULL; }
   if (fix_sep <= '\0') { fix_sep='\0'; }
   if (char_sep <= '\0') { char_sep='\0'; }
-  vpt(-10, " After load, fix_sep=\'%c\',char_sep=\'%c\'\n",
+  vpt(1, " After load, fix_sep=\'%c\',char_sep=\'%c\'\n",
      fix_sep == '\0' ? '0' : (char_sep >= 1 && char_sep <= 9) ? (char) (fix_sep + '0') : fix_sep,
      char_sep == '\0' ? '0' : (char_sep >= 1 && char_sep <= 9) ? (char) (char_sep + '0') : char_sep);
 
@@ -430,7 +434,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
       : dfc->fix_sep;
   fix_sep = (fix_sep == '\0') ? (dfc->fix_sep != '\0' ? dfc->fix_sep : dfc->general_sep) : fix_sep;
 
-  vpt(0, "Before we start fix_sep=\'%c\', char_sep=\'%c\', dfc->general_sep=\'%c\', dfc->fix_sep=\'%c\'. \n",
+  vpt(0, "Before we start generate_field_list, fix_sep=\'%c\', char_sep=\'%c\', dfc->general_sep=\'%c\', dfc->fix_sep=\'%c\'. \n",
      (char) fix_sep, (char) char_sep, (char) dfc->general_sep, (char) dfc->fix_sep);
   dfl = NULL;
   dfl = generate_field_list(ll_file_name, dfc, char_sep, fix_sep, verbose-2, standard_vector_size,
