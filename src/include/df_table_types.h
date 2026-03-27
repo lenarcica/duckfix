@@ -78,6 +78,38 @@
    "DUCKDB_WE_DIDNT_LABEL")
 #endif
 
+#ifndef BUSTTYPES
+#define BUSTTYPES 0
+typedef enum { 
+  nobust,
+  bust,
+  badencode,
+  badencodeandbust
+} DF_BustType;
+
+#define What_DF_BustType(on_bust)  \
+  ((on_bust) == nobust) ? "None" :  \
+  ((on_bust) == bust) ? "Bust" :  \
+  ((on_bust) == badencode) ? "BadEncode" : \
+  ((on_bust) == badencodeandbust) ? "BustAndEncode" : \
+  "Unknown"
+
+#define UpdateBust(on_bust, new_bust) \
+    ( (on_bust) == nobust) ? (new_bust) :  \
+    ( (new_bust) == nobust) ? (on_bust) : \
+    ( (on_bust) == badencodeandbust) ? badencodeandbust : \
+    ((on_bust) == bust) ?  (((new_bust)==badencode) ? badencodeandbust :on_bust) : \
+    ((on_bust) == badencode) ? (((new_bust)==bust) ? badencodeandbust : on_bust) : \
+    on_bust
+
+//(on_bust) )
+
+#define UpdateBust2(on_bust,new_bust) \
+ (((on_bust) == nobust) ? (new_bust) : \
+  ((on_bust) == bust) ?   (((new_bust)==bust) ? bust : ((new_bust)==badencode) ? badencodeandbust : on_bust) : \
+  ((on_bust) == badencode) ? (((new_bust)==nobust) ? (on_bust) : ((new_bust)==badencode) ? badencode : badencodeandbust) \
+  ((on_bust) == badencodeandbust) ? badencodeandbust : badencodeandbust)
+#endif
 typedef struct _df_extra_info {
     //duckdb_connection ddb_con;
   //char *file_name;
@@ -97,6 +129,8 @@ typedef struct _df_init_data {
   FILE *fpo;
   int on_overall_line; int on_chunk_line;
   int st_buffer_loc; int end_buffer_loc;
+
+  DF_BustType line_is_busted;
   //iStr st_line; iStr end_line;
   //duckdb_data_chunk on_in_chunk;
   //idx_t on_in_row;
@@ -118,10 +152,13 @@ typedef struct _df_init_data {
   int64_t start_byte;  int64_t end_byte;
   int DONE;
 
+
 } df_init_data; 
 
 typedef struct _df_bind_data {
   int32_t verbose;
+
+  int report_bust;
   //duckdb_connection ddb_con;
   idx_t cardinality;
   //duckdb_result *p_result;

@@ -437,6 +437,7 @@ typedef struct _DF_config_file {
   int *mark_visited;
   int *mark_m_visited;
   int n_read_cols;
+  int xtra_col;
 } DF_config_file; 
 #endif
 
