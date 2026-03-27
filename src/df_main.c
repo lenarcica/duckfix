@@ -70,6 +70,7 @@
 
 DUCKDB_EXTENSION_EXTERN
 
+
 int PRINT_multiplicity(df_init_data *df_id, const char *nmstr, duckdb_data_chunk out_chunk) {
   printf("--- Printing Multiplicity with info %s. total line=%d, chunk line = %d\n", nmstr,
     df_id->on_overall_line, df_id->on_chunk_line);
@@ -909,8 +910,13 @@ int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iS
         }
         printf("However seek_char=\'%c\' for LOC_CHART=%d. What do we think we did wrong? \n",
          seek_char, LOC_CHAR(seek_char));
+        printf("  BAD Line [ttl=%ld, tal=%ld : \n ---\n", (long int) df_id->on_overall_line, (long int) df_id->actual_rows_read);
+        iStr st_l = valStart; while((st_l >= 1) && (!IsNewLineChar(sf[st_l]))) { st_l--; }
+        iStr end_l = st_l;  while((sf[end_l+1] != '\0') && (!IsNewLineChar(sf[end_l]))) { end_l++; }
+        linePF(sf, st_l, end_l, dfc->fix_sep, ' ');
+        duckdb_vector_assign_string_element_len(ddbv, df_id->on_chunk_line, sf + (sf[valStart] == '\"' ? valStart + 1 : valStart), 1);
         df_id->line_is_busted = UpdateBust(df_id->line_is_busted, badencode);
-        return(-3403053);
+        return(4);
       }
     } else {
       vpt(0, " ERROR, iLocChar=%ld for seek_char = \'%c\' This is weird and bad. \n", (long int) iLocChar, (char) seek_char);
@@ -1230,7 +1236,10 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
           *(((int64_t *)vddbv) + on_chunk_line) = load_i64;
           break;
         default :
+          vpt(-1, " ISSUE we face that a TIME type not implemented of this type yet. \n");
           vpt(-1, " ERROR %s TIME type is not implemented yet \n", What_DF_TSType(fmttyp));
+          df_id->line_is_busted = UpdateBust(df_id->line_is_busted, bust);
+          return(3);
       }
       break;
     default :
@@ -1365,6 +1374,9 @@ int add_null_line_to_chunk(duckdb_data_chunk out_chunk, duckdb_function_info df_
 int add_line_to_chunk(duckdb_data_chunk out_chunk, 
   duckdb_function_info df_info, df_init_data *df_id, int verbose) {
   DF_field_list *dfl = df_id->dfl;
+  
+
+  df_bind_data *df_bd = (df_bind_data *)duckdb_function_get_bind_data((duckdb_function_info) df_info);
 
   //printf("Bad line stuff here we go before seeing data, we thing total print columns is %ld \n", df_id->dfc->n_total_print_columns);
   //return(0);
@@ -1420,7 +1432,10 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
          //vpt(-1, " ERROR received %ld from last attempt to add fix field entry to chunk. Trying again \n", (long int) attempt);
          //attempt = add_fixfields_entries_to_chunk(df_id, df_id->buffer, fieldStart, fieldEnd, df_id->on_chunk_line,out_chunk, verbose+5);
 		 vpt(-1, "  We had received %ld from attempt to add fix_field entry to chunk and tried again \n", (long int) attempt);
-		 duckdb_function_set_error(df_info, "Attempted to Add Fix Field entry but failed. \n"); return(-1);
+           df_id->line_is_busted = UpdateBust(df_id->line_is_busted, bust);
+           if (df_bd->report_bust <= 0) {
+		   duckdb_function_set_error(df_info, "Attempted to Add Fix Field entry but failed. \n"); return(-1);
+           }
        } else {
          vpt(2, " after add_fixfields_entries_to_chunk we get attempt=%ld for on_chunk_line=%ld. or line %ld/%ld \n",
            (long int) attempt, (long int) df_id->on_chunk_line, (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines);
@@ -1742,7 +1757,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
           df_id->buffer + df_id->onstr, df_id->tbytesread, df_id->dfl->file_total_bytes,
           (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines);
         #endif
-        printf("Set bust on line.\n");
+        //printf("Set bust on line.\n");
         df_id->line_is_busted = UpdateBust(df_id->line_is_busted, bust);
       }
       if (df_id->iLineEnd >= df_id->bytesread) { break; }
@@ -1764,7 +1779,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
         do_line = 1;
       }
       if (do_line ==0) {
-        df_id->onstr = df_id->iLineEnd+1;
+        df_id->onstr = df_id->iLineEnd+1; df_id->actual_rows_read++;
       } else if (do_line > 0) {
         clear_m_visited(df_id->dfc); 
         //if (df_id->dfc->n_total_multiplicity_columns != df_id->dfc->n_total_print_columns) {
@@ -1772,19 +1787,25 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
         // }
         //
         if ((verbose >= 2) || ((verbose >= 1) && (df_id->on_overall_line % 10000) == 0)) {
-           printf("     dfmtf -- About to add line %ld/%ld, totalall=%ld. \n",
+           printf("     dfmtf -- About to add line %ld/%ld, actual rows=%ld/%ld. \n",
              (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines, 
-             (long int) df_id->dfl->n_total_all_lines);
+             (long int) df_id->actual_rows_read, (long int) df_id->dfl->n_total_all_lines);
         }
         add_line_error = 0;
         df_id->line_is_busted = nobust;
         //add_line_error = add_null_line_to_chunk(out_chunk, df_info, df_id, verbose+2);
-        add_line_error = add_line_to_chunk(out_chunk, df_info, df_id, verbose-1);
-
+        add_line_error = add_line_to_chunk(out_chunk, df_info, df_id, verbose-1);   
+      
+        short addi = 0;  duckdb_vector ddbv;
         if (df_bd->report_bust > 0) {
           // Report Bust if we find one
-          duckdb_vector ddbv = duckdb_data_chunk_get_vector(out_chunk, df_id->dfc->n_total_multiplicity_columns);
-          duckdb_vector_assign_string_element(ddbv, df_id->on_chunk_line, What_DF_BustType(df_id->line_is_busted));
+          ddbv = duckdb_data_chunk_get_vector(out_chunk, df_id->dfc->n_total_multiplicity_columns);
+          duckdb_vector_assign_string_element(ddbv, df_id->on_chunk_line, What_DF_BustType(df_id->line_is_busted));  addi++;
+        }
+        if (df_bd->report_line > 0) {
+          ddbv = duckdb_data_chunk_get_vector(out_chunk, df_id->dfc->n_total_multiplicity_columns + addi);
+          void * vddbv = (void *)duckdb_vector_get_data(ddbv);  uint64_t *ddbv_validity=NULL;
+          *((int64_t*) vddbv + df_id->on_chunk_line) = df_id->actual_rows_read;
         }
         /***************
         int tlt_error = test_logical_types(df_id, "mainloop", verbose, out_chunk);
@@ -1814,7 +1835,6 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
       return;
       */
       //
-
         if (add_line_error < 0) {
           vpt(-10,"Error on update with [onstr,iLineEnd]=[%ld,%ld] for \n%.*s\nWhat went wrong?  Is line busted=%s\n",
            (long int) df_id->onstr, (long int) df_id->iLineEnd, (df_id->iLineEnd)-(df_id->onstr) +1, df_id->buffer+df_id->onstr,
@@ -1823,7 +1843,12 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
           duckdb_function_set_error(df_info, error_text); 
           duckdb_data_chunk_set_size(out_chunk,df_id->on_chunk+1);
           df_id->line_is_busted = UpdateBust(df_id->line_is_busted, bust);
-          return;
+
+          if (df_bd->report_bust == 0) {
+            duckdb_function_set_error(df_info, error_text); 
+            duckdb_data_chunk_set_size(out_chunk,df_id->on_chunk+1);
+            return;
+          }
         }
         #ifdef DEBUG_MODE
           vpt(2, " -- completed line %ld/%ld, or %ld/%ld, onstr=%ld, iLineEnd=%ld. Bustlevel = %s. \n",
@@ -1839,7 +1864,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
           }
           vpt(3, "  After END OF LINE we updated chunks and info. \n");
         #endif
-        df_id->onstr = df_id->iLineEnd+1;  df_id->on_overall_line++;  df_id->on_chunk_line++;
+        df_id->onstr = df_id->iLineEnd+1;  df_id->on_overall_line++;  df_id->on_chunk_line++;  df_id->actual_rows_read++;
         if (df_id->on_chunk_line >= dfl->standard_vector_size) {
           #ifdef DEBUG_MODE
           vpt(2, "On Chunk %d/%d,  on_chunk_line=%ld/%ld, Reached vector max read position with bytesread=%ld, tbytesread=%ld",

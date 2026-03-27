@@ -133,7 +133,10 @@ iStr get_end_brace(char *name_str, char *ast, iStr on_i, iStr nmax) {
   }
   printf("ERROR: get_end_brace(%s), started at on_i=%ld/%ld, no next brace at ii=%ld =nmax=%ld. n_braces=%ld, n_brackets=%ld\n", 
     name_str, (long int) on_i, (long int) nmax, (long int) ii, (long int) nmax, (long int) n_braces, (long int) n_brackets);
-  printf(" We had looked for \"%.*s...\".\n",  (nmax-on_i) < 40 ? (nmax-on_i) : 40, ast + on_i);
+  iStr st_l = on_i;  while((st_l >= 1) && (!IsNewLineChar(ast[st_l-1]))) { st_l--; }
+  iStr end_l = on_i;  while((ast[end_l+1] != '\0') && (!IsNewLineChar(ast[end_l]))) { end_l++; }
+  printf(" We had looked for a line \n --- "); 
+  linePF(ast, st_l, end_l, 1, ' '); printf("\n --- \n");
   printf(" End of string is \"...%.*s\".\n",  (nmax-on_i) < 40 ? (nmax-on_i) : 40, ast + nmax - ((nmax-on_i) < 40 ? (nmax-on_i) : 40));
   return(-1);
 }

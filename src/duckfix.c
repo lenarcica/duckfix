@@ -182,6 +182,8 @@ void register_duckfix_production_table_function(duckdb_connection ddb_con) {
     (const char*) "verbose", (duckdb_logical_type) int_type);
   duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
     (const char*) "report_bust", (duckdb_logical_type) int_type);
+  duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
+    (const char*) "report_line", (duckdb_logical_type) int_type);
   duckdb_destroy_logical_type(&int_type);
  
   duckdb_logical_type big_int_type = duckdb_create_logical_type(DUCKDB_TYPE_BIGINT);

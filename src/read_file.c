@@ -35,6 +35,12 @@
   mykey[0] = 0
 #endif
 
+int linePF(char *sf, iStr st, iStr end, char char_sep, char cr) {
+  for (int ii = st; ii < end; ii++) {
+     printf("%c", sf[ii] == char_sep ? cr : sf[ii]);
+  }
+  return(1);
+}
 
 DF_field_list *create_nulled_field_list(int verbose) {
   char stt[]="create_nulled_field_list(): ";

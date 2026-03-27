@@ -45,7 +45,7 @@ df_bind_data* create_null_bind_data() {
   df_bd->verbose = 0;  df_bd->dfl = NULL; df_bd->dfc = NULL;
   df_bd->ignore_line_text = NULL; df_bd->keep_line_text = NULL; df_bd->file_name = NULL;
   df_bd->start_byte = 0;  df_bd->end_byte = -1;
-  df_bd->cardinality = 0;  df_bd->DONE = 0;  df_bd->report_bust = 0;
+  df_bd->cardinality = 0;  df_bd->DONE = 0;  df_bd->report_bust = 0; df_bd->report_line = 0;
   return(df_bd);
 }
 
@@ -101,7 +101,7 @@ int copy_destroy_bind(df_bind_data **p_df_bd, const char *ntype) {
     test_replace_string(&df_bd->ignore_line_text, strlen(df_bd->ignore_line_text), "copy_destroy_bind(df_bd->ignore_line_text)", 1);
   }
   ndf_bd->ignore_line_text = df_bd->ignore_line_text; df_bd->ignore_line_text = NULL;
-  ndf_bd->report_bust = df_bd->report_bust;
+  ndf_bd->report_bust = df_bd->report_bust; ndf_bd->report_line=df_bd->report_line;
 
   if (df_bd->keep_line_text != NULL) {
     printf("clearing keep_line_text(%s); \n", ntype);
@@ -164,6 +164,7 @@ void destroy_df_bind_data(void *v_df_bd) {
   if (df_fix_sep != NULL) { duckdb_destroy_value(&df_fix_sep); df_fix_sep=NULL; }                            \
   if (df_char_sep != NULL) { duckdb_destroy_value(&df_char_sep); df_char_sep=NULL; }                         \
   if (df_report_bust != NULL) { duckdb_destroy_value(&df_report_bust); df_report_bust=NULL;}                 \
+  if (df_report_line != NULL) { duckdb_destroy_value(&df_report_line); df_report_line=NULL;}                 \
   df_file_name = NULL
 
 #define my_dbp_clear() \
@@ -227,6 +228,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
   duckdb_value df_start_byte=NULL; duckdb_value df_end_byte = NULL;
   duckdb_value df_keep_line_text=NULL; duckdb_value df_ignore_line_text=NULL;
   duckdb_value df_fix_sep=NULL;  duckdb_value df_report_bust = NULL;  int report_bust = 0;
+  duckdb_value df_report_line = NULL; int report_line = 0;
   char *v_char_sep = NULL; char *v_fix_sep = NULL; 
   char *file_name=NULL; char * json_file_name=NULL;
   char *ignore_line_text=NULL; char*keep_line_text=NULL;
@@ -239,7 +241,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
   ll_ignore_line_text[0] = '\0'; ll_keep_line_text[0] = '\0';
   int len_ignore_line_text = 0; int len_keep_line_text = 0;
 
-
+  // Extra reporting options
   df_report_bust = duckdb_bind_get_named_parameter(b_info, "report_bust");
   report_bust = 0;
   if (df_report_bust == NULL) {
@@ -247,6 +249,13 @@ void duckfix_bind(duckdb_bind_info b_info) {
     report_bust = duckdb_get_int32(df_report_bust);
   } 
   if (df_report_bust != NULL) { duckdb_destroy_value(&df_report_bust); df_report_bust=NULL; }
+  df_report_line = duckdb_bind_get_named_parameter(b_info, "report_line");
+  report_line = 0;
+  if (df_report_line == NULL) {
+  } else if (!duckdb_is_null_value(df_report_line)) {
+    report_line = duckdb_get_int32(df_report_line);
+  } 
+  if (df_report_line != NULL) { duckdb_destroy_value(&df_report_line); df_report_line=NULL; }
 
   char *json_sf = NULL;
   df_start_byte = duckdb_bind_get_named_parameter(b_info, "start_byte");
@@ -590,7 +599,8 @@ void duckfix_bind(duckdb_bind_info b_info) {
    x_info->verbose = verbose; 
   }
   df_bd->dfl = dfl; df_bd->dfc = dfc;
-  df_bd->start_byte = start_byte; df_bd->end_byte = end_byte; df_bd->report_bust = report_bust;
+  df_bd->start_byte = start_byte; df_bd->end_byte = end_byte; 
+  df_bd->report_bust = report_bust; df_bd->report_line = report_line;
 
 
   //printf("copy_destroy_bind test. After completing blank creation \n");
@@ -626,9 +636,10 @@ void duckfix_bind(duckdb_bind_info b_info) {
   //x_info->file_name = malloc(sizeof(char) * fn_len);
   //if (x_info->file_name == NULL) { printf("ERROR trying to allocate x_info->filename of length %ld. \n", (long int) fn_len); }
   //if (x_info->file_name != NULL) { memcpy(x_info->file_name, df_bd->file_name, fn_len); }
-  vpt(1, "%s: duckdb_bind_set_cardinality to b_info. Columns=%d \n", stt, (int) dfc->n_total_multiplicity_columns);
-  duckdb_bind_set_cardinality(b_info, (idx_t) dfc->n_total_multiplicity_columns + (df_bd->report_bust>0 ? 1 : 0), 1);
-  dfc->xtra_col = (df_bd->report_bust > 0) ? 1 : 0;
+  //
+  dfc->xtra_col = ((df_bd->report_bust > 0) ? 1 : 0) + (df_bd->report_line>0 ? 1 : 0);
+  vpt(1, "%s: duckdb_bind_set_cardinality to b_info. Columns=%d \n", stt, (int) dfc->n_total_multiplicity_columns + dfc->xtra_col);
+  duckdb_bind_set_cardinality(b_info, (idx_t) (dfc->n_total_multiplicity_columns + dfc->xtra_col),1); 
   vpt(1, "%s: duckdb_bind_set_cardinality: set total multiplicty to %ld into b_info. \n", stt,
      (int) dfc->n_total_multiplicity_columns);
   if (dfc->mark_m_visited == NULL) {
@@ -742,6 +753,12 @@ void duckfix_bind(duckdb_bind_info b_info) {
   if (df_bd->report_bust > 0) {
     on_type = duckdb_create_logical_type(WHAT_DDB_TYPE(str));
     duckdb_bind_add_result_column(b_info, "BustType", on_type);
+    duckdb_destroy_logical_type(&on_type);
+  } 
+
+  if (df_bd->report_line > 0) {
+    on_type = duckdb_create_logical_type(WHAT_DDB_TYPE(i64));
+    duckdb_bind_add_result_column(b_info, "line", on_type);
     duckdb_destroy_logical_type(&on_type);
   } 
   //vpt(3, "copy_destroy_bind test. \n");
