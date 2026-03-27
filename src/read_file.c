@@ -1194,12 +1194,12 @@ int configure_column_order(DF_config_file *dfc, DF_field_list *dfl, int verbose)
   dfc->n_total_print_columns = on_final_o_loc;
   dfc->n_total_multiplicity_columns = on_final_m_loc;
   vpt(1, " ---- All concluded loop, on_final_o_loc=%ld, on_final_m_loc=%ld. \n", (long int) on_final_o_loc, (long int) on_final_m_loc);
-  dfc->mark_visited = (int*) malloc(sizeof(int)*2*on_final_o_loc);
+  dfc->mark_visited = (int*) malloc(sizeof(int)*2*(1+on_final_o_loc));
   if (dfc->mark_visited == NULL) {
     vpt(-1, "ERROR -trying to allocate dfc->mark_visited resulted in fail. \n");
     return(-104);
   }
-  dfc->mark_m_visited = (int*) malloc(sizeof(int)*2*on_final_m_loc);
+  dfc->mark_m_visited = (int*) malloc(sizeof(int)*2*(1+on_final_m_loc));
   if (dfc->mark_m_visited == NULL) {
     vpt(-1, "ERROR -trying to allocate dfc->mark_m_visited length %ld: resulted in fail. \n", (long int) 2 *on_final_m_loc); 
     free(dfc->mark_visited); dfc->mark_visited=NULL;

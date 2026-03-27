@@ -180,6 +180,8 @@ void register_duckfix_production_table_function(duckdb_connection ddb_con) {
   //void duckdb_table_function_add_named_parameter(duckdb_table_function table_function, const char *name, duckdb_logical_type type); 
   duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
     (const char*) "verbose", (duckdb_logical_type) int_type);
+  duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
+    (const char*) "report_bust", (duckdb_logical_type) int_type);
   duckdb_destroy_logical_type(&int_type);
  
   duckdb_logical_type big_int_type = duckdb_create_logical_type(DUCKDB_TYPE_BIGINT);

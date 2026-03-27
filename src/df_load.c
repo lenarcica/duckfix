@@ -973,6 +973,7 @@ int test_replace_config_file(DF_config_file **p_odfc, int verbose) {
   }
 
 
+  ndfc->xtra_col = odfc->xtra_col;
   ndfc->ordered_fields = odfc->ordered_fields; odfc->ordered_fields = NULL;
   ndfc->n_total_print_columns = odfc->n_total_print_columns;  ndfc->n_total_multiplicity_columns = odfc->n_total_multiplicity_columns;
   ndfc->general_sep = odfc->general_sep;  ndfc->fix_sep = odfc->fix_sep;
@@ -1109,7 +1110,7 @@ DF_config_file *new_config_file() {
   if (dfc == NULL) {  printf("ERROR: DF_config file, failed to allocate dfc. \n");  return(NULL); }
   dfc->schemas = NULL; dfc->name = NULL; dfc->info = NULL; dfc->desc = NULL; dfc->exampleline=NULL; 
   dfc->nfields = 0; dfc->ordered_fields=NULL;  dfc->general_sep=','; dfc->fix_sep=',';
-
+  dfc->xtra_col = 0;
   dfc->fxs = NULL;  dfc->mark_visited=NULL; dfc->mark_m_visited=NULL;
   return(dfc);
   //for (int ii = 0; ii < NCHARS; ii++) { field_loc[ii]=-1; } 
@@ -1449,7 +1450,7 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
 }
 void PRINT_dfc(DF_config_file *dfc) {
    printf("------------------------------------------------------------------------------\n");
-   printf("--  Printing DFC(general_sep=\'%c\': (dfc->n_schemas=%ld).\n", dfc->general_sep, (long int) dfc->n_schemas);
+   printf("--  Printing DFC(general_sep=\'%c\': (dfc->n_schemas=%ld, xtra_col=%d).\n", dfc->general_sep, (long int) dfc->n_schemas, (int) dfc->xtra_col);
    printf("-- name: \"%s\". \n", dfc->name);
    printf("-- info: \"%s\". \n", dfc->info);
    printf("-- desc: \"%s\". \n", dfc->desc); 

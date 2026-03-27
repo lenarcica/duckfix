@@ -776,13 +776,14 @@ int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iS
     (long int) prop_known_loc, (long int) dfl->n_known_fields);
   if ((prop_known_loc < 0) || (prop_known_loc >= dfl->n_known_fields) ||
       (dfl->ordered_known_fields[prop_known_loc] != fixField)) {
-    vpt(0, " Error fixField=%ld, could not find in %ld known fields. \n", (long int) fixField, 
-      (long int) dfl->n_known_fields); return(-1);
+    vpt(-10, " Error fixField=%ld, could not find in %ld known fields. \n", (long int) fixField, 
+      (long int) dfl->n_known_fields); 
+      df_id->line_is_busted = UpdateBust( (df_id->line_is_busted), badencode); return(-1);
   }
   if (df_id->dfl->final_known_multiplicity_loc[prop_known_loc] < 0) {
     vpt(2, " -- This column will not print, ignoring fixField=%ld=%ld with priority%ld, i_final_m_loc=%ld \n", 
       (long int) fixField, (long int) dfc->fxs[prop_known_loc].field_code, (long int) dfc->fxs[prop_known_loc].priority, 
-      df_id->dfl->final_known_multiplicity_loc[prop_known_loc]);
+      df_id->dfl->final_known_multiplicity_loc[prop_known_loc]);  
     return(4);
   }
   if (df_id->dfc->mark_m_visited[df_id->dfl->final_known_multiplicity_loc[prop_known_loc]] > 0) {
@@ -795,7 +796,7 @@ int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iS
     printf("WWW but mark_m_visited[%ld=fkm[%ld]] = %ld. \n",
       (long int) fixField, (long int) df_id->dfl->final_known_multiplicity_loc[prop_known_loc],
       (long int) prop_known_loc, (df_id->dfc->mark_m_visited[df_id->dfl->final_known_multiplicity_loc[prop_known_loc]]) );
-    printf("WWW Return Error -99666\n");
+    printf("WWW Return Error -99666\n");  df_id->line_is_busted = UpdateBust(df_id->line_is_busted,bust);
     return(-999666);
   }
   vpt(2, " -- Success as fixField=%ld pkl=%ld/%ld, typ=\"%s\", fixtitle=\"%s\" for code=%ld. We think column is %ld of order_known_field=%ld\n",
@@ -908,6 +909,7 @@ int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iS
         }
         printf("However seek_char=\'%c\' for LOC_CHART=%d. What do we think we did wrong? \n",
          seek_char, LOC_CHAR(seek_char));
+        df_id->line_is_busted = UpdateBust(df_id->line_is_busted, badencode);
         return(-3403053);
       }
     } else {
@@ -915,6 +917,7 @@ int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iS
       printf(" -- Note dff.n_field_codes=%ld for fixField=%ld, we had valStart=%ld, so sf[valStart=%ld:valStart+4=%ld]=\"%.*s\". \n",
         (long int) dff.n_field_codes, (long int) fixField, (long int) valStart, (long int) valStart, (long int) valStart+4,
         4, sf+valStart);
+      df_id->line_is_busted = UpdateBust(df_id->line_is_busted, badencode);
       return(-490320);
     } 
     return(1);
@@ -1254,10 +1257,10 @@ int add_null_line_to_chunk(duckdb_data_chunk out_chunk, duckdb_function_info df_
   char MYNONE[] = "";
   //duckdb_logical_type ltype2 = duckdb_vector_get_column_type(ddbv); 
   //duckdb_type dtype2 = duckdb_get_type_id(ltype);
-  if (duckdb_data_chunk_get_column_count(out_chunk) != dfc->n_total_multiplicity_columns) {
+  if (duckdb_data_chunk_get_column_count(out_chunk) != dfc->n_total_multiplicity_columns + dfc->xtra_col) {
     printf("ERROR we believe that multiplicity of Duckdb Data chunk does not match multiplicity of columns.  We might have to check load!. \n");
-    printf("Column Count = %ld, but multiplicity=%ld. \n",
-     (long int) duckdb_data_chunk_get_column_count(out_chunk), (long int) dfc->n_total_multiplicity_columns);
+    printf("Column Count = %ld, but multiplicity=%ld. xtra=%d\n",
+     (long int) duckdb_data_chunk_get_column_count(out_chunk), (long int) dfc->n_total_multiplicity_columns, dfc->xtra_col);
     return(-4032);
   }
   #ifdef DEBUG_MODE
@@ -1407,6 +1410,7 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
             (long int) fieldStart, (long int) fieldEnd, fieldEnd-fieldStart, df_id->buffer + fieldStart,
             (long int) fieldStart, sf[fieldStart], (long int) fieldEnd-1, sf[fieldEnd-1]);
          printf(" --- ERROR note we want to be able to compare fields to \'{\' and \'}\' \n");
+         df_id->line_is_busted = UpdateBust( (df_id->line_is_busted) , (bust));
          return(-1014532);
        }
        //int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfieldsStart, iStr fixfieldsEnd, 
@@ -1439,6 +1443,7 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
            } else if ((iki+1) % 5 == 0) { printf(",\n"); } else { printf(","); }
          }
          printf("WWW Does this error suggest good multiplicity\n");
+         df_id->line_is_busted = UpdateBust( (df_id->line_is_busted) , (bust));
          return(-999666);
        }
        if (verbose >= 2) {
@@ -1666,10 +1671,10 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
   */
 
   #ifdef DEBUG_MODE
-  if (duckdb_data_chunk_get_column_count(out_chunk) != df_id->dfc->n_total_multiplicity_columns) {
+  if (duckdb_data_chunk_get_column_count(out_chunk) != df_id->dfc->n_total_multiplicity_columns + df_id->dfc->xtra_col) {
     printf("ERROR we believe that multiplicity of Duckdb Data chunk does not match multiplicity of columns.  We might have to check load!. \n");
-    printf("out_chunk has %ld columns, but multiplicity should be %ld. \n", (long int) duckdb_data_chunk_get_column_count(out_chunk),
-      (long int) (df_id->dfc->n_total_multiplicity_columns));
+    printf("out_chunk has %ld columns, but multiplicity should be %ld., xtra=%d \n", (long int) duckdb_data_chunk_get_column_count(out_chunk),
+      (long int) (df_id->dfc->n_total_multiplicity_columns), df_id->dfc->xtra_col);
     printf("  Seems like reason for an error! \n");
     duckdb_function_set_error(df_info, "Number of columns does not agree with multiplicity");
     return;
@@ -1711,15 +1716,12 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
       vpt(3, " here is the complete buffer so far: \n%.*s\nLet's begin...\n", (long int) df_id->bytesread, df_id->buffer);
     #endif
     while (df_id->onstr < df_id->bytesread) {
-      #if defined(__WIN32) || defined(__WIN64)
-        df_id->onstr +=0;
-      #else
-        if ((df_id->onstr < df_id->bytesread-2) && (df_id->buffer[df_id->onstr] == '\r') && (df_id->buffer[df_id->onstr] == '\n')) {
+      df_id->line_is_busted = nobust;
+      if ((df_id->onstr < df_id->bytesread-2) && (df_id->buffer[df_id->onstr] == '\r') && (df_id->buffer[df_id->onstr] == '\n')) {
           df_id->onstr += 2;
-        } else if ((df_id->onstr < df_id->bytesread-1) && (df_id->buffer[df_id->onstr] == '\n')) {
+      } else if ((df_id->onstr < df_id->bytesread-1) && (df_id->buffer[df_id->onstr] == '\n')) {
           df_id->onstr += 1;
-        }
-      #endif 
+      }
       #ifdef DEBUG_MODE
         vpt(3, " on reading_line=%ld, onstr=%ld/%ld, tbytesread=%ld.  \n", 
           (long int) df_id->on_overall_line, (long int) df_id->onstr, (long int) df_id->bytesread,  (long int) df_id->tbytesread);
@@ -1740,7 +1742,8 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
           df_id->buffer + df_id->onstr, df_id->tbytesread, df_id->dfl->file_total_bytes,
           (long int) df_id->on_overall_line, (long int) df_id->dfl->n_total_lines);
         #endif
-        break;
+        printf("Set bust on line.\n");
+        df_id->line_is_busted = UpdateBust(df_id->line_is_busted, bust);
       }
       if (df_id->iLineEnd >= df_id->bytesread) { break; }
       if (!IsNewLineChar(df_id->buffer[df_id->iLineEnd])) { 
@@ -1774,8 +1777,15 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
              (long int) df_id->dfl->n_total_all_lines);
         }
         add_line_error = 0;
+        df_id->line_is_busted = nobust;
         //add_line_error = add_null_line_to_chunk(out_chunk, df_info, df_id, verbose+2);
         add_line_error = add_line_to_chunk(out_chunk, df_info, df_id, verbose-1);
+
+        if (df_bd->report_bust > 0) {
+          // Report Bust if we find one
+          duckdb_vector ddbv = duckdb_data_chunk_get_vector(out_chunk, df_id->dfc->n_total_multiplicity_columns);
+          duckdb_vector_assign_string_element(ddbv, df_id->on_chunk_line, What_DF_BustType(df_id->line_is_busted));
+        }
         /***************
         int tlt_error = test_logical_types(df_id, "mainloop", verbose, out_chunk);
         if (tlt_error < 0) {
@@ -1806,18 +1816,20 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
       //
 
         if (add_line_error < 0) {
-          vpt(-10,"Error on update with [onstr,iLineEnd]=[%ld,%ld] for \n%.*s\nWhat went wrong?\n",
-           (long int) df_id->onstr, (long int) df_id->iLineEnd, (df_id->iLineEnd)-(df_id->onstr) +1, df_id->buffer+df_id->onstr);
+          vpt(-10,"Error on update with [onstr,iLineEnd]=[%ld,%ld] for \n%.*s\nWhat went wrong?  Is line busted=%s\n",
+           (long int) df_id->onstr, (long int) df_id->iLineEnd, (df_id->iLineEnd)-(df_id->onstr) +1, df_id->buffer+df_id->onstr,
+           What_DF_BustType(df_id->line_is_busted));
           sprintf(error_text, "Received add_line error = %ld. \n", (long int) add_line_error);
           duckdb_function_set_error(df_info, error_text); 
           duckdb_data_chunk_set_size(out_chunk,df_id->on_chunk+1);
+          df_id->line_is_busted = UpdateBust(df_id->line_is_busted, bust);
           return;
         }
         #ifdef DEBUG_MODE
-          vpt(2, " -- completed line %ld/%ld, or %ld/%ld, onstr=%ld, iLineEnd=%ld. \n",
+          vpt(2, " -- completed line %ld/%ld, or %ld/%ld, onstr=%ld, iLineEnd=%ld. Bustlevel = %s. \n",
             (long int) df_id->on_chunk_line, (long int) dfl->standard_vector_size,
             (long int) df_id->on_overall_line, (long int) dfl->n_total_lines, (long int) df_id->onstr,
-            (long int) df_id->iLineEnd);
+            (long int) df_id->iLineEnd, What_DF_BustType(df_id->line_is_busted));
           if (verbose >= 2) {
             printf("MMM     END OF LINE (onstr=%ld, iLineEnd=%ld, chunkline=%ld/%ld, overallline=%ld/%ld)"
                    " -------------------------------------------------------------------\n\n",
