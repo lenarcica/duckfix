@@ -954,6 +954,16 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
     printf("fill_in_chunk: I think error, type is fix2end but we were called anyway! \n");
     return(-10);
   }
+  int fmt0[] = {0,5,8,11,14,17,20}; //YYYY-mm-dd.HH:MM:SS.F;
+  int fmt1[] = {0,4,6,9,12,15,18}; //YYYYmmdd.HH:MM:SS.F;
+  int fmt2[] = {0,4,6,8,11,14,17}; //YYYYmmddHH:MM:SS.F;
+  int fmt3[] = {0,4,6,8,10,12,15}; //YYYYmmddHHMMSS.F;
+  int fmt4[] = {0,4,6,8,10,12,14}; //YYYYmmddHHMMSSF;
+
+  int hfmt0[] = {0,3,9,12}; //HH:MM:SS.F
+  int hfmt1[] = {0,2,4,7};  //HHMMSS.F
+  int hfmt2[] = {0,2,4,6};  //HHMMSSF 
+  int *pfmt;
   #ifdef DEBUG_MODE
   vpt(2, " -- nCol = %ld, Beginning with on_typ=%s, sf[%ld:%ld] = \"%.*s\" value (vL=%ld). width=%ld,scale=%ld, fmttyp=\"%s\". \n",
     (long int) nCol, What_DF_DataType(on_typ), (long int) valStart, (long int) valEnd, valEnd-valStart, sf + valStart, (long int) vL,
@@ -1072,28 +1082,38 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
     case tns :
       switch (fmttyp) {
         case YYYYcmmcddtHHcMMcSScF :
-          memcpy(df_id->int_scratch, sf+valStart,4); df_id->int_scratch[4] = '\0';
+        case YYYYmmddtHHcMMcSScF :
+        case YYYYmmddHHcMMcSScF :
+        case YYYYmmddHHMMSScF :
+        case YYYYmmddHHMMSSF :
+          if (fmttyp == YYYYcmmcddtHHcMMcSScF) { pfmt = fmt0; 
+          } else if (fmttyp == YYYYmmddtHHcMMcSScF) { pfmt = fmt1; 
+          } else if (fmttyp == YYYYmmddHHcMMcSScF) { pfmt = fmt2; 
+          } else if (fmttyp == YYYYmmddHHMMSScF) { pfmt = fmt3; 
+          } else if (fmttyp == YYYYmmddHHMMSSF) { pfmt = fmt4; 
+          }
+          memcpy(df_id->int_scratch, sf+valStart+pfmt[0],4); df_id->int_scratch[4] = '\0';
           df_id->dds.year = atoi(df_id->int_scratch);
-          memcpy(df_id->int_scratch, sf+valStart+5,2); df_id->int_scratch[2] = '\0';
+          memcpy(df_id->int_scratch, sf+valStart+pfmt[1],2); df_id->int_scratch[2] = '\0';
           df_id->dds.month = atoi(df_id->int_scratch);
-          memcpy(df_id->int_scratch, sf+valStart+8,2); df_id->int_scratch[2] = '\0';
+          memcpy(df_id->int_scratch, sf+valStart+pfmt[2],2); df_id->int_scratch[2] = '\0';
           df_id->dds.day = atoi(df_id->int_scratch);
           ddd = duckdb_to_date(df_id->dds);
-          memcpy(df_id->int_scratch, sf+valStart+11,2); df_id->int_scratch[2] = '\0';
+          memcpy(df_id->int_scratch, sf+valStart+pfmt[3],2); df_id->int_scratch[2] = '\0';
           load_i64 = atoi(df_id->int_scratch);
           HH = atoi(df_id->int_scratch);
-          memcpy(df_id->int_scratch, sf+valStart+14,2); df_id->int_scratch[2] = '\0';
+          memcpy(df_id->int_scratch, sf+valStart+pfmt[4],2); df_id->int_scratch[2] = '\0';
           load_i64 = load_i64*60 + atoi(df_id->int_scratch);
           MM = atoi(df_id->int_scratch);
-          memcpy(df_id->int_scratch, sf+valStart+17,2); df_id->int_scratch[2] = '\0';
+          memcpy(df_id->int_scratch, sf+valStart+pfmt[5],2); df_id->int_scratch[2] = '\0';
           load_i64 = load_i64*60 + atoi(df_id->int_scratch);
           SS = atoi(df_id->int_scratch);
-          memcpy(df_id->int_scratch, sf+valStart+20,vL-20); df_id->int_scratch[vL-20] = '\0';
+          memcpy(df_id->int_scratch, sf+valStart+pfmt[6],vL-pfmt[6]); df_id->int_scratch[vL-pfmt[6]] = '\0';
           load_o64 = atoi(df_id->int_scratch);
           FF = atoi(df_id->int_scratch);
           precision = (on_typ==tns) ? 9 : (on_typ==tus) ? 6 : (on_typ==tms) ? 3 : 3;
           if (vL-20 < precision) {
-            for (jj = 0; jj < precision-(vL-20); jj++) { load_o64 *=10; }
+            for (jj = 0; jj < precision-(vL-pfmt[6]); jj++) { load_o64 *=10; }
           }
           #ifdef DEBUG_MODE
           if (verbose >= 0) {
@@ -1179,46 +1199,28 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
           load_i64 = ddd.days * ((int64_t) 24*60*60) * ((int64_t) precision)  + load_i64*((int64_t)precision) + load_o64;
           *(((int64_t *)vddbv) + on_chunk_line) = load_i64;
           break;
-        case YYYYmmddHHMMSSF :
-          memcpy(df_id->int_scratch, sf+valStart,4); df_id->int_scratch[4] = '\0';
-          df_id->dds.year = atoi(df_id->int_scratch);
-          memcpy(df_id->int_scratch, sf+valStart+4,2); df_id->int_scratch[2] = '\0';
-          df_id->dds.month = atoi(df_id->int_scratch);
-          memcpy(df_id->int_scratch, sf+valStart+6,2); df_id->int_scratch[2] = '\0';
-          df_id->dds.day = atoi(df_id->int_scratch);
-          ddd = duckdb_to_date(df_id->dds);
-          memcpy(df_id->int_scratch, sf+valStart+8,2); df_id->int_scratch[2] = '\0';
-          load_i64 = atoi(df_id->int_scratch);
-          memcpy(df_id->int_scratch, sf+valStart+10,2); df_id->int_scratch[2] = '\0';
-          load_i64 = load_i64*60 + atoi(df_id->int_scratch);
-          memcpy(df_id->int_scratch, sf+valStart+12,2); df_id->int_scratch[2] = '\0';
-          load_i64 = load_i64*60 + atoi(df_id->int_scratch);
-          memcpy(df_id->int_scratch, sf+valStart+14,vL-14); df_id->int_scratch[vL-14] = '\0';
-          load_o64 = atoi(df_id->int_scratch);
-          precision = (on_typ==tns) ? 9 : (on_typ==tus) ? 6 : (on_typ==tms) ? 3 : 3;
-          if (vL-20 < precision) {
-            for (jj = 0; jj < precision-(vL-14); jj++) { load_o64 *=10; }
-          }
-          precision = (on_typ==tns) ? 1000000000 : (on_typ==tus) ? 1000000 : 1000;
-          load_i64 = ddd.days * ((int64_t) 24*60*60) * ((int64_t) precision)  + load_i64*((int64_t)precision) + load_o64;
-          *(((int64_t *)vddbv) + on_chunk_line) = load_i64;
-          break;
         case HHcMMcSScF :
+        case HHMMSScF :
+        case HHMMSSF :
+          if (fmttyp == HHcMMcSScF) { pfmt = hfmt0;
+          } else if (fmttyp == HHMMSScF) { pfmt = hfmt1;
+          } else if (fmttyp == HHMMSSF) { pfmt = hfmt2;
+          }
           df_id->dds.year = 2025;
           df_id->dds.month = 9;
           df_id->dds.day = 8; 
           ddd = duckdb_to_date(df_id->dds);
-          memcpy(df_id->int_scratch, sf+valStart+0,2); df_id->int_scratch[2] = '\0';
+          memcpy(df_id->int_scratch, sf+valStart+0+pfmt[0],2); df_id->int_scratch[2] = '\0';
           load_i64 = atoi(df_id->int_scratch);
-          memcpy(df_id->int_scratch, sf+valStart+3,2); df_id->int_scratch[2] = '\0';
+          memcpy(df_id->int_scratch, sf+valStart+pfmt[1],2); df_id->int_scratch[2] = '\0';
           load_i64 = load_i64*60 + atoi(df_id->int_scratch);
-          memcpy(df_id->int_scratch, sf+valStart+6,2); df_id->int_scratch[2] = '\0';
+          memcpy(df_id->int_scratch, sf+valStart+6,pfmt[2]); df_id->int_scratch[2] = '\0';
           load_i64 = load_i64*60 + atoi(df_id->int_scratch);
-          memcpy(df_id->int_scratch, sf+valStart+9,vL-9); df_id->int_scratch[vL-9] = '\0';
+          memcpy(df_id->int_scratch, sf+valStart+pfmt[3],vL-pfmt[3]); df_id->int_scratch[vL-pfmt[3]] = '\0';
           load_o64 = atoi(df_id->int_scratch);
           precision = (on_typ==tns) ? 9 : (on_typ==tus) ? 6 : (on_typ==tms) ? 3 : 3;
           if (vL-20 < precision) {
-            for (jj = 0; jj < precision-(vL-9); jj++) { load_o64 *=10; }
+            for (jj = 0; jj < precision-(vL-pfmt[3]); jj++) { load_o64 *=10; }
           }
           precision = (on_typ==tns) ? 1000000000 : (on_typ==tus) ? 1000000 : 1000;
           load_i64 = ddd.days * ((int64_t) 24*60*60) * ((int64_t) precision)  + load_i64*((int64_t)precision) + load_o64;
@@ -1871,7 +1873,7 @@ void duckfix_main_table_function(duckdb_function_info df_info, duckdb_data_chunk
               printf("ERROR we can't really continue because of bad dfc. \n");
               duckdb_function_set_error(df_info, " ERROR dfc test returned Negative ttc"); 
             }
-            ttc = test_replace_field_list(df_id->dfc, &df_id->dfl, 2);
+            ttc = test_replace_field_list(&df_id->dfl, 2);
             printf("---- DFL field test returned %ld.\n", ttc);
             df_bd->dfl = df_id->dfl;
             if (ttc < 0) {

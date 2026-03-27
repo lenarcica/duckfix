@@ -36,22 +36,14 @@
 #endif
 
 
-DF_field_list *create_nulled_field_list(DF_config_file *dfc, int verbose) {
+DF_field_list *create_nulled_field_list(int verbose) {
   char stt[]="create_nulled_field_list(): ";
   if (verbose >= 1) {
     printf("create_nulled_field_list, start, verbose=%d. \n", (int)verbose);
   }
-  if (dfc == NULL) {
-    printf("create_nulled_field_list, error, dfc supplied is NULL. \n");
-  }
-  int nfields = dfc->nfields;
-  if (nfields <= 0) {
-    printf("create_nulled_field_list: wont work becasue dfc->nfields=%ld. \n", (long int) dfc->nfields);
-    return(NULL);
-  }
   DF_field_list *dfl = (DF_field_list*) malloc(1.0*sizeof(DF_field_list));
   if (dfl == NULL) { return(NULL); }
-  dfl->n_known_fields = nfields;
+  dfl->n_known_fields = 0;
   dfl->num_used_known_fields = 0;
   dfl->ordered_known_fields = NULL;  
   dfl->known_usage_count = NULL;
@@ -365,10 +357,10 @@ int add_to_field_list(DF_field_list *dfl, int aFixNum, int iline, int verbose, i
    }
    if (prop_unknown_loc < 0) { prop_unknown_loc = 0; }
    if (dfl->num_unknown >= dfl->alloc_unknown-1) {
-     dfl->ordered_unknown_fields = realloc(dfl->ordered_unknown_fields, dfl->alloc_unknown*2);
-     dfl->unknown_usage_count = realloc(dfl->unknown_usage_count, dfl->alloc_unknown*2);
-     dfl->line_unknown = realloc(dfl->line_unknown, dfl->alloc_unknown*2);
-     dfl->unknown_multiplicity = realloc(dfl->unknown_multiplicity, dfl->alloc_unknown*2);
+     dfl->ordered_unknown_fields = realloc(dfl->ordered_unknown_fields, sizeof(int) *dfl->alloc_unknown*2);
+     dfl->unknown_usage_count = realloc(dfl->unknown_usage_count, sizeof(int) * dfl->alloc_unknown*2);
+     dfl->line_unknown = realloc(dfl->line_unknown, sizeof(int) * dfl->alloc_unknown*2);
+     dfl->unknown_multiplicity = realloc(dfl->unknown_multiplicity, sizeof(int) * dfl->alloc_unknown*2);
      if ((dfl->ordered_unknown_fields == NULL) || (dfl->line_unknown == NULL) ||
          (dfl->unknown_usage_count==NULL)) {
        vpt(0, "ERROR, we tried to realloc but failed with dfl->num_unknown=%ld, alloc=%ld. \n",
@@ -760,13 +752,14 @@ iStr get_next_newln(char *sf, iStr st, iStr nmax, int verbose) {
     } else if (sf[ii] == '{') {
       // get_next_newln(...) we don't care about not getting a fill.
     } else if (sf[ii] == '[') { 
-      outii = get_end_bracket( (char*) stt,sf, ii, nmax); 
-      if (outii < 0) {
-        printf("get_next_newln(st=%ld, ii=%ld,outii=%ld) -- we tried to read logs but got an error: sf[st=%ld:nmax=%ld]=\n---\n%.*s\n---\n",
-             (long int) st, (long int) ii, (long int) outii, (long int) st, (long int) nmax, nmax-st, sf + st);
-        return(-557755); 
-      }
-      ii = outii;
+      // Forget trying to get ending [ doesn't work  just jump to next newln when reading.
+      //outii = get_end_bracket( (char*) stt,sf, ii, nmax); 
+      //if (outii < 0) {
+      //  printf("get_next_newln(st=%ld, ii=%ld,outii=%ld) -- we tried to read logs but got an error: sf[st=%ld:nmax=%ld]=\n---\n%.*s\n---\n",
+      //       (long int) st, (long int) ii, (long int) outii, (long int) st, (long int) nmax, nmax-st, sf + st);
+      //  return(-557755); 
+      //}
+      //ii = outii;
       // get_next_newln(...) we don't care about not getting a fill.
     }
   }
@@ -884,14 +877,16 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
          onstr + 30 < max_newln_bytes ? onstr+30: max_newln_bytes-onstr, buffer + onstr);
       while ((onstr < bytesread) && (IsNewLineChar(buffer[onstr]))) {onstr++; }
       iStr iLineEnd = get_next_newln(buffer, onstr, max_newln_bytes, verbose-2); 
-      if (iLineEnd < 0) {
+      if ((iLineEnd <0) && (max_newln_bytes == bytesread)) {
+        iLineEnd = max_newln_bytes;
+      } else if (iLineEnd < 0) {
          printf("ERROR ISSUE we read all the way to a last line not conducive for support. \n");
       }
       if ((iLineEnd < onstr) || (iLineEnd >= bytesread))  { break; }
       if (!IsNewLineChar(buffer[iLineEnd])) { printf("generate_file_list, iLineEnd=%ld, but buffer[%ld]=\'%c\' ? \n",
                                       (long int) iLineEnd, (long int) iLineEnd, buffer[iLineEnd]);  }
       if (dfl->n_loc_lines >= dfl->alloc_line_loc - 3) {
-         dfl->line_locs = realloc(dfl->line_locs, dfl->alloc_line_loc*2);
+         dfl->line_locs = realloc(dfl->line_locs, sizeof(int) * dfl->alloc_line_loc*2);
          if (dfl->line_locs == NULL) { 
            vpt(0, "ERROR trying to double line_locs length to $ld \n", (long int) (dfl->alloc_line_loc*2));
            dfl->finish = 0;
@@ -1377,9 +1372,10 @@ int PRINT_final_print_loc(DF_config_file *dfc, DF_field_list *dfl) {
   iokf = test_replace_intv(&(nm), (ln), (instr), verbose); \
   nnm = nm; nm = NULL
 
-int test_replace_field_list(DF_config_file *dfc, DF_field_list **p_dfl, int verbose) {
+int test_replace_field_list(DF_field_list **p_dfl, int verbose) {
   char stt[300];
   DF_field_list *dfl = p_dfl[0];
+  int nfields = p_dfl[0]->n_known_fields;
   if (p_dfl[0] == NULL) {
     printf("test_replace_field_list, field List given is already null. \n"); return(-10430);
   }
@@ -1390,7 +1386,7 @@ int test_replace_field_list(DF_config_file *dfc, DF_field_list **p_dfl, int verb
     vpt(1, " ERROR, pdfl[0] is already NULL!\n");
   }
   vpt(1, " Creating a nulled field list. \n");
-  DF_field_list *ndfl = create_nulled_field_list(dfc, verbose);
+  DF_field_list *ndfl = create_nulled_field_list(verbose);
   vpt(1, " ndfl created. \n");
   ndfl->char_sep = dfl->char_sep;  ndfl->n_known_fields = dfl->n_known_fields;
   int iokf;
@@ -1418,7 +1414,7 @@ int test_replace_field_list(DF_config_file *dfc, DF_field_list **p_dfl, int verb
   ndfl->standard_vector_size = dfl->standard_vector_size;
   ndfl->n_total_lines = dfl->n_total_lines;  ndfl->n_total_all_lines = dfl->n_total_all_lines;
   ndfl->alloc_line_loc = dfl->alloc_line_loc; ndfl->n_loc_lines = dfl->n_loc_lines;
-  if (ndfl->line_locs != NULL) {
+  if (dfl->line_locs != NULL) {
     itest( ndfl->line_locs, dfl->line_locs, dfl->alloc_line_loc, "line_locs");
   }
   vpt(1, "test_replace_field_list --- We are done with line_locs deleted. \n");

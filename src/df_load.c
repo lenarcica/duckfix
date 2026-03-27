@@ -8,11 +8,12 @@
 int get_nlines(char *sf, int onst, int nmax) {
    int nlines = 0;
    if (onst > nmax) { printf("get_nlines: no, onst=%ld, nmax=%ld we won't find anything. \n", (long int) onst, (long int) nmax); return(-5); }
-   for (int ii = 0; ii < onst; ii++) {
+   long int ii = 0;
+   while (ii < onst) {
      if ((sf[ii] == '\r') && (ii < onst-1) && (sf[ii+1] == '\n')) { nlines++; ii+=2;  // \n\n would not count
      } else if (sf[ii] == '\n') { nlines++; ii++;
      } else if (sf[ii] == '\r') { nlines++; ii++;
-     }
+     } else { ii++; }
    }
    return(nlines);
 }

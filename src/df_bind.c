@@ -50,7 +50,9 @@ df_bind_data* create_null_bind_data() {
 }
 
 void destroy_df_extra_info(void *v_df_xi) {
-  //printf("destroy_df_extra_info() we have now called. \n");
+  #ifdef DEBUG_MODE
+  printf("destroy_df_extra_info() we have now called. \n");
+  #endif
   df_extra_info *df_xi = (df_extra_info*) v_df_xi;
   //printf("df_bind.c->destroy_df_extra_info() start. \n");
   if (df_xi == NULL) { return; }
@@ -83,7 +85,7 @@ int copy_destroy_bind(df_bind_data **p_df_bd, const char *ntype) {
     ttc = test_replace_config_file(&df_bd->dfc, 2); ndf_bd->dfc=df_bd->dfc;
   } 
   if (df_bd->dfl != NULL) {
-    ttc = test_replace_field_list(ndf_bd->dfc, &df_bd->dfl, 2); ndf_bd->dfl=df_bd->dfl;
+    ttc = test_replace_field_list(&df_bd->dfl, 2); ndf_bd->dfl=df_bd->dfl;
   } 
   df_bd->dfc=NULL; df_bd->dfl = NULL;
 
@@ -193,15 +195,19 @@ void duckfix_bind(duckdb_bind_info b_info) {
   #endif
   char stt[500]; 
   sprintf(stt, "df_bind.c->duckfix_bind(): ");
+  int32_t verbose = 0;
   df_extra_info *x_info = duckdb_bind_get_extra_info((duckdb_bind_info) b_info);
+  #ifdef DEBUG_MODE
+  verbose = x_info->verbose;
   if (x_info != NULL) {
-    //printf("df_bind.c->duckfix_bind() we got x_info is not null. \n");
+    vpt(1, "df_bind.c->duckfix_bind() we got x_info is not null. \n");
   } else {
-    //printf("df_bind.c->duckfix_bind() we got x_info is null. \n");
+    vpt(1, "df_bind.c->duckfix_bind() we got x_info is null. \n");
   }
+  #endif
   //duckdb_connection ddb_con = x_info->ddb_con;
   duckdb_value df_verbose = duckdb_bind_get_named_parameter(b_info, "verbose");
-  int32_t verbose = 0;
+  verbose = 0;
   if (df_verbose == NULL) {
   } else if (!duckdb_is_null_value(df_verbose)) {
     verbose = duckdb_get_int32(df_verbose);
@@ -496,12 +502,17 @@ void duckfix_bind(duckdb_bind_info b_info) {
   }
   df_bind_data *df_bd = NULL;
   if (dfl->num_unknown > 0) {
+    #ifdef DEBUG_MODE
+      int v_add = 1;
+    #else
+      int v_add = 0;
+    #endif
     printf("%s: We have dfl->num_unknown=%ld.  We will report what you need to populate for error case . \n", stt, dfl->num_unknown);
-    vpt(0, "ERROR Reading file received %ld unknown fix fields please address.  File \"%s\" and json file \"%s\"\n",
+    vpt(v_add, "ERROR Reading file received %ld unknown fix fields please address.  File \"%s\" and json file \"%s\"\n",
       (long int) dfl->num_unknown, file_name, json_file_name);  
     PRINT_dfl(dfl);
-    vpt(0, " ALTERNATIVE TO ERROR: We are initiating the df_bind_error_case for %ld unknown. \n", (long int) dfl->num_unknown);
-    df_bd = df_bind_error_case(b_info, verbose, ll_file_name, len_file_name, 
+    vpt(v_add, " ALTERNATIVE TO ERROR: We are initiating the df_bind_error_case for %ld unknown. \n", (long int) dfl->num_unknown);
+    df_bd = df_bind_error_case(b_info, verbose+v_add, ll_file_name, len_file_name, 
       ll_json_file_name, len_json_file_name,dfc, dfl);
     if (df_bd == NULL) {
       my_clear();
@@ -731,7 +742,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
       duckdb_bind_set_error(b_info, " ERROR dfc test returned Negative ttc"); 
       my_clear(); return;
     }
-    ttc = test_replace_field_list(df_bd->dfc, &df_bd->dfl, 2);
+    ttc = test_replace_field_list(&df_bd->dfl, 2);
     printf("%s ---- DFL field test reutnred %ld.\n", stt, ttc);
     if (df_bd->dfl->ordered_known_fields == NULL) { ttc = -430503; }
     if (ttc < 0) {
