@@ -158,7 +158,7 @@ typedef struct _df_init_data {
 typedef struct _df_bind_data {
   int32_t verbose;
 
-  int report_bust;
+  short report_bust; short report_line;
   //duckdb_connection ddb_con;
   idx_t cardinality;
   //duckdb_result *p_result;

@@ -43,18 +43,31 @@ for(;ii < end_ln; ii++) { \
   if (sf[ii] == ',') { break;  \
   } else if ((sf[ii] == ' ') || (sf[ii] == '\t')) { \
   } else if (sf[ii]=='\"') { \
-    ii = get_end_quote("nextcomma",sf,ii,end_ln); \
+    ii = get_end_quote("nextcomma_read_file",sf,ii,end_ln); \
   } else if (sf[ii]=='[') { \
-    ii =  get_end_bracket("nextcomma",sf,ii,end_ln); \
+    ii =  get_end_bracket("nextcomma_read_file",sf,ii,end_ln); \
   } else if (sf[ii]=='{') { \
-    ii =  get_end_brace("nextcomma", sf, ii, end_ln); \
+    ii =  get_end_brace("nextcomma_read_file", sf, ii, end_ln); \
   } \
 } \
 ii++ 
 #endif
 
 #ifndef NEXTCHARSEP
+
 #define NEXTCHARSEP() \
+for(;ii < end_ln; ii++) { \
+  if (sf[ii] == on_char_sep) { break;  \
+  } else if ((sf[ii] == ' ') || (sf[ii] == '\t')) { \
+  } else if (sf[ii]=='\"') { \
+    ii = get_end_quote("nextchar_sep_read_file",sf,ii,end_ln); \
+  } else if (IsNewLineChar(sf[ii])) {              \
+    ii--; break;                                   \
+  } \
+} \
+ii++ 
+
+#define NEXTCHARSEP_old() \
 for(;ii < end_ln; ii++) { \
   if (sf[ii] == dfl->char_sep) { break;  \
   } else if ((sf[ii] == ' ') || (sf[ii] == '\t')) { \

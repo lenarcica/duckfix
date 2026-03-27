@@ -254,18 +254,26 @@ typedef enum{
   (str_eq("%Y%m%dT%H:%m:%s.%F", 18, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
   (str_eq("%Y%m%dT%H:%M:%S.%F", 18, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
   (str_eq("%Y%m%dT%H:%M:%S.%f", 18, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
-  (str_eq("YYYYmmddTHH:MM:SS.F", 20, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
-  (str_eq("YYYYmmdd HH:MM:SS.F", 20, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
-  (str_eq("YYYYmmdd-HH:MM:SS.F", 20, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
-  (str_eq("YYYYmmdd.HH:MM:SS.F", 20, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("YYYYmmddTHH:MM:SS.F", 19, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("YYYYmmdd HH:MM:SS.F", 19, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("YYYYmmdd-HH:MM:SS.F", 19, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("YYYYmmdd.HH:MM:SS.F", 19, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("YYYYmmddTHH:MM:SS.f", 19, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("YYYYmmdd HH:MM:SS.f", 19, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("YYYYmmdd-HH:MM:SS.f", 19, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("YYYYmmdd.HH:MM:SS.f", 19, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
   (str_eq("%Y%m%d%H:%m:%s.%f", 17, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
   (str_eq("%Y%m%d%H:%m:%s.%F", 17, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
   (str_eq("%Y%m%d%H:%M:%S.%F", 17, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
   (str_eq("%Y%m%d%H:%M:%S.%f", 17, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
-  (str_eq("YYYYmmddHH:MM:SS.F", 19, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
-  (str_eq("YYYYmmddHH:MM:SS.F", 19, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
-  (str_eq("YYYYmmddHH:MM:SS.F", 19, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
-  (str_eq("YYYYmmddHH:MM:SS.F", 19, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("YYYYmmddHH:MM:SS.F", 18, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("YYYYmmddHH:MM:SS.F", 18, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("YYYYmmddHH:MM:SS.F", 18, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("YYYYmmddHH:MM:SS.F", 18, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("YYYYmmddHH:MM:SS.f", 18, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("YYYYmmddHH:MM:SS.f", 18, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("YYYYmmddHH:MM:SS.f", 18, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("YYYYmmddHH:MM:SS.f", 18, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
   (str_eq("%Y-%m-%d %H:%m:%s.%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
   (str_eq("%Y-%m-%d %H:%m:%s.%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
   (str_eq("%Y-%m-%d %H:%M:%S.%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
@@ -515,18 +523,18 @@ typedef struct _DF_field_list {
   ii+=0
 #endif
 
-#ifndef NEXTCOMMA
-#define NEXTCOMMA() \
+#ifndef NEXTCOMMA_OLD
+#define NEXTCOMMA_OLD() \
 for(;ii < end_ln; ii++) { \
   if (IsNewLineChar(sf[ii])) { break;  \
   } else if (sf[ii] == ',') { break;  \
   } else if ((sf[ii] == ' ') || (sf[ii] == '\t') ) { \
   } else if (sf[ii]=='\"') { \
-    ii = get_end_quote("nextcomma",sf,ii,end_ln); \
+    ii = get_end_quote("NEXTCOMMA_OLD_DFG",sf,ii,end_ln); \
   } else if (sf[ii]=='[') { \
-    ii =  get_end_bracket("nextcomma",sf,ii,end_ln); \
+    ii =  get_end_bracket("NEXTCOMMA_OLD_DFG",sf,ii,end_ln); \
   } else if (sf[ii]=='{') { \
-    ii =  get_end_brace("nextcomma", sf, ii, end_ln); \
+    ii =  get_end_brace("NEXTCOMMA_OLD_DFG", sf, ii, end_ln); \
   } \
 } \
 ii++ 
@@ -555,18 +563,18 @@ for(; ii < end_ln; ii++) { \
 ii+=0 
 #endif
 
-#ifndef NEXTCHARSEP
-#define NEXTCHARSEP() \
+#ifndef NEXTCHARSEP_OLD_DFG
+#define NEXTCHARSEP_OLD_DFG() \
 for(;ii < end_ln; ii++) { \
   if (IsNewLineChar(sf[ii])) { break; \
   } else if (sf[ii] == on_char_sep) { break;  \
   } else if ((sf[ii] == ' ') || (sf[ii] == '\t')) { \
   } else if (sf[ii]=='\"') { \
-    ii = get_end_quote("nextcomma",sf,ii,end_ln); \
+    ii = get_end_quote("NEXT_COMMA_SEP_OLD_DFG",sf,ii,end_ln); \
   } else if (sf[ii]=='[') { \
-    ii =  get_end_bracket("nextcomma",sf,ii,end_ln); \
+    ii =  get_end_bracket("NEXT_COMMA_SEP_OLD_DFG",sf,ii,end_ln); \
   } else if (sf[ii]=='{') { \
-    ii =  get_end_brace("nextcomma", sf, ii, end_ln); \
+    ii =  get_end_brace("NEXT_COMMA_SEP_OLD_DFG", sf, ii, end_ln); \
   } \
 } \
 ii++ 
@@ -764,3 +772,9 @@ ii++
 #define IsMultiFix(x) \
   (( (x) == 18) ||  ( (x) == 21) || ( (x) == 69) || ( (x) == 276) || ( (x) == 277 ))
 #endif
+
+#ifndef LINEPF
+#define LINEPF 0
+int linePF(char *sf, iStr st, iStr end, char char_sep, char cr);
+#endif
+
