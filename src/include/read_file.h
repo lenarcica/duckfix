@@ -79,5 +79,5 @@ iStr get_next_newln(char *sf, iStr st, iStr nmax, int verbose);
 int get_multi_equals_bounds(char *sf, iStr st_eq, iStr nlen, iStr*p_st_v, iStr*p_end_v, char on_eq, char on_sp);
 int clear_m_visited(DF_config_file *dfc);
 int confirm_txt_exists(int lntxt, const char*seektxt, const char*sf, iStr st, iStr end);
-int test_replace_field_list(DF_config_file *dfc, DF_field_list **p_dfl, int verbose);
+int test_replace_field_list(DF_field_list **p_dfl, int verbose);
 int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_fld, iStr end_fld, DF_config_file *dfc, DF_field_list *dfl, int verbose, char fixsep);

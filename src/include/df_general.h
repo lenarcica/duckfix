@@ -127,9 +127,14 @@ typedef enum {
 
 typedef enum{
   YYYYcmmcddtHHcMMcSScF,
+  YYYYmmddtHHcMMcSScF,
+  YYYYmmddHHcMMcSScF,
+  YYYYmmddHHMMSScF,
   YYYYmmddHHMMSSF,
+  YYYYmmddcHHMMSSF,
   YYcmmcddtHHcMMcSScF,
   HHcMMcSScF,
+  HHMMSScF,
   HHMMSSF,
   YYYYcmmcdd,
   YYYYmmdd,
@@ -227,16 +232,41 @@ typedef enum{
   (str_eq("YYYY-mm-ddTHH:MM:SS.FFFFFF", 26, sf, (st_v0), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
   (str_eq("YYYY-mm-ddTHH:MM:SS.FFFFFFFFF", 29, sf, (st_v0), end_v0)) ? YYYYcmmcddtHHcMMcSScF : \
   (str_eq("YY-mm-ddTHH:MM:SS.FFFFFFFFF", 27, sf, (st_v0), end_v0)) ? YYcmmcddtHHcMMcSScF : \
+  (str_eq("YYYYmmddHHMMSSF", 15, sf, (st_v0), end_v0)) ? YYYYmmddHHMMSSF : \
+  (str_eq("YYYYmmddHHMMSS.F", 16, sf, (st_v0), end_v0)) ? YYYYmmddHHMMSScF : \
+  (str_eq("YYYYmmddHHMMSSdF", 16, sf, (st_v0), end_v0)) ? YYYYmmddHHMMSScF : \
+  (str_eq("%Y%m%d%H%M%S.F", 14, sf, (st_v0), end_v0)) ? YYYYmmddHHMMSScF : \
+  (str_eq("%Y%m%d%H%M%S.f", 14, sf, (st_v0), end_v0)) ? YYYYmmddHHMMSScF : \
+  (str_eq("%Y%m%d%H%M%S%F", 14, sf, (st_v0), end_v0)) ? YYYYmmddHHMMSSF : \
+  (str_eq("%Y%m%d%H%M%S%f", 14, sf, (st_v0), end_v0)) ? YYYYmmddHHMMSSF : \
   (str_eq("YY-mm-ddTHH:MM:SS.F", 19, sf, (st_v0), end_v0)) ? YYcmmcddtHHcMMcSScF : \
   (str_eq("YY.mm.ddTHH:MM:SS.F", 19, sf, (st_v0), end_v0)) ? YYcmmcddtHHcMMcSScF : \
   (str_eq("YY.mm.ddDHH:MM:SS.F", 19, sf, (st_v0), end_v0)) ? YYcmmcddtHHcMMcSScF : \
   (str_eq("YY.MM.DDTHH:MM:SS.F", 19, sf, (st_v0), end_v0)) ? YYcmmcddtHHcMMcSScF : \
   (str_eq("YY.MM.DDDHH:MM:SS.F", 19, sf, (st_v0), end_v0)) ? YYcmmcddtHHcMMcSScF : \
-  (str_eq("%%Y-%%m-%%dT%%H:%%M:%%S.%%F", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%%Y-%%m-%%d %%H:%%M:%%S.%%F", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%%Y-%%m-%%d %%H:%%M:%%S.%%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%%Y-%%m-%%d %%H:%%m:%%s.%%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
-  (str_eq("%%Y-%%m-%%d %%H:%%m:%%s.%%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%Y-%m-%dT%H:%M:%S.%F", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%Y-%m-%d %H:%M:%S.%F", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%Y-%m-%d %H:%M:%S.%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%Y-%m-%d %H:%m:%s.%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%Y-%m-%d %H:%m:%s.%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
+  (str_eq("%Y%m%d-%H:%m:%s.%f", 18, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("%Y%m%dT%H:%m:%s.%f", 18, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("%Y%m%dT%H:%m:%s.%F", 18, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("%Y%m%dT%H:%M:%S.%F", 18, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("%Y%m%dT%H:%M:%S.%f", 18, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("YYYYmmddTHH:MM:SS.F", 20, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("YYYYmmdd HH:MM:SS.F", 20, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("YYYYmmdd-HH:MM:SS.F", 20, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("YYYYmmdd.HH:MM:SS.F", 20, sf, (st_v0), (end_v0))) ? YYYYmmddtHHcMMcSScF :  \
+  (str_eq("%Y%m%d%H:%m:%s.%f", 17, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("%Y%m%d%H:%m:%s.%F", 17, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("%Y%m%d%H:%M:%S.%F", 17, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("%Y%m%d%H:%M:%S.%f", 17, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("YYYYmmddHH:MM:SS.F", 19, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("YYYYmmddHH:MM:SS.F", 19, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("YYYYmmddHH:MM:SS.F", 19, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("YYYYmmddHH:MM:SS.F", 19, sf, (st_v0), (end_v0))) ? YYYYmmddHHcMMcSScF :  \
+  (str_eq("%Y-%m-%d %H:%m:%s.%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
   (str_eq("%Y-%m-%d %H:%m:%s.%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
   (str_eq("%Y-%m-%d %H:%M:%S.%f", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
   (str_eq("%Y-%m-%d %H:%M:%S.%F", 20, sf, (st_v0), (end_v0))) ? YYYYcmmcddtHHcMMcSScF :  \
@@ -251,6 +281,11 @@ typedef enum{
   (str_eq("%%H%%M%%S%%F", 8, sf, (st_v0), (end_v0))) ? HHMMSSF : \
   (str_eq("%%H:%%M:%%S.%%F", 11, sf, (st_v0), (end_v0))) ? HHcMMcSScF : \
   (str_eq("%H:%M:%S.%f", 11, sf, (st_v0), (end_v0))) ? HHcMMcSScF : \
+  (str_eq("%H%M%S.%f", 9, sf, (st_v0), (end_v0))) ? HHcMMcSScF : \
+  (str_eq("%H%M%S%f", 8, sf, (st_v0), (end_v0))) ? HHcMMcSScF : \
+  (str_eq("HHMMSS.F", 8, sf, (st_v0), (end_v0))) ? HHcMMcSScF : \
+  (str_eq("HHMMSSf", 7, sf, (st_v0), (end_v0))) ? HHMMSScF : \
+  (str_eq("HHMMSSF", 7, sf, (st_v0), (end_v0))) ? HHMMSScF : \
   (str_eq("%%H%%M%%S%%f", 8, sf, (st_v0), (end_v0))) ? HHMMSSF : \
   (str_eq("%%H:%%M:%%S.%%f", 11, sf, (st_v0), (end_v0))) ? HHcMMcSScF : \
   (str_eq("%%H:%%M:%%S.%%f", 15, sf, (st_v0), (end_v0))) ? HHcMMcSScF : \
@@ -273,10 +308,14 @@ typedef enum{
 
 #define What_DF_TSType(on_typ)  \
  (((on_typ) == YYYYcmmcddtHHcMMcSScF) ? "YYYY-mm-dd_HH:MM:SS.F" :  \
+  ((on_typ) == YYYYmmddtHHcMMcSScF) ? "YYYYmmdd_HH:MM:SS.F" :  \
+  ((on_typ) == YYYYmmddHHcMMcSScF) ? "YYYYmmddHH:MM:SS.F" :  \
+  ((on_typ) == YYYYmmddHHMMSScF) ? "YYYYmmddHHMMSS.F" :  \
   ((on_typ) == YYYYmmddHHMMSSF) ? "YYYYmmddHHMMSSF" :  \
   ((on_typ) == YYYYcmmcdd) ? "YYYY-mm-dd" : \
   ((on_typ) == YYYYmmdd) ? "YYYYmmdd" : \
   ((on_typ) == HHcMMcSScF) ? "HH:MM:SS.F" : \
+  ((on_typ) == HHMMSScF) ? "HHMMSS.F" : \
   ((on_typ) == HHMMSSF) ? "HHMMSSF" : \
   ((on_typ) == UNKNOWN_TS) ? "LABELLED_UNKNOWN" : \
   "NOT_RECOGNIZED_TS")
