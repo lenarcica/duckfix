@@ -34,7 +34,8 @@ The goal is to read a CSV of fix logs quickly into DuckDB using a DuckDB compile
 
   Currently "make debug" can be run from the home directory, assuming duckdb is installed to windows environment, or alternatively, active in an anaconda environment.
 
-  The compiler will require "duckdb.h", "duckdb_extension.h" be copied into an assistant directory ```duckdb_capi```.  A clone of "extension-ci-tools" from github will
+  The compiler will require "duckdb.h", "duckdb_extension.h" be copied into an assistant directory ```duckdb_capi```.  
+  A clone of "extension-ci-tools" from github (placed in the child directory given)  will
   have information for make files.   That said, ```ninja``` and other utilities, at least in Windows package processing, are unnecessary, as this is a simple package
   with only C files included.
 
@@ -46,18 +47,20 @@ The goal is to read a CSV of fix logs quickly into DuckDB using a DuckDB compile
   If you have duckdb, you need to uninstall any existing previous version of the package, and then run duckdb in "unsigned" mode so it can
   reinstall this user-comoiled extension.  We can test on "ex1.csv", or we can use the "py/fake_data.py" file to create a larger "ex_rand.csv" file.
 
-  Here is a sample set of code to copy.  Note, copy starting at "del" inside a shell prompt, and have it delete the duckdb existing packages installed
-  (say version 1.4.3 if thats what you have), and then turn on duckdb in --unsigned mode.  After that it reinstalls the duckfix extension, loads it, and
-  then does a "from read_fixlog()" table function call, acting on "/example/ex1.csv" or others you might want.
+  Below is a sample set of code to use.  Note, it is recommended you supply a particular ```DUCKDB_EXTENSION_LOCATION``` that duckdb can write to.
+
+  Typically, if rebuilding the package, it is usueful to start by ```rm/del``` the previous extension save, unless you are mixing duckdb packages.
+   
+  This example considers one of the csv fix logs in ```/example/ex*.csv``` and uses the table function call "```from read_fixlog()```".
 
 
-# III. Test and running
+# IIa. Test and running
 
 Compiled extension for duckfix should result in the "./build/debug" or "./build/release" folder.
 
 ```
---del c:\users\alanj\ddb\v1.4.3\windows_amd64\duckfix* & duckdb --unsigned
-SET extension_directory = 'DESIRED EXTENSIONS'; 
+--del DUCKDB_EXTENSION_LOCATION\windows_amd64\duckfix* & duckdb --unsigned
+SET extension_directory = 'DUCKDB_EXTENSION_LOCATION'; 
 INSTALL './build/debug/duckfix.duckdb_extension';
 LOAD duckfix;
 -- Now to run the function you declared:
