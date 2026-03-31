@@ -94,3 +94,5 @@ int clear_m_visited(DF_config_file *dfc);
 int confirm_txt_exists(int lntxt, const char*seektxt, const char*sf, iStr st, iStr end);
 int test_replace_field_list(DF_field_list **p_dfl, int verbose);
 int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_fld, iStr end_fld, DF_config_file *dfc, DF_field_list *dfl, int verbose, char fixsep);
+int check_msg35(int lenKeepMsg35, char *KeepMsg35, const char *sf, iStr st, iStr end, char fix_sep, char fix_eq);
+

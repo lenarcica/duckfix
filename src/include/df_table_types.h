@@ -149,6 +149,7 @@ typedef struct _df_init_data {
   char int_scratch[MAXINTREAD]; // Maximum number of digits to read i64 integer
 
   char *ignore_line_text;  char *keep_line_text; 
+  char *fix35array; int len_fix35array;
   int64_t start_byte;  int64_t end_byte;
   int DONE;
 
@@ -165,6 +166,7 @@ typedef struct _df_bind_data {
   char *file_name;
 
   char *ignore_line_text;  char *keep_line_text; 
+  char *fix35array; int len_fix35array;
   int64_t start_byte;  int64_t end_byte;
   int DONE;
   DF_config_file *dfc;

@@ -95,6 +95,7 @@ int populate_encode(char *assignment, DF_Fix_Field*dff, int i_onfxs, char*sf, iS
 
 // Debug test for memory corruption
 int test_replace_string(char **p_ostr, int lstr, char *nmstr, int verbose);
+int test_replace_charv(char **p_charv, int ln_charv, char *nm_charv, int verbose);
 int test_replace_istrv(iStr **p_istrv, int ln_istrv, char *nm_istrv, int verbose);
 int test_replace_intv(int **p_intv, int ln_intv, char *nm_intv, int verbose);
 int test_replace_config_file(DF_config_file **p_odfc, int verbose);

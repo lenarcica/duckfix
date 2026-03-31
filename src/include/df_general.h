@@ -434,7 +434,7 @@ typedef struct _DF_config_file {
   char *desc; 
   char *info;
   char *exampleline;
-  char general_sep; char fix_sep;
+  char general_sep; char fix_sep; char fix_equal;
   int n_schemas;
   DF_Schema *schemas;
   int nfields;
@@ -446,6 +446,8 @@ typedef struct _DF_config_file {
   int *mark_m_visited;
   int n_read_cols;
   int xtra_col;
+
+  int lenKeepMsg35; char*KeepMsg35;
 } DF_config_file; 
 #endif
 
@@ -466,7 +468,6 @@ typedef struct _DF_field_list {
   int *unknown_multiplicity;
   int *line_unknown;
   int num_used_known_fields;
-
   long int file_total_bytes;
   int finish;
   int standard_vector_size;
