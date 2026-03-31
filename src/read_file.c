@@ -806,6 +806,24 @@ int confirm_txt_exists(int lntxt, const char*seektxt, const char*sf, iStr st, iS
   }
   return(0);
 }
+// We only keep a message type if we find 35=X for X inside KeepMsg35
+int check_msg35(int lenKeepMsg35, char *KeepMsg35, const char *sf, iStr st, iStr end, char fix_sep, char fix_eq) {
+  iStr st_i; int hit = 0;
+  if (end < 1 + 2 + 1 + 1) { return(0); } // No room for Msg35
+  for (st_i = st; st_i < end- 5; st_i++) {
+    if (sf[st_i] == fix_sep) {
+      if ((st_i +4 < end) && (sf[st_i+1] == '3') && (sf[st_i+2] == '5') && (sf[st_i+3] == fix_eq)) {
+        iStr st_num = st_i + 4;  while((st_num < end) && (sf[st_num] != ' ') && (sf[st_num] != '\"')&& (sf[st_num] != fix_sep)){st_num++;}
+        char type35 = sf[st_num]; 
+        for (int kk = 0; kk < lenKeepMsg35; kk++) {
+          if (KeepMsg35[kk] == type35) { return(1); } 
+        }
+        return(0);
+      }
+    }
+  }
+  return(0);
+}
 DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char char_sep, char fix_sep, int verbose, int standard_vector_size,
   long long int start_byte, long long int end_byte, char *ignore_line_text, char *keep_line_text) {
   char stt[500];
@@ -913,6 +931,9 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
         }
       } else {
         do_line = 1;
+      }
+      if ((dfc->lenKeepMsg35 > 0) && (dfc->KeepMsg35 != NULL)) {
+        do_line = check_msg35(dfc->lenKeepMsg35, dfc->KeepMsg35, buffer, onstr, iLineEnd, dfc->fix_sep, dfc->fix_equal);
       }
       if (do_line > 0) {
         if ((dfl->n_total_lines+1) % standard_vector_size == 0)  {

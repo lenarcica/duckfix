@@ -194,6 +194,11 @@ void register_duckfix_production_table_function(duckdb_connection ddb_con) {
     (const char*) "end_byte", (duckdb_logical_type) big_int_type);
   duckdb_destroy_logical_type(&big_int_type);
 
+  //duckdb_logical_type array_char_type = duckdb_create_logical_type(DUCKDB_TYPE_ARRAY);
+  //duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
+  //  (const char*) "fix35array", (duckdb_logical_type) array_char_type);
+  //duckdb_destroy_logical_type(&array_char_type);
+
   //printf("%s -- creating filename/json_filename parameters. \n", stt);
   duckdb_logical_type str_type = duckdb_create_logical_type(DUCKDB_TYPE_VARCHAR);
   //void duckdb_table_function_add_named_parameter(duckdb_table_function table_function, const char *name, duckdb_logical_type type); 
@@ -209,6 +214,8 @@ void register_duckfix_production_table_function(duckdb_connection ddb_con) {
     (const char*) "ignore_line_text", (duckdb_logical_type) str_type);
   duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
     (const char*) "keep_line_text", (duckdb_logical_type) str_type);
+  duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
+    (const char*) "fix35keep", (duckdb_logical_type) str_type);
   duckdb_destroy_logical_type(&str_type);
 
   //printf("%s -- Attaching the bind, init, main functions. \n", stt);
@@ -224,7 +231,7 @@ void register_duckfix_production_table_function(duckdb_connection ddb_con) {
   duckdb_destroy_table_function(&duckfix_f);
   //printf("%s -- we have a right to destroy duckfix. \n", stt);
   //printf("--------------------------------------------------------------------------\n");
-  printf(" -- duckfix registered.  Call \"from read_fix_loc(verbose:=X, char_sep:=',',file_name='FILE',json_file_name='JSONFILE');\" to run. \n");
+  printf(" -- duckfix registered.  Call \"from read_fix_log(verbose:=X, char_sep:=',',file_name='FILE',json_file_name='JSONFILE', fix35keep:='\0',fix_sep='1');\" to run. \n");
 }
 // Note everything below is legacy functionality to be replaced with
 // 1. df_bind.c

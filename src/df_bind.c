@@ -103,6 +103,13 @@ int copy_destroy_bind(df_bind_data **p_df_bd, const char *ntype) {
   ndf_bd->ignore_line_text = df_bd->ignore_line_text; df_bd->ignore_line_text = NULL;
   ndf_bd->report_bust = df_bd->report_bust; ndf_bd->report_line=df_bd->report_line;
 
+  if (df_bd->fix35array != NULL) {
+    printf("clearing fix35array(%d); \n", df_bd->len_fix35array);
+    test_replace_string(&df_bd->fix35array, df_bd->len_fix35array, "copy_destroy_bind(df_bd->ignore_line_text)", 1);
+  }
+  ndf_bd->fix35array = df_bd->fix35array;  ndf_bd->len_fix35array = df_bd->len_fix35array;  df_bd->len_fix35array = 0;
+  df_bd->fix35array = NULL;
+
   if (df_bd->keep_line_text != NULL) {
     printf("clearing keep_line_text(%s); \n", ntype);
     test_replace_string(&df_bd->keep_line_text, strlen(df_bd->keep_line_text), "copy_destroy_bind(df_bd->keep_line_text)", 1);
@@ -138,6 +145,7 @@ void destroy_df_bind_data(void *v_df_bd) {
   if (df_bd->dfl != NULL) { delete_field_list(&df_bd->dfl, verbose-1); df_bd->dfl = NULL; }
   if (df_bd->ignore_line_text != NULL) { if (verbose >= 1) { printf("free_df_bd->ignore_line_text\n"); } free(df_bd->ignore_line_text); df_bd->ignore_line_text = NULL; }
   if (df_bd->keep_line_text != NULL) { if (verbose >= 1) { printf("free df_bd->keep_line_text\n"); } free(df_bd->keep_line_text); df_bd->keep_line_text = NULL; }
+  if (df_bd->fix35array != NULL) { if (verbose >= 1) { printf("free df_bd->fix35array\n"); } free(df_bd->fix35array); df_bd->fix35array = NULL; }
   if (df_bd->verbose > 0) {
     printf("df_bind.c->destroy_df_bind_data(DONE=%d) has been called I hope you didn't need that data. \n", DONE);
   }
@@ -165,6 +173,8 @@ void destroy_df_bind_data(void *v_df_bd) {
   if (df_char_sep != NULL) { duckdb_destroy_value(&df_char_sep); df_char_sep=NULL; }                         \
   if (df_report_bust != NULL) { duckdb_destroy_value(&df_report_bust); df_report_bust=NULL;}                 \
   if (df_report_line != NULL) { duckdb_destroy_value(&df_report_line); df_report_line=NULL;}                 \
+  if (df_fix35array != NULL) { duckdb_destroy_value(&df_fix35array); df_fix35array=NULL; }                   \
+  if (df_fix35keep != NULL) { duckdb_destroy_value(&df_fix35keep); df_fix35keep = NULL; }                    \
   df_file_name = NULL
 
 #define my_dbp_clear() \
@@ -174,6 +184,8 @@ void destroy_df_bind_data(void *v_df_bd) {
   if (ignore_line_text != NULL) { duckdb_free(ignore_line_text); ignore_line_text = NULL; }                  \
   if (v_char_sep != NULL) { duckdb_free(v_char_sep);  v_char_sep = NULL; }                                   \
   if (v_fix_sep != NULL) { duckdb_free(v_fix_sep);  v_fix_sep = NULL; }                                      \
+  if (ddbv_fix35array != NULL) { duckdb_free(ddbv_fix35array); ddbv_fix35array = NULL; }                     \
+  if (v_fix35keep != NULL) { duckdb_free(v_fix35keep); v_fix35keep = NULL; }                                 \
   keep_line_text=NULL
 
 
@@ -186,6 +198,7 @@ void destroy_df_bind_data(void *v_df_bd) {
   if (json_sf != NULL) { if(verbose >= 1) { printf("duckfix_bind->freeing json_sf\n");   }                   \
      free(json_sf); json_sf = NULL; }                                                                        \
   if (verbose >= 1) { printf("my_clear(%s,v=%d) finished. \n", stt, verbose); }                              \
+  if (fix35array != NULL)  { free(fix35array); fix35array = NULL; }                                          \
   dfc=NULL; dfl=NULL
 
 void duckfix_bind(duckdb_bind_info b_info) {
@@ -229,9 +242,11 @@ void duckfix_bind(duckdb_bind_info b_info) {
   duckdb_value df_keep_line_text=NULL; duckdb_value df_ignore_line_text=NULL;
   duckdb_value df_fix_sep=NULL;  duckdb_value df_report_bust = NULL;  int report_bust = 0;
   duckdb_value df_report_line = NULL; int report_line = 0;
+  duckdb_value df_fix35array = NULL;  duckdb_value df_fix35keep = NULL;  
   char *v_char_sep = NULL; char *v_fix_sep = NULL; 
-  char *file_name=NULL; char * json_file_name=NULL;
-  char *ignore_line_text=NULL; char*keep_line_text=NULL;
+  char *file_name=NULL; char * json_file_name=NULL; char *v_fix35keep = NULL; char fix35keep = '\0';
+  char *ignore_line_text=NULL; char*keep_line_text=NULL; char * ddbv_fix35array = NULL;
+  char *fix35array = NULL; int len_fix35array = 0;
 
   char fix_sep = '\0'; char char_sep='\0';
   // ll, long-lived copies that will live on stack here in the function;
@@ -405,6 +420,56 @@ void duckfix_bind(duckdb_bind_info b_info) {
   if (keep_line_text != NULL) {
     sprintf(ll_keep_line_text, "%.*s\0", (int) (strlen(keep_line_text) < 99 ? strlen(keep_line_text) : 99), keep_line_text);
     len_keep_line_text = (strlen(keep_line_text) < 99 ? strlen(keep_line_text) : 99);
+  }
+
+  //df_fix35array = duckdb_bind_get_named_parameter(b_info, "fix35array");
+  df_fix35array = NULL;
+  if (verbose >= 1) {
+    if (df_fix35array == NULL) { printf("%s: df_fix35array is null. \n", stt);
+     } else if (duckdb_is_null_value(df_fix35array)) { printf("%s: df_fix35array is a null parameter. \n", stt);
+     }
+  }
+  vpt(1, "Trying to investigate df_fix35array\n");
+  if (df_fix35array == NULL) {
+    vpt(1, "df_fix35array is NULL. \n");
+  } else if ((df_fix35array != NULL)  && (!duckdb_is_null_value(df_fix35array))) {
+    duckdb_logical_type lt_fix35array = duckdb_get_value_type(df_fix35array);
+    //duckdb_array_type_array_size(duckdb_logical_type type)
+    if (lt_fix35array == NULL) {
+      printf("%s: Error, lt_fix35 logical type of df_fix35 array is NULL! \n", stt); 
+    } else if (duckdb_get_type_id(lt_fix35array) != DUCKDB_TYPE_ARRAY) {
+      printf("%s: Issue, lt_fix35array is not type array it is type %d. \n", stt, (int) duckdb_get_type_id(lt_fix35array));
+    } else {
+      int len35array = duckdb_array_type_array_size(lt_fix35array);
+      duckdb_logical_type ltc_fix35array = duckdb_array_type_child_type(lt_fix35array);
+      if (len35array <= 0) {  vpt(1, ": df_fix35array is length 0. \n");
+      } else if (duckdb_get_type_id(ltc_fix35array) != DUCKDB_TYPE_VARCHAR) {
+        vpt(1,": Note type of id of ltc_fix35array is %d, not compatible for fix35 limits. We need strings \n", (int) duckdb_get_type_id(ltc_fix35array));
+      } else {
+        vpt(1, " Attempting to get vector out of df_fix35array!\n");
+
+      }
+      duckdb_destroy_logical_type(&ltc_fix35array); ltc_fix35array = NULL;
+    }
+    duckdb_destroy_logical_type(&lt_fix35array);  lt_fix35array = NULL;
+  }
+  if (fix35array == NULL) {
+    vpt(1, "Looking for fix35keep. \n");
+    df_fix35keep = duckdb_bind_get_named_parameter(b_info, "fix35keep");
+    v_fix35keep = NULL; 
+    if (df_fix35keep == NULL) { vpt(1, " note df_fix35keep is NULL. \n");
+    } else if ((df_fix35keep != NULL) && (!duckdb_is_null_value(df_fix35keep))) { 
+      v_fix35keep = duckdb_get_varchar(df_fix35keep); 
+      if ((v_fix35keep == NULL) || (strlen(v_fix35keep) <= 0)) {
+        printf("duckfix_bind, error, v_fix35keep given is blank.\n");
+      } else { 
+        vpt(1, " Note we have length of v_fix35keep = %d. \n", (int) strlen(v_fix35keep));
+        fix35keep = v_fix35keep[0];  fix35array = malloc(sizeof(char) * 4);  len_fix35array = 1;
+        fix35array[0] = fix35keep; fix35array[1] = '\0';  fix35array[2] = '\0';
+      }
+    }
+    if (df_fix35keep != NULL) { duckdb_destroy_value(&df_fix35keep); df_fix35keep = NULL; }
+    
   }
 
   vpt(2, "--- Note we have start_byte=%lld, end_byte=%lld, ignore_line_text=%s, keep_line_text=%s. \n", 
@@ -601,7 +666,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
   df_bd->dfl = dfl; df_bd->dfc = dfc;
   df_bd->start_byte = start_byte; df_bd->end_byte = end_byte; 
   df_bd->report_bust = report_bust; df_bd->report_line = report_line;
-
+  df_bd->len_fix35array = len_fix35array; df_bd->fix35array = fix35array;  fix35array = NULL;  len_fix35array = 0;
 
   //printf("copy_destroy_bind test. After completing blank creation \n");
   //copy_destroy_bind(&df_bd, "initial blank destroy");  dfl = df_bd->dfl; dfc = df_bd->dfc;

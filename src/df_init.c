@@ -86,6 +86,7 @@ void destroy_df_init_data( void *v_df_id) {
   //duckdb_free(ta_id->p_result);
   df_id->dfc = NULL; df_id->dfl = NULL;  df_id->DONE=0; 
   df_id->ignore_line_text = NULL; df_id->keep_line_text=NULL;  df_id->line_is_busted=nobust;
+  df_id->fix35array = NULL;
   if (df_id->fpo != NULL) { vpt(3, " Closing and clearing fpo\n"); fclose(df_id->fpo); df_id->fpo = NULL; };
   if (df_id->file_name != NULL) { vpt(3, "freeing filename \n"); free(df_id->file_name); df_id->file_name = NULL; }
   if (df_id->buffer != NULL) { vpt(3, "freeing df_id->buffer. \n"); free(df_id->buffer); df_id->buffer = NULL; }
@@ -144,7 +145,7 @@ void duckfix_init(duckdb_init_info i_info) {
   df_id->tbytesread = 0; df_id->bytesread = 0; df_id->remainder = 0;  df_id->buffreads = 0;
   df_id->onstr = 0; df_id->iLineEnd = 0;  df_id->last_fix_num = -1;  df_id->ion_schema = -1;
   df_id->start_byte = df_bd->start_byte; df_id->end_byte = df_bd->end_byte;
-  df_id->ignore_line_text = df_bd->ignore_line_text;
+  df_id->ignore_line_text = df_bd->ignore_line_text;  df_id->fix35array = df_bd->fix35array;  df_id->len_fix35array = df_bd->len_fix35array;
   df_id->keep_line_text = df_id->keep_line_text;
   int len_fn = (df_bd->file_name == NULL) ? 0 : (strlen(df_bd->file_name) <= 0 ? 0 : strlen(df_bd->file_name) +1);
 

@@ -911,6 +911,31 @@ int test_replace_intv(int **p_intv, int ln_intv, char *nm_intv, int verbose) {
   p_intv[0] = n_intv;
   return(1); 
 }
+
+int test_replace_charv(char **p_charv, int ln_charv, char *nm_charv, int verbose) {
+  char stt[300];
+  sprintf(stt, "copy_replace_intv(%s,len=%ld): ", nm_charv, ln_charv);
+  vpt(1, "  START \n");
+  if (p_charv[0] == NULL) {
+    vpt(1, " ERROR, test string %s is already NULL!\n", nm_charv);
+    return(-2);
+  }
+  char *n_charv = malloc(sizeof(char)*ln_charv);
+
+  if (n_charv == NULL) {
+    printf("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF\n");
+    printf("FFF Fail to replace this test istrv. \n");
+    free(p_charv[0]); p_charv[0] = NULL;
+    return(-20);
+  }
+  char *charv = p_charv[0];
+  for (int ii = 0; ii < ln_charv; ii++) {
+    n_charv[ii] = charv[ii];  charv[ii] = 0; charv[ii] = n_charv[ii];
+  }
+  free(charv); p_charv[0] = NULL;
+  p_charv[0] = n_charv;
+  return(1); 
+}
 int test_replace_config_file(DF_config_file **p_odfc, int verbose) {
   char stt[300];
   DF_config_file *odfc = p_odfc[0];
@@ -974,6 +999,10 @@ int test_replace_config_file(DF_config_file **p_odfc, int verbose) {
   if (odfc->mark_m_visited != NULL) {
   test_replace_intv( &odfc->mark_m_visited, odfc->n_total_multiplicity_columns *2, "mark_m_visited", verbose);
   }
+  if ((odfc->KeepMsg35 != NULL) && (odfc->lenKeepMsg35 > 0)) {
+    test_replace_charv( &odfc->KeepMsg35, odfc->lenKeepMsg35, "KeepMsg35", verbose);
+  }
+  ndfc->KeepMsg35 = odfc->KeepMsg35;  ndfc->lenKeepMsg35 = odfc->lenKeepMsg35;  odfc->lenKeepMsg35;  odfc->KeepMsg35 = NULL;
 
 
   ndfc->xtra_col = odfc->xtra_col;
@@ -1014,9 +1043,10 @@ int copy_replace_schemas(DF_config_file *odfc, DF_config_file *ndfc, int verbose
     ndfc->schemas[ii].final_o_loc = odfc->schemas[ii].final_o_loc;
     ndfc->schemas[ii].final_m_loc = odfc->schemas[ii].final_m_loc;
     ndfc->schemas[ii].rtrunc = odfc->schemas[ii].rtrunc;
-    ndfc->schemas[ii].ltrunc = odfc->schemas[ii].ltrunc; ndfc->schemas[ii].fixequal = odfc->schemas[ii].fixequal;
+    ndfc->schemas[ii].ltrunc = odfc->schemas[ii].ltrunc; ndfc->schemas[ii].fixequal = odfc->schemas[ii].fixequal;  
     ndfc->schemas[ii].fixsep = odfc->schemas[ii].fixsep;
   }
+  ndfc->fix_equal = odfc->fix_equal;
   delete_schemas(odfc->n_schemas, &odfc->schemas, verbose);
   return(1);
 }
@@ -1112,8 +1142,8 @@ DF_config_file *new_config_file() {
   DF_config_file *dfc = malloc(sizeof(DF_config_file));
   if (dfc == NULL) {  printf("ERROR: DF_config file, failed to allocate dfc. \n");  return(NULL); }
   dfc->schemas = NULL; dfc->name = NULL; dfc->info = NULL; dfc->desc = NULL; dfc->exampleline=NULL; 
-  dfc->nfields = 0; dfc->ordered_fields=NULL;  dfc->general_sep=','; dfc->fix_sep=',';
-  dfc->xtra_col = 0;
+  dfc->nfields = 0; dfc->ordered_fields=NULL;  dfc->general_sep=','; dfc->fix_sep=','; dfc->fix_equal=':';
+  dfc->xtra_col = 0;  dfc->KeepMsg35 = NULL; dfc->lenKeepMsg35 = 0;
   dfc->fxs = NULL;  dfc->mark_visited=NULL; dfc->mark_m_visited=NULL;
   return(dfc);
   //for (int ii = 0; ii < NCHARS; ii++) { field_loc[ii]=-1; } 
@@ -1143,6 +1173,10 @@ int delete_config_file(DF_config_file **pdfc, int verbose) {
   if (dfc->schemas != NULL) {
     vpt(2, " calling delete_schemas. n=%ld\n", dfc->n_schemas);
     delete_schemas(dfc->n_schemas, &dfc->schemas, verbose-1);
+  }
+  if (dfc->KeepMsg35 != NULL) {
+    vpt(2, " Msg35 List KeepMsg35 list is length %d.  Deleting. \n", dfc->lenKeepMsg35);
+    free(dfc->KeepMsg35); dfc->KeepMsg35 = NULL; dfc->lenKeepMsg35 = 0; 
   }
 
   if (dfc->fxs != NULL) {
@@ -1391,7 +1425,11 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
     }
    
     SchemaSeeker_CHAR("fixequal",8, (dfc->schemas[i_s].fixequal), st_V, (end_V+1), i_loc, st0, end0, 0);
-
+    if ( (dfc->schemas[i_s].fixequal != ' ') && (dfc->schemas[i_s].fixequal != '\0') &&  (
+          (dfc->schemas[i_s].fixequal == '=') || (dfc->schemas[i_s].fixequal == ':') || dfc->schemas[i_s].fixequal == '-')
+       ) {
+      dfc->fix_equal = dfc->schemas[i_s].fixequal;
+    }
     SchemaSeeker_CHAR("fixsep",6, (dfc->schemas[i_s].fixsep), st_V, (end_V+1), i_loc, st0, end0, 0);
     if ((dfc->schemas[i_s].fixsep != '\0') && (dfc->schemas[i_s].fixsep >= '1') && 
         (dfc->schemas[i_s].fixsep <= '9')) {
