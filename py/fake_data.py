@@ -110,10 +110,27 @@ def rand_datetime(in_dt = '2025-09-15', fmt='YYYY-mm-dd HH:MM:SS.FFFFFFF') :
   elif (fmt in ['YYYY-mm-dd HH:MM:SS.FFFFFF','YYYY-MM-DD HH:MM:SS.FFFFFF','YYYY-mm-dd HH:MM:SS.FFFFFFFFF',
                  'YYYY.mm.dd HH:MM:SS.FFFFFF', '%Y-%m-%d %H:%M:%S.%f']) :
     sep=' ';
+  elif (fmt in ['YYYYmmddTHH:MM:SS.F', '%Y%m%dT%H:%M:%S.%F', '%Y%m%dT:%H:%M:%S.%f']) :
+    sep='T'; in_dt = in_dt.replace('.','').replace('-','');
+  elif (fmt in ['YYYYmmdd HH:MM:SS.F', '%Y%m%d %H:%M:%S.%F','%Y%m%d %H:%M:%S.%f']) :
+    sep=' '; in_dt = in_dt.replace('.','').replace('-','');
+  elif (fmt in ['YYYYmmdd-HH:MM:SS.F'], '%Y%m%d-%H:%M:%S.%F','%Y%m%d %H:%M:%S.%f') :
+    sep='-'; in_dt = in_dt.replace('.','').replace('-','');
+  elif (fmt in ['YYYYmmddDHH:MM:SS.F'], '%Y%m%dD%H:%M:%S.%F','%Y%m%dD%H:%M:%S.%f') :
+    sep='D'; in_dt = in_dt.replace('.','').replace('-','');
+  elif (fmt in ['YYYYmmddHH:MM:SS.F'], '%Y%m%d%H:%M:%S.%F','%Y%m%d%H:%M:%S.%f') :
+    sep=''; in_dt = in_dt.replace('.','').replace('-','');
+  elif (fmt in ['YYYYmmddHHMMSS.F'], '%Y%m%d%H%M%S.%F','%Y%m%d%H%M%S.%f') :
+    sep=''; in_dt = in_dt.replace('.','').replace('-','');
+    stt = stt.replace(':','');
+  elif (fmt in ['YYYYmmddHHMMSSF'], '%Y%m%d%H%M%S%F','%Y%m%d%H%M%S%f') :
+    sep=''; in_dt = in_dt.replace('.','').replace('-','');
+    stt = stt.replace(':','').replace('.','');
   elif (fmt in ['HH:MM:SS.FFFFFF', '%H:%M:%S.%f', '%H:%M:%S.ffffff','%H:%M:%S.fffffffff',
                 'HH:MM:SS.%f', '%h:%m:%s.%f', '%H:%M:%S.%F']) :
     return(stt);
   return(('' if in_dt=='' else (in_dt + sep)) + stt);
+
 def rand_dealer() :
   return(str(np.random.choice(['dealer1','dealer2'],size=1)[0]))
 def rand_sender() :
@@ -208,3 +225,5 @@ if __name__ == '__main__' :
 
 
 # python py/fake_data.py 'fix42_t2.json' ex_random4.csv config_jsons example 2 120000 4
+
+# python py/fake_data.py 'fix42_t4.json' ex_randomT.csv config_jsons example 2 120 10
