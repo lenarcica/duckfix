@@ -84,7 +84,9 @@ typedef enum {
   nobust,
   bust,
   badencode,
-  badencodeandbust
+  baddate,  badencodeandbust, baddateandbust,
+  badencodeanddate,
+  badencodeanddateandbust
 } DF_BustType;
 
 #define What_DF_BustType(on_bust)  \
@@ -92,11 +94,28 @@ typedef enum {
   ((on_bust) == bust) ? "Bust" :  \
   ((on_bust) == badencode) ? "BadEncode" : \
   ((on_bust) == badencodeandbust) ? "BustAndEncode" : \
+  ((on_bust) == baddateandbust) ? "BustAndBadDate" : \
+  ((on_bust) == baddate) ? "BadDate" : \
+  ((on_bust) == badencodeanddate) ? "BadDateAndEncode" : \
+  ((on_bust) == badencodeanddateandbust) ? "BustBadDateandEncode" : \
   "Unknown"
 
 #define UpdateBust(on_bust, new_bust) \
     ( (on_bust) == nobust) ? (new_bust) :  \
     ( (new_bust) == nobust) ? (on_bust) : \
+    ( (new_bust) == badencodeanddateandbust) ? badencodeanddateandbust : \
+    ( (new_bust) == (on_bust)) ? new_bust : \
+    (( (new_bust) == baddate) && ( (on_bust) == bust)) ? baddateandbust : \
+    (( (new_bust) == bust) && ( (on_bust) == baddate)) ? baddateandbust : \
+    (( (new_bust) == badencode) && ( (on_bust) == baddate)) ? badencodeanddate : \
+    (( (new_bust) == baddate) && ( (on_bust) == badencode)) ? badencodeanddate : \
+    (( (new_bust) == badencodeanddate) && ( (on_bust) == badencode)) ? badencodeanddate : \
+    (( (new_bust) == badencode) && ( (on_bust) == badencodeanddate)) ? badencodeanddate : \
+    (( (new_bust) == badencodeanddate) && ( (on_bust) == bust)) ? badencodeanddateandbust : \
+    (( (on_bust) == badencodeandbust) && ( (new_bust) == baddate)) ? badencodeanddateandbust : \
+    (( (on_bust) == baddateandbust) && ( (new_bust) == badencode)) ? badencodeanddateandbust : \
+    (( (on_bust) == bust) && ( (new_bust) == badencodeanddate)) ? badencodeanddateandbust : \
+    (( (new_bust) == bust) && ( (on_bust) == badencodeanddate)) ? badencodeanddateandbust : \
     ( (on_bust) == badencodeandbust) ? badencodeandbust : \
     ((on_bust) == bust) ?  (((new_bust)==badencode) ? badencodeandbust :on_bust) : \
     ((on_bust) == badencode) ? (((new_bust)==bust) ? badencodeandbust : on_bust) : \
