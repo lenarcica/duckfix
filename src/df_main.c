@@ -1103,7 +1103,7 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
           } else if (fmttyp == YYYYmmddHHMMSSF) { pfmt = fmt4; 
           }
           df_id->dds.year = 0; df_id->dds.month=1; df_id->dds.day = 1;  load_i64 = 0; load_o64 = 0;
-          if (valStart + pfmt[1] >= valEnd) { badDate = 1; 
+          if (valStart + pfmt[1] >= valEnd) { badDate = 1;  
           } else { 
             memcpy(df_id->int_scratch, sf+valStart+pfmt[0],4); df_id->int_scratch[4] = '\0'; 
             df_id->dds.year = atoi(df_id->int_scratch);
@@ -1127,6 +1127,7 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
             HH = atoi(df_id->int_scratch);
           }
           if (valStart + pfmt[4] + 2 >= valEnd) { badDate = 1; // Minutes requires 2 columns
+          } else {
             memcpy(df_id->int_scratch, sf+valStart+pfmt[4],2); df_id->int_scratch[2] = '\0';
             load_i64 = load_i64*60 + atoi(df_id->int_scratch);
             MM = atoi(df_id->int_scratch);
@@ -1166,6 +1167,7 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
           #endif
           *(((int64_t *)vddbv) + on_chunk_line) = (int64_t) load_i64;
           if (badDate == 1) { SETINVALID(df_id->on_chunk_line); }
+          if (badDate == 1) { df_id->line_is_busted = UpdateBust(df_id->line_is_busted, baddate); }
           break;
         case MonthcDaycYearcHHcMMcSScF :
         case MonthcDaycYear   :
