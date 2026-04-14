@@ -216,6 +216,8 @@ void register_duckfix_production_table_function(duckdb_connection ddb_con) {
     (const char*) "keep_line_text", (duckdb_logical_type) str_type);
   duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
     (const char*) "fix35keep", (duckdb_logical_type) str_type);
+  duckdb_table_function_add_named_parameter((duckdb_table_function) duckfix_f, 
+    (const char*) "default_date", (duckdb_logical_type) str_type);
   duckdb_destroy_logical_type(&str_type);
 
   //printf("%s -- Attaching the bind, init, main functions. \n", stt);

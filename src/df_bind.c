@@ -175,6 +175,7 @@ void destroy_df_bind_data(void *v_df_bd) {
   if (df_report_line != NULL) { duckdb_destroy_value(&df_report_line); df_report_line=NULL;}                 \
   if (df_fix35array != NULL) { duckdb_destroy_value(&df_fix35array); df_fix35array=NULL; }                   \
   if (df_fix35keep != NULL) { duckdb_destroy_value(&df_fix35keep); df_fix35keep = NULL; }                    \
+  if (df_default_date != NULL) { duckdb_destroy_value(&df_default_date); df_default_date = NULL; }           \
   df_file_name = NULL
 
 #define my_dbp_clear() \
@@ -186,6 +187,7 @@ void destroy_df_bind_data(void *v_df_bd) {
   if (v_fix_sep != NULL) { duckdb_free(v_fix_sep);  v_fix_sep = NULL; }                                      \
   if (ddbv_fix35array != NULL) { duckdb_free(ddbv_fix35array); ddbv_fix35array = NULL; }                     \
   if (v_fix35keep != NULL) { duckdb_free(v_fix35keep); v_fix35keep = NULL; }                                 \
+  if (v_default_date != NULL) {free(v_default_date); v_default_date=NULL; }                                  \
   keep_line_text=NULL
 
 
@@ -199,6 +201,7 @@ void destroy_df_bind_data(void *v_df_bd) {
      free(json_sf); json_sf = NULL; }                                                                        \
   if (verbose >= 1) { printf("my_clear(%s,v=%d) finished. \n", stt, verbose); }                              \
   if (fix35array != NULL)  { free(fix35array); fix35array = NULL; }                                          \
+  if (v_default_date != NULL) {free(v_default_date); v_default_date=NULL; }                                  \
   dfc=NULL; dfl=NULL
 
 void duckfix_bind(duckdb_bind_info b_info) {
@@ -243,10 +246,12 @@ void duckfix_bind(duckdb_bind_info b_info) {
   duckdb_value df_fix_sep=NULL;  duckdb_value df_report_bust = NULL;  int report_bust = 0;
   duckdb_value df_report_line = NULL; int report_line = 0;
   duckdb_value df_fix35array = NULL;  duckdb_value df_fix35keep = NULL;  
+  duckdb_value df_default_date = NULL; 
   char *v_char_sep = NULL; char *v_fix_sep = NULL; 
   char *file_name=NULL; char * json_file_name=NULL; char *v_fix35keep = NULL; char fix35keep = '\0';
   char *ignore_line_text=NULL; char*keep_line_text=NULL; char * ddbv_fix35array = NULL;
   char *fix35array = NULL; int len_fix35array = 0;
+  char *v_default_date = NULL; int len_default_date = 0;  short default_date[3];
 
   char fix_sep = '\0'; char char_sep='\0';
   // ll, long-lived copies that will live on stack here in the function;
@@ -354,6 +359,24 @@ void duckfix_bind(duckdb_bind_info b_info) {
   vpt(1, " After load, fix_sep=\'%c\',char_sep=\'%c\'\n",
      fix_sep == '\0' ? '0' : (char_sep >= 1 && char_sep <= 9) ? (char) (fix_sep + '0') : fix_sep,
      char_sep == '\0' ? '0' : (char_sep >= 1 && char_sep <= 9) ? (char) (char_sep + '0') : char_sep);
+
+  vpt(2, " We are looking to try and extract default_date. \n");
+  df_default_date= duckdb_bind_get_named_parameter(b_info, "default_date");
+  if ((df_default_date != NULL) && (!duckdb_is_null_value(df_default_date))) { 
+    v_default_date = duckdb_get_varchar((duckdb_value) df_default_date); 
+    len_default_date = v_default_date != NULL ? strlen(v_default_date) : 0;
+  }
+  if (len_default_date == 10) {
+    char bld[6];
+    bld[0] = v_default_date[0]; bld[1] = v_default_date[1]; bld[2] = v_default_date[2]; bld[3] = v_default_date[3];
+    bld[4] = '\0';  default_date[0] = atoi(bld);
+    bld[0] = v_default_date[5]; bld[1] = v_default_date[6];
+    default_date[1] = bld[0] == '0' ? ((short) bld[1] - '0') : (short) atoi(bld);
+    bld[0] = v_default_date[8]; bld[1] = v_default_date[9];
+    default_date[2] = bld[0] == '0' ? ((short) bld[1] - '0') : (short) atoi(bld);
+  } else if (v_default_date != NULL) {
+    vpt(-1, "ERROR issue, default_date was supplied but its length is %ld. \n", (long int) len_default_date);
+  }
 
   vpt(2, " We are looking to try and extract json_file_name. \n");
   df_json_file_name = duckdb_bind_get_named_parameter(b_info, "json_file_name");
@@ -523,7 +546,9 @@ void duckfix_bind(duckdb_bind_info b_info) {
       ? (dfc->schemas[dfc->n_schemas-1].fixsep != '\0' ? dfc->schemas[dfc->n_schemas-1].fixsep : dfc->general_sep) 
       : dfc->fix_sep;
   fix_sep = (fix_sep == '\0') ? (dfc->fix_sep != '\0' ? dfc->fix_sep : dfc->general_sep) : fix_sep;
-
+  if (len_default_date == 10) {
+    dfc->default_date[0] = default_date[0]; dfc->default_date[1] = default_date[1]; dfc->default_date[2] = default_date[2];
+  }
   vpt(0, "Before we start generate_field_list, fix_sep=\'%c\', char_sep=\'%c\', dfc->general_sep=\'%c\', dfc->fix_sep=\'%c\'. \n",
      (char) fix_sep, (char) char_sep, (char) dfc->general_sep, (char) dfc->fix_sep);
   dfl = NULL;

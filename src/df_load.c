@@ -1011,6 +1011,7 @@ int test_replace_config_file(DF_config_file **p_odfc, int verbose) {
   ndfc->general_sep = odfc->general_sep;  ndfc->fix_sep = odfc->fix_sep;
   ndfc->mark_visited = odfc->mark_visited; odfc->mark_visited = NULL;
   ndfc->mark_m_visited = odfc->mark_m_visited; odfc->mark_m_visited = NULL;
+  ndfc->default_date[0] = odfc->default_date[0];  ndfc->default_date[1] = odfc->default_date[1]; ndfc->default_date[2] = odfc->default_date[2];
   delete_config_file(p_odfc, verbose);
   p_odfc[0] = ndfc;
   vpt(1, "test_replace_config_file -- all done. \n");
@@ -1145,6 +1146,7 @@ DF_config_file *new_config_file() {
   dfc->nfields = 0; dfc->ordered_fields=NULL;  dfc->general_sep=','; dfc->fix_sep=','; dfc->fix_equal=':';
   dfc->xtra_col = 0;  dfc->KeepMsg35 = NULL; dfc->lenKeepMsg35 = 0;
   dfc->fxs = NULL;  dfc->mark_visited=NULL; dfc->mark_m_visited=NULL;
+  dfc->default_date[0] = 0; dfc->default_date[1] = 0; dfc->default_date[2] = 0;
   return(dfc);
   //for (int ii = 0; ii < NCHARS; ii++) { field_loc[ii]=-1; } 
 }
@@ -1250,6 +1252,30 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
   iStr iSchema = -1;
   SchemaSeeker_START("schema",6, on_i, (nmax), iSchema, sch_st, sch_end, 1);
   sch_st = (sch_st >= 1) && (sf[sch_st-1] == '{') ? sch_st-1 : ((sf[sch_st]=='{') ? sch_st : sch_st);
+
+  iStr iDefault_Date = -1;
+  SchemaSeeker_START("default_date",12, on_i, (nmax),iDefault_Date, st0, end0,0);
+  if ((iDefault_Date > 0) && (iDefault_Date < end0)) {
+    if (sf[iDefault_Date] == '\"') {
+    } else if ((iDefault_Date >= 1) && (sf[iDefault_Date-1] == '\"')) { iDefault_Date--;
+    } else if ((iDefault_Date < end0-1) && (sf[iDefault_Date+1] == '\"')) { iDefault_Date++;
+    } else { iDefault_Date = -10; }
+    if (iDefault_Date >= 0) {
+      // "xxxx-xx-xx"
+      if ((iDefault_Date + 11 >= end0) || (sf[iDefault_Date+ 11] != '\"')) {
+        printf("WARNING ISSUE, iDefault_Date=%ld, buf sf[iDefault_Date+11] is invalid. \n", (long int) iDefault_Date); iDefault_Date = -1;
+      }
+    }
+  } else { iDefault_Date = -1; }
+  if (iDefault_Date >= 0) {
+    char bld[6];
+    bld[0] = sf[iDefault_Date+1]; bld[1] = sf[iDefault_Date+2]; bld[2] = sf[iDefault_Date+3]; bld[3] = sf[iDefault_Date+4];
+    bld[4] = '\0';  dfc->default_date[0] = atoi(bld);
+    bld[0] = sf[iDefault_Date+6]; bld[1] = sf[iDefault_Date+7]; bld[2] = '\0';
+    dfc->default_date[1] = (bld[0] == '0') ? (short) (bld[1] -'0') : atoi(bld);
+    bld[0] = sf[iDefault_Date+9]; bld[1] = sf[iDefault_Date+10]; bld[2] = '\0';
+    dfc->default_date[2] = (bld[0] == '0') ? (short) (bld[1] -'0') : atoi(bld);
+  }
 /*
   iStr iName = find_key("name",4,sf,on_i,nmax, verbose-1);
   if (iName < 0) { printf("ERROR: note sf[nmax-1] = \'%c\' \n", (long int) nmax); }
@@ -1495,6 +1521,7 @@ void PRINT_dfc(DF_config_file *dfc) {
    printf("-- name: \"%s\". \n", dfc->name);
    printf("-- info: \"%s\". \n", dfc->info);
    printf("-- desc: \"%s\". \n", dfc->desc); 
+   printf("-- default_date: \"%d-%d-%d\" \n", dfc->default_date[0], dfc->default_date[1], dfc->default_date[2]);
    if (dfc->n_schemas <= 0) {
     printf("-- NO SCHEMAS  Nothing to print after desc.\n"); 
    } else {

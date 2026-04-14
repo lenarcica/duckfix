@@ -970,7 +970,7 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
   int fmt3[] = {0,4,6,8,10,12,15}; //YYYYmmddHHMMSS.F;
   int fmt4[] = {0,4,6,8,10,12,14}; //YYYYmmddHHMMSSF;
 
-  int hfmt0[] = {0,3,9,12}; //HH:MM:SS.F
+  int hfmt0[] = {0,3,6,9}; //HH:MM:SS.F
   int hfmt1[] = {0,2,4,7};  //HHMMSS.F
   int hfmt2[] = {0,2,4,6};  //HHMMSSF 
   int *pfmt;  int badDate = 0;
@@ -1261,20 +1261,23 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
           } else if (fmttyp == HHMMSScF) { pfmt = hfmt1;
           } else if (fmttyp == HHMMSSF) { pfmt = hfmt2;
           }
-          df_id->dds.year = 2025;
-          df_id->dds.month = 9;
-          df_id->dds.day = 8; 
+          //df_id->dds.year = dfc->default_date[0] > 0 ? dfc->default_date[0] : 2025;
+          //df_id->dds.month = dfc->default_date[0] > 0 ? dfc->default_date[1] : 9;
+          //df_id->dds.day = dfc->default_date[0] > 0 ? dfc->default_date[2] : 8; 
           ddd = duckdb_to_date(df_id->dds);
           if (pfmt[0] + 2 >= vL) {  SETINVALID(df_id->on_chunk_line); break; }
           memcpy(df_id->int_scratch, sf+valStart+0+pfmt[0],2); df_id->int_scratch[2] = '\0';
-          load_i64 = atoi(df_id->int_scratch);
+          HH = atoi(df_id->int_scratch);
+          load_i64 =  HH; 
           if (pfmt[1] + 2 >= vL) { SETINVALID(df_id->on_chunk_line); break; }
           memcpy(df_id->int_scratch, sf+valStart+pfmt[1],2); df_id->int_scratch[2] = '\0';
-          load_i64 = load_i64*60 + atoi(df_id->int_scratch);
+          MM = atoi(df_id->int_scratch);
+          load_i64 = load_i64*60 + MM;
           if (pfmt[2] + 2 >= vL) {  load_i64 *= 60;
           } else {
             memcpy(df_id->int_scratch, sf+valStart+pfmt[2],2); df_id->int_scratch[2] = '\0';
-            load_i64 = load_i64*60 + atoi(df_id->int_scratch);
+            SS = atoi(df_id->int_scratch);
+            load_i64 = load_i64*60 + SS;
           }
           if (pfmt[3] >= vL) {  load_o64 = 0;
           } else {
@@ -1284,10 +1287,19 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
             if (vL-pfmt[3] < precision) {
               for (jj = 0; jj < precision-(vL-pfmt[3]); jj++) { load_o64 *=10; }
             }
+            FF = load_o64;
           }
           precision = (on_typ==tns) ? 1000000000 : (on_typ==tus) ? 1000000 : 1000;
+          //printf("HHMMSS: LOADING: sf[%ld:%ld] = \"%.*s\". pfmt[3]=%ld\n", (long int) valStart, (long int) valStart + vL, vL, sf+valStart, pfmt[3]); 
+          //printf("HHMMSS: on_typ = \"%s\", fmt = \"%s\". \n", What_DF_DataType(on_typ), What_DF_TSType(fmttyp));
+          //printf("HHMMSS: pfmt=[%d,%d,%d,%d]. \n", (int) pfmt[0], (int) pfmt[1], (int) pfmt[2], (int) pfmt[3]);
+          //printf("HHMMSS: LOADING: we have ddd.days = %ld or %04d-%02d-%02d with time %02d:%02d:%02d.  FF=%ld  for precision=%ld, vL=%ld\n",
+          //  (long int) ddd.days, (int) df_id->dds.year, (int) df_id->dds.month, (int) df_id->dds.day,
+          //  (int) HH, (int) MM, (int) SS, (long int) FF, (long int) precision, (long int) vL); 
           load_i64 = ddd.days * ((int64_t) 24*60*60) * ((int64_t) precision)  + load_i64*((int64_t)precision) + load_o64;
           *(((int64_t *)vddbv) + on_chunk_line) = load_i64;
+          //printf("HHMMSS: LOADING: Loader we have load_i64 = %ld, load_o64=%ld. \n", (long int) load_i64, (long int) load_o64);
+          //return(-403);
           break;
         default :
           vpt(-1, " ISSUE we face that a TIME type not implemented of this type yet. \n");
