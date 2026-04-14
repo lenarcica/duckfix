@@ -448,6 +448,7 @@ typedef struct _DF_config_file {
   int xtra_col;
 
   int lenKeepMsg35; char*KeepMsg35;
+  short default_date[3];
 } DF_config_file; 
 #endif
 
