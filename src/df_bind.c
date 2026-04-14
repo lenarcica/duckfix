@@ -367,13 +367,15 @@ void duckfix_bind(duckdb_bind_info b_info) {
     len_default_date = v_default_date != NULL ? strlen(v_default_date) : 0;
   }
   if (len_default_date == 10) {
+    //printf(" -- Note len_default_date = %ld, v_default_date=\"%.*s\"\n", (long int) len_default_date, (int) len_default_date, v_default_date);
     char bld[6];
     bld[0] = v_default_date[0]; bld[1] = v_default_date[1]; bld[2] = v_default_date[2]; bld[3] = v_default_date[3];
     bld[4] = '\0';  default_date[0] = atoi(bld);
-    bld[0] = v_default_date[5]; bld[1] = v_default_date[6];
+    bld[0] = v_default_date[5]; bld[1] = v_default_date[6]; bld[2] = '\0';
     default_date[1] = bld[0] == '0' ? ((short) bld[1] - '0') : (short) atoi(bld);
-    bld[0] = v_default_date[8]; bld[1] = v_default_date[9];
-    default_date[2] = bld[0] == '0' ? ((short) bld[1] - '0') : (short) atoi(bld);
+    bld[0] = v_default_date[8]; bld[1] = v_default_date[9]; bld[2] = '\0';
+    default_date[2] = (bld[0] == '0') ? ((short) bld[1] - '0') : (short) atoi(bld);
+    //printf(" -- Our load of default date is [%d,%d,%d] \n", (int) default_date[0], (int) default_date[1], (int) default_date[2]);
   } else if (v_default_date != NULL) {
     vpt(-1, "ERROR issue, default_date was supplied but its length is %ld. \n", (long int) len_default_date);
   }

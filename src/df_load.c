@@ -1256,24 +1256,28 @@ DF_config_file *get_config_file(char *sf, iStr on_i, iStr nmax, int verbose) {
   iStr iDefault_Date = -1;
   SchemaSeeker_START("default_date",12, on_i, (nmax),iDefault_Date, st0, end0,0);
   if ((iDefault_Date > 0) && (iDefault_Date < end0)) {
-    if (sf[iDefault_Date] == '\"') {
-    } else if ((iDefault_Date >= 1) && (sf[iDefault_Date-1] == '\"')) { iDefault_Date--;
-    } else if ((iDefault_Date < end0-1) && (sf[iDefault_Date+1] == '\"')) { iDefault_Date++;
-    } else { iDefault_Date = -10; }
+    //if (sf[iDefault_Date] == '\"') {
+    //} else if ((iDefault_Date >= 1) && (sf[iDefault_Date-1] == '\"')) { iDefault_Date--;
+    //} else if ((iDefault_Date < end0-1) && (sf[iDefault_Date+1] == '\"')) { iDefault_Date++;
+    //} else { iDefault_Date = -10; }
     if (iDefault_Date >= 0) {
       // "xxxx-xx-xx"
-      if ((iDefault_Date + 11 >= end0) || (sf[iDefault_Date+ 11] != '\"')) {
+      if ((  ((int) end0-st0) < 10) || (sf[end0] != '\"')) {
+        printf("iDefault_Date reader, we found default date at %ld, st0=%ld, end0=%ld, sf[%ld:%ld]=--%.*s--\n",
+          (long int) iDefault_Date, (long int) st0, (long int) end0, 
+          iDefault_Date, (long int) end0+1, end0-iDefault_Date+1, sf + iDefault_Date);
+        printf("iDefault_Date: end0-st0 = %ld. sf[end0]=\'%c\'\n", (long int) end0- (long int) st0, sf[end0]);
         printf("WARNING ISSUE, iDefault_Date=%ld, buf sf[iDefault_Date+11] is invalid. \n", (long int) iDefault_Date); iDefault_Date = -1;
       }
     }
   } else { iDefault_Date = -1; }
   if (iDefault_Date >= 0) {
     char bld[6];
-    bld[0] = sf[iDefault_Date+1]; bld[1] = sf[iDefault_Date+2]; bld[2] = sf[iDefault_Date+3]; bld[3] = sf[iDefault_Date+4];
+    bld[0] = sf[st0]; bld[1] = sf[st0+1]; bld[2] = sf[st0+2]; bld[3] = sf[st0+3];
     bld[4] = '\0';  dfc->default_date[0] = atoi(bld);
-    bld[0] = sf[iDefault_Date+6]; bld[1] = sf[iDefault_Date+7]; bld[2] = '\0';
+    bld[0] = sf[st0+5]; bld[1] = sf[st0+6]; bld[2] = '\0';
     dfc->default_date[1] = (bld[0] == '0') ? (short) (bld[1] -'0') : atoi(bld);
-    bld[0] = sf[iDefault_Date+9]; bld[1] = sf[iDefault_Date+10]; bld[2] = '\0';
+    bld[0] = sf[st0+8]; bld[1] = sf[st0+9]; bld[2] = '\0';
     dfc->default_date[2] = (bld[0] == '0') ? (short) (bld[1] -'0') : atoi(bld);
   }
 /*

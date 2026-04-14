@@ -152,7 +152,7 @@ void duckfix_init(duckdb_init_info i_info) {
   if (df_bd->dfc->default_date[0] > 0) {
     df_id->dds.year = df_bd->dfc->default_date[0]; df_id->dds.month = df_bd->dfc->default_date[1]; df_id->dds.day = df_bd->dfc->default_date[2];
   } else {
-    df_id->dds.year = 2025; df_id->dds.month = 9; df_id->dds.day = 8;
+    df_id->dds.year = 2025; df_id->dds.month = 1; df_id->dds.day = 2;
   }
   if (df_bd->dfl->num_unknown > 0) {
     vpt(0, "ERROR Case, we are inside init, we will populate a table designed for %ld unknown entries.\n",

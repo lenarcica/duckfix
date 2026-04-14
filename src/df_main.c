@@ -1261,9 +1261,9 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
           } else if (fmttyp == HHMMSScF) { pfmt = hfmt1;
           } else if (fmttyp == HHMMSSF) { pfmt = hfmt2;
           }
-          //df_id->dds.year = dfc->default_date[0] > 0 ? dfc->default_date[0] : 2025;
-          //df_id->dds.month = dfc->default_date[0] > 0 ? dfc->default_date[1] : 9;
-          //df_id->dds.day = dfc->default_date[0] > 0 ? dfc->default_date[2] : 8; 
+          df_id->dds.year = dfc->default_date[0] > 0 ? dfc->default_date[0] : 2025;
+          df_id->dds.month = dfc->default_date[0] > 0 ? dfc->default_date[1] : 9;
+          df_id->dds.day = dfc->default_date[0] > 0 ? dfc->default_date[2] : 8; 
           ddd = duckdb_to_date(df_id->dds);
           if (pfmt[0] + 2 >= vL) {  SETINVALID(df_id->on_chunk_line); break; }
           memcpy(df_id->int_scratch, sf+valStart+0+pfmt[0],2); df_id->int_scratch[2] = '\0';
