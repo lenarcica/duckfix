@@ -140,17 +140,38 @@ int delete_field_list(DF_field_list **p_dfl, int verbose) {
   DFFREE(dfl->unknown_multiplicity, dfl->alloc_unknown, "unknown multiplicty");
   return(1);
 }
-int PRINT_dfl(DF_field_list *dfl) {
-  printf("Printing DF_Field_list(finish=%ld: file_total_bytes=%ld): dfl with %ld known fields, %ld/%ld unknown \n",
+int PRINT_dfl(DF_field_list *dfl, DF_config_file *dfc) {
+  printf("\n\nFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF\n");
+  printf("FFF PRINT_dfl(dfl,dfc) --- Called. \n");
+  printf("FFF Printing DF_Field_list(finish=%ld: file_total_bytes=%ld): dfl with %ld known fields, %ld/%ld unknown \n",
      (long int) dfl->finish, (long int) dfl->file_total_bytes, (long int) dfl->n_known_fields, (long int) dfl->num_unknown, (long int) dfl->alloc_unknown);
   printf("KNOWN[%ld, %ld used] --  {\n", dfl->n_known_fields, dfl->num_used_known_fields);
   printf("     ");  int n_used_known = 0;
+  if (dfc->mark_m_visited != NULL) {
   for (int ii = 0; ii < dfl->n_known_fields; ii++) {
+    printf("FFF PRINT_dfl -- locations determined\n");
     if (dfl->known_usage_count[ii] > 0) { n_used_known++; }
-    printf("[%ld:%ld,MX=%ld,pl%ld:m%ld]", (long int) dfl->ordered_known_fields[ii], (long int) dfl->known_usage_count[ii], (long int) dfl->known_multiplicity[ii],
-     dfl->final_known_print_loc[ii], dfl->final_known_multiplicity_loc[ii]);
+    printf("[ii=%ld/%ld FIELD %ld(or %ld=\"%s\"):count=%ld,multiplicty=%ld,priority=%d,FKPL=%ld:FKML=%ld]", 
+      (long int) ii, (long int) dfl->n_known_fields,
+      (long int) dfl->ordered_known_fields[ii],  dfc->fxs[ii].field_code, dfc->fxs[ii].nm,
+      (long int) dfl->known_usage_count[ii], (long int) dfl->known_multiplicity[ii],
+      (int) dfc->fxs[ii].priority,
+      (long int) dfl->final_known_print_loc[ii], (long int) dfl->final_known_multiplicity_loc[ii]);
     if (ii < dfl->n_known_fields - 1) { printf(",");
       if ((ii+1) % 6 == 0) { printf("\n     "); }
+    }
+  }
+  } else {
+    printf("FFF PRINT_dfl -- locations so far unknown. \n");
+    for (int ii = 0; ii < dfl->n_known_fields; ii++) {
+      if (dfl->known_usage_count[ii] > 0) { n_used_known++; }
+      printf("[ii=%ld/%ld FIELD %ld(or %ld=\"%s\"):count=%ld,multiplicity=%ld, priority=%d]", 
+        (long int) ii, (long int) dfl->n_known_fields,
+        (long int) dfl->ordered_known_fields[ii],  dfc->fxs[ii].field_code, dfc->fxs[ii].nm,
+        (int) dfc->fxs[ii].priority);
+      if (ii < dfl->n_known_fields - 1) { printf(",");
+        if ((ii+1) % 6 == 0) { printf("\n     "); }
+      }
     }
   }
   printf("\n   }; [%ld/%ld are populated].\n", (long int) n_used_known, (long int) dfl->n_known_fields);
@@ -1089,7 +1110,7 @@ int loc_any_fixfield_at_priority(DF_config_file *dfc, DF_field_list *dfl, int ns
   if (nstart >= dfl->n_known_fields-1) { return(-1); }
   int i_f;
   for (i_f = nstart+1; i_f < dfl->n_known_fields; i_f++) {
-    if ((dfl->known_usage_count[i_f] > 0) &&
+    if ( ( (dfl->known_usage_count[i_f] > 0) || (dfc->fxs[i_f].keep > 1)) &&
         ((dfc->fxs[i_f].keep > 0) && (dfc->fxs[i_f].priority >= 0) && (dfc->fxs[i_f].priority == tgt_priority))) {
       return(i_f);
     }
@@ -1102,7 +1123,8 @@ int loc_lowest_priority_fixfield_gt(DF_config_file *dfc, DF_field_list *dfl, int
     (long int) tgt, (long int) verbose); 
   int i_f = -1; int loc_min = -1; int on_min = -1;
   for (i_f = 0; i_f < dfl->n_known_fields; i_f++) {
-    if (dfl->known_usage_count[i_f] > 0) {
+    // Note if users give a keep > 1 then we will always keep, regardless of if known_usage_count is 0
+    if ((dfl->known_usage_count[i_f] > 0) || (dfc->fxs[i_f].keep > 1)) {
        if ((dfc->fxs[i_f].priority) >= 0 && (dfc->fxs[i_f].priority > tgt)) {
          if (loc_min < 0) {
            loc_min = i_f; on_min = dfc->fxs[i_f].priority;
@@ -1125,7 +1147,7 @@ int next_priority_fixfield(DF_config_file *dfc, DF_field_list *dfl, int on_f, in
   int on_val = dfc->fxs[on_f].priority;
   int other_loc = loc_any_fixfield_at_priority(dfc, dfl, on_f, on_val, verbose-1); 
   if ((other_loc >= 0) && (other_loc < dfl->n_known_fields)) { return(other_loc); }
-  int next_lowest =  loc_lowest_priority_fixfield_gt(dfc, dfl,on_val+1, verbose);
+  int next_lowest =  loc_lowest_priority_fixfield_gt(dfc, dfl,on_val, verbose);
   return(next_lowest);
 }
 int loc_any_schema_at_priority(DF_config_file *dfc, int nloc, int tgt_priority, int verbose) {
@@ -1142,7 +1164,7 @@ int loc_lowest_priority_schema_gt(DF_config_file *dfc, int tgt, int verbose) {
   int i_s = -1; int loc_min = -1; int on_min = -1;
   for (i_s = 0; i_s < dfc->n_schemas; i_s++) {
     if ((dfc->schemas[i_s].priority >= 0) && (dfc->schemas[i_s].typ != fix2end) && (dfc->schemas[i_s].typ != fix42)){
-       if (dfc->schemas[i_s].priority >= tgt) {
+       if (dfc->schemas[i_s].priority > tgt) {
          if (loc_min < 0) {
            loc_min = i_s; on_min = dfc->schemas[i_s].priority;
          } else if (on_min > dfc->schemas[i_s].priority) {
@@ -1160,7 +1182,7 @@ int next_priority_schema(DF_config_file *dfc, int on_s, int verbose) {
   int on_val = dfc->schemas[on_s].priority;
   int other_loc = loc_any_schema_at_priority(dfc, on_s, on_val, verbose-1); 
   if ((other_loc >= 0) && (other_loc < dfc->n_schemas)) { return(other_loc); }
-  int next_lowest =  loc_lowest_priority_schema_gt(dfc, on_val+1, verbose);
+  int next_lowest =  loc_lowest_priority_schema_gt(dfc, on_val, verbose);
   return(next_lowest);
 }
 int configure_column_order(DF_config_file *dfc, DF_field_list *dfl, int verbose) {
@@ -1339,11 +1361,19 @@ int PRINT_final_print_loc(DF_config_file *dfc, DF_field_list *dfl) {
   int p_on_s =  ((on_s >= 0) && (on_s < dfc->n_schemas)) ? dfc->schemas[on_s].priority : -1;
   int p_on_f =  ((on_f >= 0) && (on_f < dfc->nfields)) ? dfc->fxs[on_f].priority : -1;
   int on_pt = 0; int on_mt = 0;
-  printf(" --- Printing target table order [%ld columns] (start with S[%ld:%ld],F[%ld:%ld])\n", dfc->n_total_print_columns,
+  printf("\n\nPPPPPPFFFFFFPPPPPPLLLLLLPPPPPFFFFFFPPPPPPLLLLLLPPPPPPFFFFFFPPPPPPLLLLLLPPPPPPFFFFFFPPPPPPLLLLLL\n");
+  printf("PFPL PRINT_final_print_loc() --- Printing target table order [%ld columns] (start with S[%ld:%ld],F[%ld:%ld])\n", dfc->n_total_print_columns,
     (long int) on_s, (long int) p_on_s, (long int) on_f, (long int) p_on_f);
-  printf(" -- mark_m_visited = [\n"); 
+  printf("PFPL -- mark_m_visited = [\n"); 
   for (on_mt = 0; on_mt < dfc->n_total_multiplicity_columns; on_mt++) {
-    printf("    (%d,%d)", (int) on_mt, (int) dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_mt]);
+    int onmm = dfc->mark_m_visited[dfc->n_total_multiplicity_columns+on_mt];
+    int onf = onmm >= 0 ? -1 : (-onmm)-1;
+    if (onmm >= 0) {
+      printf("    (%d,%d,schema=\"%s\",typ=%s)", (int) on_mt, (int) onmm, dfc->schemas[onmm].nm, What_DF_DataType(dfc->schemas[onmm].typ));
+    } else {
+      printf("    (%d,%d,onf=%d for field:%d=\"%s\",typ=%s)", (int) on_mt, (int) onmm, (int) onf,
+        (int) dfc->fxs[onf].field_code,  dfc->fxs[onf].nm, What_DF_DataType(dfc->fxs[onf].typ));
+    }
     if (on_mt < dfc->n_total_multiplicity_columns -1) { printf(",\n"); } else {printf("\n"); }
     //on_mt +=  (dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_mt] >= 0) ? 1 :
     //            ((dfc->fxs[-1-dfc->mark_m_visited[dfc->n_total_multiplicity_columns + on_mt]].maxmultiplicity <= 
@@ -1354,6 +1384,7 @@ int PRINT_final_print_loc(DF_config_file *dfc, DF_field_list *dfl) {
   printf("]\n");
   printf("[    ");
   on_pt = 0; on_mt;
+  printf("PFLPFL -- Now manual print exercise. \n");
   while ((on_s >= 0) || (on_f >= 0)) {
     if ((on_f < 0) || ((on_s >= 0) && (p_on_s <= p_on_f))) {
       printf("[%d=(o_loc=%d,m_loc=%ld):on_s=%d=%d,Sch:\"%s\",%s,",
@@ -1382,8 +1413,8 @@ int PRINT_final_print_loc(DF_config_file *dfc, DF_field_list *dfl) {
       on_f = next_priority_fixfield(dfc, dfl, on_f, verbose-1);
       p_on_f =  ((on_f >= 0) && (on_f < dfc->nfields)) ? dfc->fxs[on_f].priority : -1;
     }
-    if (on_pt < dfc->n_total_print_columns-1) { printf(", "); 
-      if ((on_pt+1) % 3 == 0) { printf("\n     "); }}
+    if (on_pt < dfc->n_total_print_columns-1) { printf(", \n");  }
+    //if ((on_pt+1) % 3 == 0) { printf("\n     "); }}
     on_pt++;
   }  
   printf("\n];\n");
