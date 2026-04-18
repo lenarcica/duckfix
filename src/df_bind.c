@@ -206,10 +206,10 @@ void destroy_df_bind_data(void *v_df_bd) {
 
 void duckfix_bind(duckdb_bind_info b_info) {
   #ifdef DEBUG_MODE 
-    printf("duckfix_bind:: Called, we have DEBUG_MODE is defined.\n");
+    printf("duckfix_bind:: Called, we have DEBUG_MODE is defined.  BUILD 2026-04-15\n");
   #endif
   #ifndef DEBUG_MODE
-    printf("duckfix_bind: Note DEBUG_MODE was not defined. \n");
+    printf("duckfix_bind: Note DEBUG_MODE was not defined. BUILD 2026-04-15\n");
   #endif
   char stt[500]; 
   sprintf(stt, "df_bind.c->duckfix_bind(): ");
@@ -551,7 +551,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
   if (len_default_date == 10) {
     dfc->default_date[0] = default_date[0]; dfc->default_date[1] = default_date[1]; dfc->default_date[2] = default_date[2];
   }
-  vpt(0, "Before we start generate_field_list, fix_sep=\'%c\', char_sep=\'%c\', dfc->general_sep=\'%c\', dfc->fix_sep=\'%c\'. \n",
+  vpt(2, "Before we start generate_field_list, fix_sep=\'%c\', char_sep=\'%c\', dfc->general_sep=\'%c\', dfc->fix_sep=\'%c\'. \n",
      (char) fix_sep, (char) char_sep, (char) dfc->general_sep, (char) dfc->fix_sep);
   dfl = NULL;
   dfl = generate_field_list(ll_file_name, dfc, char_sep, fix_sep, verbose-2, standard_vector_size,
@@ -604,7 +604,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
 
   if (dfl->finish <= 0) {
     vpt(0, "ERROR, dfl->finish=%d which signals we did not complete load. \n", (int) dfl->finish);
-    PRINT_dfl(dfl);  
+    PRINT_dfl(dfl,dfc);  
     vpt(0, " ERROR dfl->finish = %d, now freeing all data and quitting. \n", (int) dfl->finish);
     my_clear();
     //delete_config_file(&dfc, verbose);  delete_field_list(&dfl, verbose);
@@ -621,7 +621,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
     printf("%s: We have dfl->num_unknown=%ld.  We will report what you need to populate for error case . \n", stt, dfl->num_unknown);
     vpt(v_add, "ERROR Reading file received %ld unknown fix fields please address.  File \"%s\" and json file \"%s\"\n",
       (long int) dfl->num_unknown, file_name, json_file_name);  
-    PRINT_dfl(dfl);
+    PRINT_dfl(dfl,dfc);
     vpt(v_add, " ALTERNATIVE TO ERROR: We are initiating the df_bind_error_case for %ld unknown. \n", (long int) dfl->num_unknown);
     df_bd = df_bind_error_case(b_info, verbose+v_add, ll_file_name, len_file_name, 
       ll_json_file_name, len_json_file_name,dfc, dfl);
@@ -635,14 +635,14 @@ void duckfix_bind(duckdb_bind_info b_info) {
     return;
   }
   if (verbose >= 2) {
-    PRINT_dfl(dfl);
+    PRINT_dfl(dfl,dfc);
   }
   vpt(1, " --- Now move on to configure_column_order :::: \n");
   int success_config = configure_column_order(dfc, dfl, verbose-1);
   if ((success_config < 0) || (dfc->n_total_print_columns <= 0)) {
     vpt(0, "ERROR success config after configure column order is %ld with total_print_columns set at %ld.  File \"%s\" and json file \"%s\"\n",
       (long int) success_config, (long int) dfc->n_total_print_columns, file_name, json_file_name);  
-    PRINT_dfl(dfl);  
+    PRINT_dfl(dfl,dfc);  
     my_clear();
     //if (df_file_name != NULL) { duckdb_destroy_value(&df_file_name); }
     //if (df_json_file_name != NULL) { duckdb_destroy_value(&df_json_file_name); }
@@ -659,7 +659,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
     vpt(1, " Executing final_print_loc on dfc, dfl\n");
     vpt(1, " note we have total print columns =%ld with total multiplcity=%ld. \n",
       (long int) dfc->n_total_print_columns, (long int) dfc->n_total_multiplicity_columns);
-    PRINT_dfl(dfl);
+    PRINT_dfl(dfl,dfc);
     PRINT_final_print_loc(dfc, dfl);
     printf("FPLFPLFPLFPLFPLFPLFPLFPL ---------------------------------------------------------------------\n");
   }

@@ -148,7 +148,7 @@ void register_duckfix_development_test_reader_function(duckdb_connection ddb_con
   printf("--- About to generate file list\n");  // char_sep =','
   DF_field_list *dfl = generate_field_list("./example/ex1.csv", dfc, ',',',',1, (int) standard_vector_size, 0, -1, NULL, NULL);
   printf("--- Got File list now printing\n");
-  PRINT_dfl(dfl);
+  PRINT_dfl(dfl, dfc);
   printf("--- Now configuring column order: \n");
   int success_cco = configure_column_order(dfc, dfl, 3);
   printf("--- Configure column order returned %ld. \n", success_cco);
