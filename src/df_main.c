@@ -1005,7 +1005,7 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
         // "   10.003, "; st= 4, dLoc =6, end=9.  (end+1 = 10);  ploc=5. 9-4=5
         vpt(0, "Error trying to record a decimal of %.*s \n", vL > 20 ? 20 : vL, sf+valStart); return(-1);
       } 
-      foundscale = dLoc < 0 ? 0 : vL - dLoc;
+      foundscale = dLoc < 0 ? 0 : vL - dLoc -1;
       df_id->int_scratch[ploc] = '\0'; 
       end_pt = df_id->int_scratch + ploc;  errno = 0;
       load_i64 = strtoll(df_id->int_scratch, &end_pt, 10);
@@ -1033,8 +1033,12 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
       if (vL > 20) { 
        vpt(0, "ISSUE we think a field has a length of %ld and that will be hard for decimal format. \n", (long int) vL); 
       }
+      #ifdef DEBUG_MODE
       vpt(2, " -- Beginning to copy from sf[valStart=%ld:valStart+vL=%ld] = \'%.*s\', vL=%ld. \n",
         (long int) valStart, (long int) valStart + vL, vL, sf + valStart, (long int) vL);
+      #endif
+      // Example 10.023, vL = 6 
+      // load_i64 = 10023.  dLoc=2  foundscale=4
       for (jj = 0; jj < ((vL > 20) ? 20 : vL);jj++) { 
         if (sf[valStart+jj] == '.') { 
           dLoc = jj; 
@@ -1049,7 +1053,7 @@ int fill_in_chunk(DF_DataType on_typ,  duckdb_vector ddbv, df_init_data *df_id,
       #ifdef DEBUG_MODE
       vpt(2, " -- Note before we read decimal, dLoc=%ld, but text is %s. \n", dLoc, df_id->int_scratch);
       #endif
-      foundscale = dLoc < 0 ? 0 : vL - dLoc;
+      foundscale = dLoc < 0 ? 0 : vL - dLoc -1; // One more for period
       df_id->int_scratch[ploc] = '\0'; 
       end_pt = df_id->int_scratch + ploc;  errno = 0;
       load_i64 = strtoll(df_id->int_scratch, &end_pt, 10);
