@@ -46,6 +46,7 @@ df_bind_data* create_null_bind_data() {
   df_bd->ignore_line_text = NULL; df_bd->keep_line_text = NULL; df_bd->file_name = NULL;
   df_bd->start_byte = 0;  df_bd->end_byte = -1;
   df_bd->cardinality = 0;  df_bd->DONE = 0;  df_bd->report_bust = 0; df_bd->report_line = 0;
+  df_bd->fix35array = NULL; df_bd->len_fix35array = 0;
   return(df_bd);
 }
 
@@ -209,7 +210,7 @@ void duckfix_bind(duckdb_bind_info b_info) {
     printf("duckfix_bind:: Called, we have DEBUG_MODE is defined.  BUILD 2026-04-15\n");
   #endif
   #ifndef DEBUG_MODE
-    printf("duckfix_bind: Note DEBUG_MODE was not defined. BUILD 2026-04-15\n");
+    //printf("duckfix_bind: Note DEBUG_MODE was not defined. BUILD 2026-04-15\n");
   #endif
   char stt[500]; 
   sprintf(stt, "df_bind.c->duckfix_bind(): ");
