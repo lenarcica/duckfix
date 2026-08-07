@@ -233,7 +233,10 @@ void register_duckfix_production_table_function(duckdb_connection ddb_con) {
   duckdb_destroy_table_function(&duckfix_f);
   //printf("%s -- we have a right to destroy duckfix. \n", stt);
   //printf("--------------------------------------------------------------------------\n");
-  printf(" -- duckfix registered.  Call \"from read_fix_log(verbose:=X, char_sep:=',',file_name='FILE',json_file_name='JSONFILE', fix35keep:='\0',fix_sep='1');\" to run. \n");
+  printf(" -- duckfix registered.  ");
+  printf("Call \"from read_fix_log(verbose:=X, char_sep:=',', file_name='FILE',\n");
+  printf("                         json_file_name='JSONFILE', fix35keep:='\0',fix_sep='1');\" to run. \n");
+  printf("\n");
 }
 // Note everything below is legacy functionality to be replaced with
 // 1. df_bind.c

@@ -165,10 +165,12 @@ int PRINT_dfl(DF_field_list *dfl, DF_config_file *dfc) {
     printf("FFF PRINT_dfl -- locations so far unknown. \n");
     for (int ii = 0; ii < dfl->n_known_fields; ii++) {
       if (dfl->known_usage_count[ii] > 0) { n_used_known++; }
-      printf("[ii=%ld/%ld FIELD %ld(or %ld=\"%s\"):count=%ld,multiplicity=%ld, priority=%d]", 
+      printf("[ii=%ld/%ld FIELD %ld (or %ld=\"%s\"):",
         (long int) ii, (long int) dfl->n_known_fields,
-        (long int) dfl->ordered_known_fields[ii],  dfc->fxs[ii].field_code, dfc->fxs[ii].nm,
-        (int) dfc->fxs[ii].priority);
+        (long int) dfl->ordered_known_fields[ii],  dfc->fxs[ii].field_code, dfc->fxs[ii].nm);
+      printf(":count=%ld, multiplicity=%ld, priority=%ld]",
+       (long int) dfl->known_usage_count[ii], (long int) dfl->known_multiplicity[ii],
+       (int) dfc->fxs[ii].priority);
       if (ii < dfl->n_known_fields - 1) { printf(",");
         if ((ii+1) % 6 == 0) { printf("\n     "); }
       }
@@ -357,7 +359,7 @@ int add_to_field_list(DF_field_list *dfl, int aFixNum, int iline, int verbose, i
      vpt(-3023, "ERROR prop_unknown_loc returned an error likely related to fail to sort. \n");
    }
    if (prop_unknown_loc < 0) {
-     vpt(0, "ERROR, We were looking for aFixNum = %ld.  unknown loc returned %ld.  Must be a problem with algo (num_unknown=%ld). \n", 
+     vpt(-10, "ERROR, We were looking for aFixNum = %ld.  unknown loc returned %ld.  Must be a problem with algo (num_unknown=%ld). \n", 
        (long int) aFixNum, (long int) prop_unknown_loc, (long int) dfl->num_unknown);
      int bad_errors = 0;
      printf("[");
@@ -390,7 +392,7 @@ int add_to_field_list(DF_field_list *dfl, int aFixNum, int iline, int verbose, i
      dfl->unknown_multiplicity = realloc(dfl->unknown_multiplicity, sizeof(int) * dfl->alloc_unknown*2);
      if ((dfl->ordered_unknown_fields == NULL) || (dfl->line_unknown == NULL) ||
          (dfl->unknown_usage_count==NULL)) {
-       vpt(0, "ERROR, we tried to realloc but failed with dfl->num_unknown=%ld, alloc=%ld. \n",
+       vpt(-10, "ERROR, we tried to realloc but failed with dfl->num_unknown=%ld, alloc=%ld. \n",
          (long int) dfl->num_unknown, (long int) dfl->alloc_unknown);  return(-2);
      }
      for (int ii = dfl->alloc_unknown; ii < 2*dfl->alloc_unknown; ii++) {
@@ -425,12 +427,15 @@ int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld
   sprintf(stt, "update_field_list_on_field(ln=%ld,fld=%d,[%ld:%ld],v=%d): ",
     (long int) iline, (int) onfield, (long int) st_fld, (long int) end_fld, (int) verbose);
   iStr orig_st_fld = st_fld;
+  if ((sf[st_fld] != '{') && (st_fld >= 1) && (sf[st_fld-1] == '{')) { st_fld = st_fld-1; }
   if (sf[st_fld] != '{') {
     for (;st_fld < end_fld; st_fld++) { if(sf[st_fld]=='{') { break; } }
   }
   if (sf[st_fld] != '{') {
-     vpt(0, "ERROR, sf from %ld:%ld had no \'{\' start. \n", orig_st_fld, st_fld); 
-     printf("---: %.*s\n", end_fld-st_fld+1, sf + st_fld);
+     vpt(-100, "ERROR, sf from %ld:%ld had no \'{\' start. \n", (long int) orig_st_fld, (long int) st_fld); 
+     printf("---: sf[st_fld:end_fld] = %.*s\n",  (int) (end_fld-st_fld+1), sf + st_fld);
+     iStr onI = st_fld;  for (onI = st_fld; onI > 1; onI--) { if(sf[onI-1]=='\n') { break; } }
+     printf("---: sf[%ld:%ld] = %.*s \n", (long int) onI, (long int) end_fld, (int) (end_fld-st_fld+1), sf + onI); 
      return(-1);
   }
   if (sf[end_fld] == '}') { end_fld++; }
@@ -438,7 +443,7 @@ int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld
     for(;end_fld >st_fld; end_fld--) { if (sf[end_fld-1] == '}') { break; }}
   }
   vpt(2, "We have field list inspecting = {%.*s}. \n",
-    end_fld - st_fld - 1, sf + st_fld);
+    (int) (end_fld-st_fld -1), sf + st_fld);
   iStr iKey = 0; int cnt_keys = 0;
 
   char char_sep = dfc->fix_sep != '\0' ? dfc->fix_sep : dfc->general_sep;
@@ -446,7 +451,7 @@ int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld
   int aFixNum = 0;  int update_code;  int nKeys = 0; int nEntry = 1;
 
   while((iKey > 0) && (iKey <= end_fld) && (sf[iKey] != '}')) {
-    if (sf[iKey] != '\"') { vpt(0, "ERROR, iKey=%ld/%ld between [%ld,%ld], cnt_keys=%ld.  We are at sf[%ld]=\'%c\'\n",
+    if (sf[iKey] != '\"') { vpt(-1000, "ERROR, iKey=%ld/%ld between [%ld,%ld], cnt_keys=%ld.  We are at sf[%ld]=\'%c\'\n",
       (long int) iKey, (long int) end_fld, (long int) st_fld, (long int) end_fld, (long int) cnt_keys,
       (long int) iKey, sf[iKey]);  return(-1); 
     }
@@ -466,7 +471,7 @@ int update_field_list_on_field(long int iline, int onfield, char*sf, iStr st_fld
     char dmmy = sf[endq];
     sf[endq] = '\0'; aFixNum = atoi(sf + iKey+1); sf[endq] = dmmy;
     if (aFixNum <= 0) {
-      vpt(0, "ERROR aFixNum picked out was %ld for sf[%ld:%ld] = \"%.*s\" \n", (long int) aFixNum, iKey+1, endq,
+      vpt(-1000, "ERROR aFixNum picked out was %ld for sf[%ld:%ld] = \"%.*s\" \n", (long int) aFixNum, iKey+1, endq,
           endq - iKey-1, sf + iKey+1);   return(-103);
     }
     vpt(2, " on iKey=%ld, we determined aFixNum=%ld.  Add to field list. \n", (long int) iKey, (long int) aFixNum);
@@ -561,7 +566,7 @@ int update_field_list_on_fix2end(long int iline, int onfield, char*sf, iStr st_f
     for (;st_fld < end_fld; st_fld++) { if((sf[st_fld]!=' ') && (sf[st_fld] != dfc->general_sep)) { break; } }
   }
   if ((sf[st_fld] == ' ') || (sf[st_fld] == dfc->general_sep) || (sf[st_fld] == fixsep))  {
-     vpt(0, "ERROR, sf from %ld:%ld had no \'%c\' or fixsep=\'%c\' end. \n", orig_st_fld, st_fld, dfc->general_sep, fixsep); 
+     vpt(-100, "ERROR, sf from %ld:%ld had no \'%c\' or fixsep=\'%c\' end. \n", orig_st_fld, st_fld, dfc->general_sep, fixsep); 
      printf("---: %.*s\n", end_fld-st_fld+1, sf + st_fld);
      return(-1);
   }
@@ -745,6 +750,8 @@ int update_field_list_on_line(long int iline, char*sf, iStr st_ln, iStr end_ln, 
       return(1);
     } else {
       iStr fieldStart = ii;
+      fieldStart = ((sf[fieldStart] != '{') && (sf[fieldStart] == '{')) ? fieldStart - 1 : fieldStart;
+      if (sf[fieldStart] != '{') { for (;fieldStart < end_ln;fieldStart++) { if ((sf[fieldStart] == '{') || sf[fieldStart]=='\n') { ii=fieldStart; break; }}}
       //NEXTCOMMA();  
       NEXTCHARSEP();
       iStr fieldEnd = ii-1;
@@ -755,9 +762,10 @@ int update_field_list_on_line(long int iline, char*sf, iStr st_ln, iStr end_ln, 
           (char*) sf + fieldStart, on_char_sep, dfc->fix_sep);
       attempt = update_field_list_on_field(iline, ion_schema, sf, fieldStart, sf[fieldEnd] == '}' ? fieldEnd+1 : fieldEnd, dfc, dfl, verbose);
       if (attempt < 0) {
-        vpt(0, " ERROR attempt = %ld for schema=%ld/%ld on iline=%ld. [st,end]=[%ld,%ld] with fieldst/end=[%ld,%ld] for:\n",
+        vpt(-1020, " ERROR attempt = %ld for schema=%ld/%ld on iline=%ld. [st,end]=[%ld,%ld] with fieldst/end=[%ld,%ld] for:\n",
           (long int) attempt, (long int) ion_schema, (long int) dfc->n_schemas, 
           (long int) iline, (long int) st_ln, (long int) end_ln, (long int) fieldStart, (long int) fieldEnd);
+        printf(" Error after update_field_list_on_filed: iline=%ld. attempt=%d.\n", iline, attempt);
         printf("---: %.*s\n", fieldEnd-fieldStart+1, sf+fieldStart);
         printf("  What went wrong? \n");  return(-1);
       }
@@ -886,7 +894,7 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
   if (fseek(fpo, 0L, SEEK_END) == 0) { 
     file_len = ftell(fpo); rewind(fpo);
   } else { 
-    vpt(0, "ERROR, trying to read length of file. \n"); 
+    vpt(-100, "ERROR, trying to read length of file. \n"); 
     delete_field_list(&dfl, 2); return(NULL); 
   }
  
@@ -933,7 +941,7 @@ DF_field_list *generate_field_list(char *tgt_filename, DF_config_file *dfc, char
       if (dfl->n_loc_lines >= dfl->alloc_line_loc - 3) {
          dfl->line_locs = realloc(dfl->line_locs, sizeof(int) * dfl->alloc_line_loc*2);
          if (dfl->line_locs == NULL) { 
-           vpt(0, "ERROR trying to double line_locs length to $ld \n", (long int) (dfl->alloc_line_loc*2));
+           vpt(-100, "ERROR trying to double line_locs length to $ld \n", (long int) (dfl->alloc_line_loc*2));
            dfl->finish = 0;
            rewind(fpo);
            fclose(fpo); return(dfl);
@@ -1079,13 +1087,13 @@ iStr alter_load_file_to_str(char **out_p_sf, char *json_filename, int verbose) {
   sprintf(stt, "load_file_to_str(%s,v=%ld): ", 
     json_filename, (long int) verbose);
   FILE *fpo = NULL; fpo = fopen(json_filename, "rt");
-  if (fpo == NULL) { vpt(0, "ERROR FAIL to open file.\n"); return(-1); }
+  if (fpo == NULL) { vpt(-100, "ERROR FAIL to open file.\n"); return(-1); }
   iStr file_len = 0;
   if (fseek(fpo, 0L, SEEK_END) == 0) {
     file_len = ftell(fpo);
     rewind(fpo);
   } else {
-    vpt(0, "ERROR trying to read length of file. \n");fclose(fpo);fpo=NULL;return(-2);
+    vpt(-10, "ERROR trying to read length of file. \n");fclose(fpo);fpo=NULL;return(-2);
   }
 
   vpt(1, "  LENGTH of File is supposedly %ld \n", file_len);
@@ -1097,7 +1105,7 @@ iStr alter_load_file_to_str(char **out_p_sf, char *json_filename, int verbose) {
   if (sf == NULL) { out_p_sf[0] = NULL; return(-1); }
   size_t byte_count = fread(sf, sizeof(char), file_len, fpo);
   if (ferror(fpo) != 0) {
-    vpt(0, "ERROR trying to read file into buffer. \n");
+    vpt(-10, "ERROR trying to read file into buffer. \n");
     free(sf); sf= NULL; fclose(fpo);  return(-3);
   }
   fclose(fpo);
@@ -1190,7 +1198,7 @@ int configure_column_order(DF_config_file *dfc, DF_field_list *dfl, int verbose)
   sprintf(stt, "configure_column_order(v=%ld,ns=%ld,nfx=%ld)", (long int) verbose,
     (int) dfc->n_schemas, (int) dfl->num_used_known_fields);
   if (dfl->num_unknown > 0) {
-    vpt(0, "ERROR: there are %ld unknown fix columns, please configure.\n", (long int) dfl->num_unknown);
+    vpt(-10, "ERROR: there are %ld unknown fix columns, please configure.\n", (long int) dfl->num_unknown);
     return(-1);
   }
   int on_s = loc_lowest_priority_schema_gt(dfc, -1, verbose); 
@@ -1353,7 +1361,7 @@ int PRINT_final_print_loc(DF_config_file *dfc, DF_field_list *dfl) {
   sprintf(stt, "PRINT_priorities(ns=%ld,nfx=%ld)",
     (int) dfc->n_schemas, (int) dfl->num_used_known_fields);
   if (dfl->num_unknown > 0) {
-    vpt(0, "ERROR: there are %ld unknown fix columns, please configure.\n", (long int) dfl->num_unknown);
+    vpt(-10, "ERROR: there are %ld unknown fix columns, please configure.\n", (long int) dfl->num_unknown);
     return(-1);
   }
   int on_s = loc_lowest_priority_schema_gt(dfc, -1, verbose); 
@@ -1419,7 +1427,7 @@ int PRINT_final_print_loc(DF_config_file *dfc, DF_field_list *dfl) {
   }  
   printf("\n];\n");
   if (on_pt != dfc->n_total_print_columns) {
-    vpt(0, "ERROR Potential issue, on_pt after algo = %ld, but total print columns should be %ld. \n",
+    vpt(-10, "ERROR Potential issue, on_pt after algo = %ld, but total print columns should be %ld. \n",
        (long int) on_pt, (long int) dfc->n_total_print_columns); return(-1);
   }
   printf("\n\nEND print of column orders!\n");

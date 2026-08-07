@@ -207,7 +207,7 @@ void destroy_df_bind_data(void *v_df_bd) {
 
 void duckfix_bind(duckdb_bind_info b_info) {
   #ifdef DEBUG_MODE 
-    printf("duckfix_bind:: Called, we have DEBUG_MODE is defined.  BUILD 2026-04-15\n");
+    printf("duckfix_bind:: Called, we have DEBUG_MODE is defined.  BUILD 2026-08-07\n");
   #endif
   #ifndef DEBUG_MODE
     //printf("duckfix_bind: Note DEBUG_MODE was not defined. BUILD 2026-04-15\n");

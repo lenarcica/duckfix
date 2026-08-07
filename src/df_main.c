@@ -536,7 +536,7 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
       PUSH_OUT_WHITE_CS();  
       //vpt(2, "  ---- Done Pushing out WHITE, ii=%ld. \n", (long int) ii);
       if (sf[ii] != '\"') {
-        vpt(0, "ERROR, We are on cntFields=%ld, but sf[%ld]=\'%c\' but expected \'\"\'\n", cntFields, ii, sf[ii]); 
+        vpt(-10, "ERROR, We are on cntFields=%ld, but sf[%ld]=\'%c\' but expected \'\"\'\n", cntFields, ii, sf[ii]); 
         printf(" -- We do not see this field starting with a '{', we are on a \"%.*s...\",\n",
             (fixfieldsEnd-fixfieldsStart < 10) ? fixfieldsEnd-fixfieldsStart: 10, sf + fixfieldsStart);
         printf(" -- Note sf[ii-1=%ld] = \'%c\' \n", (long int) ii-1, sf[ii-1]);
@@ -586,7 +586,7 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
             endVal > stVal ? sf + stVal : "BAD");
           #endif
           if (endVal < stVal) {
-            vpt(0, "ERROR, we are on cntFields=%ld, but sf[%ld]=\'%c\' we got endVal=%ld however for sf[%d:%d]=\"%.*s\". \n",
+            vpt(-10, "ERROR, we are on cntFields=%ld, but sf[%ld]=\'%c\' we got endVal=%ld however for sf[%d:%d]=\"%.*s\". \n",
               (long int) cntFields, (long int) ii, sf[ii], (long int) endVal, stVal-1, 
               fixfieldsEnd -stVal +1  > 20 ? stVal+20-1 : fixfieldsEnd,
               fixfieldsEnd -stVal +1  > 20 ? 20 : fixfieldsEnd-stVal+1,
@@ -623,7 +623,7 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
             an_error = add_fixfield_entry_to_chunk(df_id, sf, aFixNum, stVal, endVal,  out_chunk, verbose-1);
             cntFields++;
             if (an_error < 0) {
-              vpt(0, "ERROR, we are on cntFields=%ld, aFixNum=%ld, val=\"%.*s\" we get error %ld. \n",
+              vpt(-10, "ERROR, we are on cntFields=%ld, aFixNum=%ld, val=\"%.*s\" we get error %ld. \n",
                 (long int) cntFields, (long int) aFixNum, endVal-stVal-1, sf+stVal+1, an_error);
               if (an_error == -999666) {
                 printf("WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW\n");
@@ -649,10 +649,12 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
                   fixfieldsEnd -fixfieldsStart, sf + fixfieldsStart);
                 return(cntFields); 
               }
+              if ((sf[ii] != ',') && (sf[ii-1] == ',')) { ii--; }
               if (sf[ii] != ',') { 
-                vpt(0, "ERROR on cntFields=%ld, aFixNum=%ld, sf[%ld]=\'%c\' we were " 
-                  "looking for break but got sf[%ld:%ld]=\"%.*s\"\n",
-                  (long int) cntFields, (long int) aFixNum, (long int) ii, sf[ii], (long int) fixfieldsStart,
+                vpt(-10, "ERROR [-55034032] on cntFields=%ld, aFixNum=%ld, sf[ii=%ld]=\'%c\'. FAILED to find next comma\n",
+                  (long int) cntFields, (long int) aFixNum, (long int) ii, sf[ii]);
+                printf("   ERROR Note that got sf[fixfieldsStart=%ld:fixfieldsEnd=%ld]=\"%.*s\"\n",
+                  (long int) fixfieldsStart,
                   (long int) fixfieldsEnd, (int) (fixfieldsEnd-fixfieldsStart), sf + fixfieldsStart);
                 return(-55034032);
               } else {
@@ -662,7 +664,7 @@ int add_fixfields_entries_to_chunk(df_init_data *df_id, char *sf, iStr fixfields
               }
             }
           } else {
-            vpt(0, "ERROR on cntFields=%ld, we had sf[%ld:%ld]=\"%.*s\", for sf[fs=%ld:fe=%ld]=\"%.*s\"\n",
+            vpt(-10, "ERROR [-53043023] on cntFields=%ld, we had sf[keyStart=%ld:keyEnd=%ld]=\"%.*s\", for sf[fs=%ld:fe=%ld]=\"%.*s\"\n",
               (long int) cntFields, keyStart, keyEnd, keyEnd-keyStart, sf+keyStart,
               fixfieldsStart, fixfieldsEnd, fixfieldsEnd-fixfieldsStart, sf + fixfieldsStart);
             return(-53043023);
@@ -1478,6 +1480,7 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
   #ifndef DEBUG_MODE
     char stt[] = " df_main.c->add_line_to_chunk(): ";
   #endif
+  iStr line_Start = df_id->onstr;
   int ii = df_id->onstr;
   int attempt;
   iStr fieldStart; iStr fieldEnd;  int n_total_added_fields = 0;
@@ -1489,18 +1492,47 @@ int add_line_to_chunk(duckdb_data_chunk out_chunk,
     //  printf("FOUR LINES ADDED(ion_schema=%ld), we thing total print columns is %ld \n", (long int) df_id->ion_schema, df_id->dfc->n_total_print_columns);
     //  return(0);
     //}
-    fieldStart = ii; NEXTCHARSEP(); fieldEnd = ii;
-    if ((fieldEnd-1 > fieldStart) && (sf[fieldEnd-1] == df_id->dfl->char_sep)) { fieldEnd--; }
-    while((fieldEnd-1 > fieldStart) && ((sf[fieldEnd-1] == ' ') || (sf[fieldEnd-1] == '\t') || (IsNewLineChar(sf[fieldEnd-1])))) { fieldEnd--; } 
-    while((fieldStart < fieldEnd-1) && ((sf[fieldStart] == ' ') || (sf[fieldStart] == '\t'))) { fieldStart++; }
+    if (dfc->schemas[df_id->ion_schema].typ == (fix42)) {
+      fieldStart = ii;  fieldStart = ((sf[fieldStart] != '{') && (fieldStart > 0) && (sf[fieldStart-1] == '{')) ? fieldStart -1 : fieldStart;
+      if (sf[fieldStart] != '{') { for (;fieldStart < df_id->iLineEnd;fieldStart++) { if (sf[fieldStart] == '{') { ii=fieldStart; break; }}}
+	 fieldEnd = get_end_brace("add_line_to_chunk", sf, fieldStart, df_id->iLineEnd) + 1;
+	 ii = fieldEnd;  for(;ii<end_ln;ii++) { if (sf[ii] = dfl->char_sep) { ii++; break; }}  
+    } else {
+      fieldStart = ii; 
+      NEXTCHARSEP(); 
+      fieldEnd = ii;
+      if ((fieldEnd-1 > fieldStart) && (sf[fieldEnd-1] == df_id->dfl->char_sep)) { fieldEnd--; }
+      while((fieldEnd-1 > fieldStart) && ((sf[fieldEnd-1] == ' ') || (sf[fieldEnd-1] == '\t') || (IsNewLineChar(sf[fieldEnd-1])))) { fieldEnd--; } 
+      while((fieldStart < fieldEnd-1) && ((sf[fieldStart] == ' ') || (sf[fieldStart] == '\t'))) { fieldStart++; }
+    }
     if (dfc->schemas[df_id->ion_schema].typ == fix42) { 
+       if ((sf[fieldEnd-1] != '}') && (fieldEnd < df_id->iLineEnd) && (sf[fieldEnd] == '}')) { fieldEnd++; }
+       if ((sf[fieldEnd-1] != '}') && (fieldEnd > fieldStart-2) && (sf[fieldEnd-1] == '}')) { fieldEnd--; }
        if ((sf[fieldStart] != '{') || (sf[fieldEnd-1] != '}')) {
-         vpt(0, "ERROR (fix42 version) (ion_schema=%ld/%ld) on fieldStart = %ld/%ld, we had sf[%ld:%ld]=\"%.*s\" with "
+         if (verbose >= -2) {
+           printf("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE: fix42 line. \n");
+           printf("EEE fix42 tag: on_overall_line = %ld. ", (long int) df_id->on_overall_line);
+           printf("failed to find schema for ion_schema=%ld/%ld \n", (long int) df_id->ion_schema, (long int) dfc->n_schemas);
+           printf("--: sf[%ld:%ld] = %.*s\n", ((long int) df_id->onstr), ((long int) end_ln), (int) end_ln-df_id->onstr, sf + df_id->onstr);
+           vpt(-100, "ERROR (fix42 version) (ion_schema=%ld/%ld) on fieldStart = %ld/%ld, we had sf[%ld:%ld]=\"%.*s\" with "
             "sf[fieldStart=%ld]=\'%c\', sf[fieldEnd-1=%ld]=\'%c\'\n",  (long int) df_id->ion_schema, (long int) dfc->n_schemas,
             (long int) df_id->ion_schema, (long int) df_id->dfc->n_schemas,
             (long int) fieldStart, (long int) fieldEnd, fieldEnd-fieldStart, df_id->buffer + fieldStart,
             (long int) fieldStart, sf[fieldStart], (long int) fieldEnd-1, sf[fieldEnd-1]);
-         printf(" --- ERROR note we want to be able to compare fields to \'{\' and \'}\' \n");
+           if (sf[fieldStart] == '{') {
+             printf("EEE -- Note fieldStart is correct, sf[fieldStart=%ld] = \'%c\'. \n", (long int) fieldStart, sf[fieldStart]);
+           } else {
+             printf("EEE -- Note fieldStart is bad, sf[fieldStart=%ld] = \'%c\'.\n", (long int) fieldStart, sf[fieldStart]);
+           }
+           if (sf[fieldEnd-1] == '}') {
+             printf("EEE -- Note fieldEnd is correct sf[(fieldEnd=%ld)-1=%ld] = \'%c\' \n", (long int) fieldEnd, (long int) (fieldEnd-1), sf[fieldEnd-1]);
+           } else {
+             printf("EEE -- Note fieldEnd is correct sf[(fieldEnd=%ld)-1=%ld] = \'%c\' \n", (long int) fieldEnd, (long int) (fieldEnd-1), sf[fieldEnd-1]);
+           }
+           printf("EEE --- ERROR note we want to be able to compare fields to \'{\' and \'}\' \n");
+         } else {
+           printf("Bust line due to fieldStart/fieldEnd issue [LINE=%ld], ion_schema=%ld. \n", (long int) df_id->on_overall_line, (long int) df_id->ion_schema);
+         }
          df_id->line_is_busted = UpdateBust( (df_id->line_is_busted) , (bust));
          return(-1014532);
        }
