@@ -1,5 +1,6 @@
 # "duckfix": a DuckDB library for processing FIX-message triggered logs
 - 2026-02-03
+- Recent Revisions: 2026/08/07 (version 0.1, testing on Duckdb 1.3 through 1.5)
 - Alan Lenarcic
 - lenarcic@post.harvard.edu
 - License GPLv2 (to be honest you should rewrite this code if it is useful to you)
@@ -12,7 +13,7 @@ These messages are typically sent and read between financial servers, and then r
 We consider logs, which include FIX information of a sample format:
 ```
 col1,col2,fixcol1,fixcol2,col5,...
-DEAL_1,SEND_2,{"5":"N"},{"8":10.3,"10":"Account","9":"Y"},10:30:43.0323,...
+DEAL_1,SEND_2,{"5":"N"},{"8":10.3,"10":"Account","9":"Y", "18":[1,2]},10:30:43.0323,...
 DEAL_1,SEND_3,{"5":"Y"},{"10":"Hello,"10":"Other","9":"Y"},10:40:43.0323,...
 ... 
 ```
@@ -27,12 +28,14 @@ The goal is to read a CSV of fix logs quickly into DuckDB using a DuckDB compile
 
 # I. Compiling
 
-1. Copy in extension-ci-tools library into folder.  Also copy "duckdb.h" and "duckdb_extension.h" into ```duckdb_capi``` folder.
-2. ```make configure``` gets Python and Duckdb ready.
-3. ```make debug```
-4. ```make release```
+1. Clone duckfix
+2. Copy in extension-ci-tools library into folder.  Currently the raw extension-ci-tools bash scripts work in linux, and we will test some subtle fixes for windows builds.
+3. Also copy "duckdb.h" and "duckdb_extension.h" into ```duckdb_capi``` folder.
+4. ```make configure``` running gets Python and Duckdb ready.  You may need an environment with cmake, duckdb, and python (consider Chocolatey) or any python environment (including anaconda, Pip, etc)
+5. ```make debug```
+6. ```make release```
 
-  Currently "make debug" can be run from the home directory, assuming duckdb is installed to windows environment, or alternatively, active in an anaconda environment.
+  Currently "make debug" and "make release" can be run from the home directory, assuming duckdb is installed to windows environment, or alternatively, active in an anaconda environment.  Release version should be stable now for typical large datasets in tested CSV log formats.
 
   The compiler will require "duckdb.h", "duckdb_extension.h" be copied into an assistant directory ```duckdb_capi```.  
   A clone of "extension-ci-tools" from github (placed in the child directory given)  will
