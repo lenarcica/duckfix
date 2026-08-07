@@ -57,6 +57,11 @@
 #define ERRNOH
 #endif
 
+#ifndef MATHH
+#include <math.h>
+#define MATHH
+#endif
+
 #define DDBUG 0
 
 #define SETINVALID(x) \
@@ -70,6 +75,10 @@
 
 DUCKDB_EXTENSION_EXTERN
 
+
+int add_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField,  iStr valStart, iStr valEnd, duckdb_data_chunk out_chunk, int verbose);
+int add_multi_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField, 
+  iStr valStart, iStr valEnd, int nmultiplicity, duckdb_data_chunk out_chunk, int verbose);
 
 int PRINT_multiplicity(df_init_data *df_id, const char *nmstr, duckdb_data_chunk out_chunk) {
   printf("--- Printing Multiplicity with info %s. total line=%d, chunk line = %d\n", nmstr,
