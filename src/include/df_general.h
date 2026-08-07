@@ -45,6 +45,18 @@
 #endif
 #endif
 
+#ifndef STDIOH
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#define STDIOH 0
+#endif
+
+#ifndef MATHH
+#include <math.h>
+#define MATHH 0
+#endif
+
 #ifndef FILE_READ_TYPE
 #if defined(_WIN32) || defined(_WIN64) 
 #define FILE_READ_TYPE "rb"
@@ -780,3 +792,6 @@ ii++
 int linePF(char *sf, iStr st, iStr end, char char_sep, char cr);
 #endif
 
+// Useful to df_main.c ordering
+//int add_multi_fixfield_entry_to_chunk(df_init_data *df_id, char *sf, int fixField, 
+//  iStr valStart, iStr valEnd, int nmultiplicity, duckdb_data_chunk out_chunk, int verbose);

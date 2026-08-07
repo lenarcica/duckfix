@@ -3,6 +3,8 @@
 
 #ifndef STDIOH
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #define STDIOH 0
 #endif
 
@@ -73,7 +75,13 @@ int get_next_comma(char* assignment, char *sf, iStr on_i, iStr nmax);
 int old_str_eq(const char *mst, const char *challengestr, iStr lencstr);
 iStr load_file_to_str(char **out_p_sf, char *json_filename, int verbose);
 //int get_next_key(char* assignment, char *sf, iStr nmax, iStr st, iStr end, iStr *p_st, iStr *p_end);
+//
+//
+int str_eq(const char *fix_str, iStr len_fix_str, char *buff, iStr buff_st, iStr buff_end);
+iStr get_str_l(char *name_str, char *ast, iStr nmax);
+int get_nlines(char *sf, int onst, int nmax);
 iStr get_next_key(char* assignment, char *sf, iStr st, iStr nmax, int verbose);
+iStr get_first_key(char *assignment, char *sf, iStr on_i, iStr nmax, int verbose);
 iStr get_value_bounds(char* assignment, char*sf, iStr key_loc, iStr nmax, int verbose, iStr *p_vst, iStr *p_vend);
 iStr find_key(const char *seek_key, iStr len_key, char*sf, iStr st, iStr len_sf, int verbose);
 int get_n_schema(char *assignment, char *sf, iStr on_i, iStr nmax, int verbose);
