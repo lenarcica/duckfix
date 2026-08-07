@@ -148,7 +148,7 @@ LOAD duckfix;
 create or replace table exT as select * from read_fixlog(verbose := 0, char_sep := ' ', file_name := './example/ex_randomT.csv', json_file_name:= 'config_jsons/fix42_t4.json',
   default_date='2026-04-20'); from exT;
 ```
-As we wee above, the "del" run in shell simply deletes existing duckdb installed packages. Then we install our target.
+As we see above, the "del" run in shell simply deletes existing duckdb installed packages. Then we install our target.
 
 III. Informational JSON format
 See example in example/fix42.json. Here we supply a schema for the table, naming the columns and giving types. Users need only supply Fix format (here example 4.20) codes, and intended code encodings (in case those exist). Fix message elements can be strings, single-character codes, decimals, timestamps, etc.
