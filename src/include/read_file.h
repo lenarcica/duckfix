@@ -54,17 +54,16 @@ ii++
 #endif
 
 #ifndef NEXTCHARSEP
-
-#define NEXTCHARSEP() \
-for(;ii < end_ln; ii++) { \
-  if (sf[ii] == on_char_sep) { break;  \
-  } else if ((sf[ii] == ' ') || (sf[ii] == '\t')) { \
-  } else if (sf[ii]=='\"') { \
+#define NEXTCHARSEP()                                          \
+for(;ii < end_ln; ii++) {                                      \
+  if (sf[ii] == on_char_sep) { break;                          \
+  } else if ((sf[ii] == ' ') || (sf[ii] == '\t')) {            \
+  } else if (sf[ii]=='\"') {                                   \
     ii = get_end_quote("nextchar_sep_read_file",sf,ii,end_ln); \
-  } else if (IsNewLineChar(sf[ii])) {              \
-    ii--; break;                                   \
-  } \
-} \
+  } else if (IsNewLineChar(sf[ii])) {                          \
+    ii--; break;                                               \
+  }                                                            \
+}                                                              \
 ii++ 
 
 #define NEXTCHARSEP_old() \
