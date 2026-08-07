@@ -6,10 +6,10 @@
 
 
 The following is a library designed to act as a framework for reading arbitrary FIX-message ("Financial Information eXchange") logs (https://en.wikipedia.org/wiki/Financial_Information_eXchange). 
-These messages are typically sent and read between financial servers, and then recorded in a variety of proprietary formats in cold storage logs.
+These messages are typically sent and read between financial servers, and then recorded in a variety of proprietary formats in cold storage logs.  It is designed to export Version 1.2+ Duckdb chunk-format tables using Duckdb "bind->init->main" table-function interface.  From there, users can save results using any Duckdb export format or make further queries.
 
 
-We consider logs of a format:
+We consider logs, which include FIX information of a sample format:
 ```
 col1,col2,fixcol1,fixcol2,col5,...
 DEAL_1,SEND_2,{"5":"N"},{"8":10.3,"10":"Account","9":"Y"},10:30:43.0323,...
@@ -17,7 +17,7 @@ DEAL_1,SEND_3,{"5":"Y"},{"10":"Hello,"10":"Other","9":"Y"},10:40:43.0323,...
 ... 
 ```
 
-That is, each line is a mixture of CSV information and Fix log material.  FIX messages might be contained in one or more JSON structures, or they may be appended to the end of the line and separated
+That is, each line is a mixture of CSV information and Fix log material, sometimes multiple FIX message blocks combined in a single line.  FIX messages might be contained in one or more JSON structures, or they may be appended to the end of the line and separated
 with a separate "fix_sep" separator character, as opposed to the comma used to separate the informational columns.  The role of a DuckDB package is to be able
 to ingest these logs into a DuckDB table, to export into parquet, and join logs together in a more reasoanable message-type separated format.
 
@@ -45,7 +45,7 @@ The goal is to read a CSV of fix logs quickly into DuckDB using a DuckDB compile
 # II. To run in Duckdb
  
   If you have duckdb, you need to uninstall any existing previous version of the package, and then run duckdb in "unsigned" mode so it can
-  reinstall this user-comoiled extension.  We can test on "ex1.csv", or we can use the "py/fake_data.py" file to create a larger "ex_rand.csv" file.
+  reinstall this user-compiled extension.  We can test on "ex1.csv", or we can use the "py/fake_data.py" file to create a larger "ex_rand.csv" file.
 
   Below is a sample set of code to use.  Note, it is recommended you supply a particular ```DUCKDB_EXTENSION_LOCATION``` that duckdb can write to.
 
